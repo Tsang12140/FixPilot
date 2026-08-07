@@ -13,6 +13,16 @@ from .knowledge import load_chunks
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
 
+
+@app.middleware("http")
+async def no_cache_static(request, call_next):
+    """禁用前端静态资源的强缓存，避免改版后浏览器仍使用旧文件。"""
+    response = await call_next(request)
+    path = request.url.path
+    if path.endswith((".js", ".css", ".html", ".svg")):
+        response.headers["Cache-Control"] = "no-cache, max-age=0, must-revalidate"
+    return response
+
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 _chunks = load_chunks()
@@ -386,3 +396,9 @@ def share_page(token: str):
 
 # 前端静态资源（必须放在 API 路由之后挂载）
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+
+
+if __name__ == "__main__":
+    # 支持宝塔"Python 项目管理器"直接以 main.py 为启动文件运行
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000)

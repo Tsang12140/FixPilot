@@ -13,7 +13,8 @@
     })();
   </script>
   <title>FixPilot</title>
-  <link rel="icon" type="image/svg+xml" href="logo.svg?v=2" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="favicon.svg?v=3" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -27,41 +28,43 @@
       <div class="bb-desc">专业排查电脑故障：蓝屏、卡死、无法开机、网络异常，交互式问诊，一步步带你解决。</div>
       <div class="bb-sub">电脑故障排查助手</div>
     </div>
-    <div class="login-card">
-      <div class="login-head">
-        <img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />
-        <div class="login-name">FixPilot</div>
-        <div class="login-sub">电脑故障排查助手</div>
-      </div>
-      <div class="login-tabs">
-        <button class="login-tab active" data-tab="invite">邀请码登录</button>
-        <button class="login-tab" data-tab="admin">管理员登录</button>
-      </div>
-      <div class="login-panel" id="invitePanel">
-        <div class="code-boxes" id="codeBoxes">
-          <span class="code-box" data-i="0"></span>
-          <span class="code-box" data-i="1"></span>
-          <span class="code-box" data-i="2"></span>
-          <span class="code-box" data-i="3"></span>
-          <span class="code-box" data-i="4"></span>
-          <span class="code-box" data-i="5"></span>
-          <input class="code-hidden-input" id="inviteCode" inputmode="text" maxlength="6" autocomplete="off" placeholder="" />
+    <div class="login-right">
+      <div class="login-card">
+        <div class="login-head">
+          <img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />
+          <div class="login-name">FixPilot</div>
+          <div class="login-sub">电脑故障排查助手</div>
         </div>
-        <button class="login-btn" id="inviteLoginBtn">进入 FixPilot</button>
-        <div class="login-err" id="inviteErr"></div>
+        <div class="login-tabs">
+          <button class="login-tab active" data-tab="invite">邀请码登录</button>
+          <button class="login-tab" data-tab="admin">管理员登录</button>
+        </div>
+        <div class="login-panel" id="invitePanel">
+          <div class="code-boxes" id="codeBoxes">
+            <span class="code-box" data-i="0"></span>
+            <span class="code-box" data-i="1"></span>
+            <span class="code-box" data-i="2"></span>
+            <span class="code-box" data-i="3"></span>
+            <span class="code-box" data-i="4"></span>
+            <span class="code-box" data-i="5"></span>
+            <input class="code-hidden-input" id="inviteCode" inputmode="text" maxlength="6" autocomplete="off" placeholder="" />
+          </div>
+          <button class="login-btn" id="inviteLoginBtn">进入 FixPilot</button>
+          <div class="login-err" id="inviteErr"></div>
+        </div>
+        <div class="login-panel" id="adminPanel" style="display:none">
+          <input class="login-input" id="adminUser" placeholder="管理员账号" autocomplete="username" />
+          <input class="login-input" id="adminPass" type="password" placeholder="密码" autocomplete="current-password" />
+          <button class="login-btn" id="adminLoginBtn">登录后台</button>
+          <div class="login-err" id="adminErr"></div>
+        </div>
       </div>
-      <div class="login-panel" id="adminPanel" style="display:none">
-        <input class="login-input" id="adminUser" placeholder="管理员账号" autocomplete="username" />
-        <input class="login-input" id="adminPass" type="password" placeholder="密码" autocomplete="current-password" />
-        <button class="login-btn" id="adminLoginBtn">登录后台</button>
-        <div class="login-err" id="adminErr"></div>
+      <div class="login-foot">
+        <button class="contact-btn" id="contactBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
+          <span>联系我们</span>
+        </button>
       </div>
-    </div>
-    <div class="login-foot">
-      <button class="contact-btn" id="contactBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
-        <span>联系我们</span>
-      </button>
     </div>
   </div>
 

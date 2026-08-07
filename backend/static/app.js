@@ -1,7 +1,12 @@
 /* FixPilot 前端逻辑：登录 + 多窗口会话(后端存储) + 聊天 */
-/* URL 参数 ?bg=N 切换登录页布局主题（1-5），默认 1 */
-const _bg = new URLSearchParams(location.search).get('bg') || '1';
+/* URL 参数 ?bg=N 切换登录页布局主题（1-5），默认 2（左右分栏） */
+const _bg = new URLSearchParams(location.search).get('bg') || '2';
 if (/^[1-5]$/.test(_bg)) document.body.classList.add('bg-' + _bg);
+
+/* 兼容不支持 background-clip:text 的设备：品牌名回退为纯色文字，避免出现渐变方框 */
+if (window.CSS && CSS.supports && !CSS.supports('background-clip', 'text')) {
+  document.body.classList.add('no-textclip');
+}
 
 /* 部署前缀：应用可挂载到子路径（如 /fixpilot），本地根路径时为空串 */
 const BASE = (function () {

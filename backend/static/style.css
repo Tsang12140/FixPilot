@@ -26,7 +26,7 @@ body {
 /* 应用容器：桌面侧边栏 + 主区，移动全屏 */
 .app {
   height: 100dvh;
-  display: flex;
+  display: none; /* 默认隐藏主界面，避免进入登录页前闪出主界面 */
   gap: 14px;
   padding: 14px;
   background: transparent;
@@ -893,7 +893,8 @@ body.bg-5 .login-screen::after {
 .login-bigbrand .bb-name {
   font-weight: 800; letter-spacing: -2px; line-height: .95;
   background: linear-gradient(120deg,#3b6cf6 0%,#7a5cff 55%,#b06bff 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
 }
 .login-bigbrand .bb-sub { color: #7a87a0; font-weight: 600; }
 .login-bigbrand .bb-line, .login-bigbrand .bb-slogan, .login-bigbrand .bb-desc { display: none; }
@@ -964,11 +965,13 @@ body.bg-2 .login-screen::after {
 /* 左品牌块：更大、玻璃质感 */
 body.bg-2 .login-bigbrand {
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  width: 60%; height: 100%; padding: 6vw;
+  width: 55%; height: 100%; padding: 6vw;
   background: rgba(255,255,255,.34);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   backdrop-filter: blur(20px) saturate(150%);
-  border-right: 1px solid rgba(255,255,255,.6);
+  /* 右侧冲刷渐变过渡：取代生硬的 border-right 分界线，让磨砂逐渐融入背景 */
+  -webkit-mask-image: linear-gradient(to right, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 82%, transparent 100%);
   text-align: left;
 }
 body.bg-2 .login-bigbrand .bb-name { font-size: clamp(56px, 8vw, 130px); letter-spacing: -3px; }
@@ -982,28 +985,91 @@ body.bg-2 .login-bigbrand .bb-desc { display: block; font-size: 15px; color: #5a
 /* 去掉两处"电脑故障排查助手"副标题，更干净 */
 body.bg-2 .login-bigbrand .bb-sub { display: none; }
 body.bg-2 .login-head .login-sub { display: none; }
-/* 登录卡：右侧垂直居中，内含漂浮 logo */
+/* 右侧区：占满品牌块之外的空间，卡片在区域内垂直水平居中，不贴边 */
+body.bg-2 .login-right {
+  position: relative; flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0 4vw;
+}
 body.bg-2 .login-head { display: block; }
 body.bg-2 .login-card {
-  position: absolute; right: 6vw; top: 50%; transform: translateY(-50%); margin: 0;
+  position: static; transform: none; margin: 0;
   width: 400px; max-width: 400px; animation: none;
 }
-/* 联系我们：X 轴对齐登录卡中心，Y 轴保持在底部 */
+/* 联系我们：锚定在右侧区域内底部居中 */
 body.bg-2 .login-foot {
-  position: absolute; left: calc(100% - 6vw - 200px); transform: translateX(-50%);
+  position: absolute; left: 50%; transform: translateX(-50%);
   bottom: 36px; margin: 0;
 }
 @media (max-width: 760px) {
-  /* 手机：去掉顶部品牌块，只留卡片内的 FixPilot 标题，卡片整体居中、无需滚动 */
-  body.bg-2 .login-screen { flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-  body.bg-2 .login-bigbrand { display: none; }
-  body.bg-2 .login-head { display: block; }
-  body.bg-2 .login-card { position: static; transform: none; width: 100%; max-width: 400px; margin: 0 auto; }
-  /* 联系我们：手机端锚定屏幕底部居中 */
-  body.bg-2 .login-foot {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    bottom: calc(26px + env(safe-area-inset-bottom)); margin: 0;
+  /* 手机：复刻桌面端柔和蓝紫渐变，整体融合（不另起饱和配色，不留玻璃分栏的痕迹） */
+  body.bg-2 .login-screen {
+    flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px;
+    background: linear-gradient(135deg, #c3d8ff 0%, #e0e6ff 35%, #e9ecff 52%, #d2e4ff 78%, #c8dbff 100%);
+    background-size: 220% 220%;
+    animation: bgflow2 24s ease-in-out infinite;
   }
+  /* === [Q2] 隐藏桌面端 4 色斑 ::before 层 ===
+     原因：桌面端 ::before 在四角放 4 个 radial-gradient 色斑，宽屏下融合得好；
+     到窄长手机屏上色斑全挤到顶/底角，纵向中部色斑密度骤降，露出底下线性渐变，
+     视觉上形成一条横贯中部的"分界线"。
+     回滚：删掉下面这一条规则即可恢复色斑层。
+     备选方案 B（保留色斑但消除中缝）：删掉 display:none，改用
+       background-size: 140% 140%; background-position: 50% 50%;
+     备选方案 C（加大色斑覆盖）：删掉 display:none，把 4 个色斑的半径从 46%/44% 调到 75%/72%。 */
+  body.bg-2 .login-screen::before { display: none; }
+  /* 顶部品牌：抹掉桌面端继承下来的玻璃块/遮罩/撑高/内边距，
+     否则会变成全宽玻璃条，上下边缘出"两条线"、整体像块"大方块"糊在背景上把渐变割裂 */
+  body.bg-2 .login-bigbrand {
+    display: block; width: 100%; text-align: center; margin-bottom: 88px; /* 22→48→68→88，品牌字再上移 */
+    background: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    -webkit-mask-image: none; mask-image: none;
+    height: auto; padding: 0;
+  }
+  /* === [Q1] 品牌字渐变：@supports 渐进增强 ===
+     默认走纯色 #3b6cf6（任何设备都能渲染），仅当浏览器支持 background-clip:text
+     时才覆盖成蓝→紫→品红渐变字。比原来"直接裁剪 + JS 注入 no-textclip 兜底"更内聚。
+     回滚到纯色：删掉下面整个 @supports 块即可，默认 color:#3b6cf6 已经兜底。
+     回滚到原方案（直接裁剪不兜底）：删掉 @supports 包裹层，把里面的规则提到外面，
+       并把外层 color:#3b6cf6 删掉。 */
+  body.bg-2 .login-bigbrand .bb-name {
+    font-size: clamp(50px, 17vw, 74px);
+    color: #3b6cf6; /* 不支持 background-clip:text 时的兜底纯色 */
+  }
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    body.bg-2 .login-bigbrand .bb-name {
+      background: linear-gradient(120deg, #3b6cf6 0%, #7a5cff 55%, #b06bff 100%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+  }
+  body.bg-2 .login-bigbrand .bb-line,
+  body.bg-2 .login-bigbrand .bb-slogan,
+  body.bg-2 .login-bigbrand .bb-desc,
+  body.bg-2 .login-bigbrand .bb-sub { display: none; }
+  body.bg-2 .login-head { display: block; }
+  body.bg-2 .login-right { position: static; flex: none; width: 100%; max-width: 400px; padding: 0; }
+  /* 移动端沿用桌面那张玻璃卡片 */
+  body.bg-2 .login-card { position: static; transform: none; width: 100%; max-width: 400px; margin: 0 auto; animation: none; }
+  /* 三行同宽：标签 / 验证码框 / 按钮 统一收窄居中，压实避免拉长 */
+  body.bg-2 .login-panel { min-height: 0; gap: 11px; align-items: center; }
+  body.bg-2 .login-tabs { width: 264px; margin: 0 auto 18px; }
+  body.bg-2 .code-boxes { width: 100%; max-width: 264px; }
+  body.bg-2 .code-box { height: 50px; }
+  body.bg-2 .login-btn { width: 264px; }
+  /* 管理员账号/密码输入框：跟上方标签栏、下方按钮同宽（264px），三行视觉对齐 */
+  body.bg-2 .login-input { width: 264px; }
+  /* 联系我们：放到更下方，与卡片拉开距离（30→56→76→96，等量配合品牌上移，卡片保持居中） */
+  body.bg-2 .login-foot { position: static; transform: none; margin: 96px 0 0; }
+}
+
+/* 矮屏兜底（iPhone SE 1/2/3 代 667px 高、iPhone mini 横屏等）：
+   88/96 间距会让内容溢出、品牌/联系被裁切，回退到 48/56 版本。
+   触发条件：手机宽度 + 矮高度（≤700px）。回滚：删掉这个 @media 块即可。 */
+@media (max-width: 760px) and (max-height: 700px) {
+  body.bg-2 .login-bigbrand { margin-bottom: 48px; }
+  body.bg-2 .login-foot { margin: 56px 0 0; }
 }
 
 /* ================= bg-3 深色科技：左上发光大字 + 右下浮卡 ================= */
@@ -1029,7 +1095,8 @@ body.bg-3 .login-bigbrand {
 }
 body.bg-3 .login-bigbrand .bb-name {
   background: linear-gradient(120deg,#9fc0ff 0%,#7fb8ff 60%,#ffffff 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
   font-size: clamp(44px, 6vw, 90px);
   filter: drop-shadow(0 0 30px rgba(120,165,255,.5));
 }
@@ -1203,3 +1270,12 @@ body.bg-5 .login-foot { position: absolute; right: 6vw; bottom: 30px; left: auto
 .ahist-msg { margin: 5px 0; font-size: 13px; line-height: 1.7; }
 .ahist-role { font-size: 11px; color: var(--text-2); margin-right: 6px; }
 .ahist-msg .ahist-role { font-weight: 600; }
+
+/* ============ 兼容不支持 background-clip:text 的设备 ============
+   品牌名回退为纯色文字，避免渐变背景变成一整块方框、文字却看不见 */
+body.no-textclip .login-bigbrand .bb-name {
+  background: none;
+  -webkit-background-clip: initial; background-clip: initial;
+  -webkit-text-fill-color: initial;
+  color: #3b6cf6;
+}
