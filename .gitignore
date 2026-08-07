@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+backend/.env
+backend/fixpilot.db
+file/
+_mktest.py
+_test_joke.py
+*.pyc
+node_modules/
+.DS_Store

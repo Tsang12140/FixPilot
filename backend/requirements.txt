@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+jieba
+httpx
+python-dotenv
+rapidocr-onnxruntime
+onnxruntime==1.20.1

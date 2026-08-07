@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <script>
+    /* 部署前缀：让静态资源相对 /fixpilot/ 等子路径解析 */
+    (function () {
+      var seg = (location.pathname.replace(/\/+$/, '').split('/')[1] || '');
+      var prefix = (seg && seg !== 'share' && seg !== 'admin' && seg !== 'mindmap') ? '/' + seg : '';
+      document.write('<base href="' + (prefix ? prefix + '/' : '/') + '">');
+    })();
+  </script>
+  <title>FixPilot</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg?v=2" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 登录界面 -->
+  <div class="login-screen" id="loginScreen">
+    <img class="login-ghost" src="logo.svg?v=2" alt="" />
+    <div class="login-bigbrand" id="loginBigbrand">
+      <div class="bb-name">FixPilot</div>
+      <div class="bb-line"></div>
+      <div class="bb-slogan">电脑出问题？一次解决一个</div>
+      <div class="bb-desc">专业排查电脑故障：蓝屏、卡死、无法开机、网络异常，交互式问诊，一步步带你解决。</div>
+      <div class="bb-sub">电脑故障排查助手</div>
+    </div>
+    <div class="login-card">
+      <div class="login-head">
+        <img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />
+        <div class="login-name">FixPilot</div>
+        <div class="login-sub">电脑故障排查助手</div>
+      </div>
+      <div class="login-tabs">
+        <button class="login-tab active" data-tab="invite">邀请码登录</button>
+        <button class="login-tab" data-tab="admin">管理员登录</button>
+      </div>
+      <div class="login-panel" id="invitePanel">
+        <div class="code-boxes" id="codeBoxes">
+          <span class="code-box" data-i="0"></span>
+          <span class="code-box" data-i="1"></span>
+          <span class="code-box" data-i="2"></span>
+          <span class="code-box" data-i="3"></span>
+          <span class="code-box" data-i="4"></span>
+          <span class="code-box" data-i="5"></span>
+          <input class="code-hidden-input" id="inviteCode" inputmode="text" maxlength="6" autocomplete="off" placeholder="" />
+        </div>
+        <button class="login-btn" id="inviteLoginBtn">进入 FixPilot</button>
+        <div class="login-err" id="inviteErr"></div>
+      </div>
+      <div class="login-panel" id="adminPanel" style="display:none">
+        <input class="login-input" id="adminUser" placeholder="管理员账号" autocomplete="username" />
+        <input class="login-input" id="adminPass" type="password" placeholder="密码" autocomplete="current-password" />
+        <button class="login-btn" id="adminLoginBtn">登录后台</button>
+        <div class="login-err" id="adminErr"></div>
+      </div>
+    </div>
+    <div class="login-foot">
+      <button class="contact-btn" id="contactBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
+        <span>联系我们</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- PIN 码弹窗 -->
+  <div class="pin-scrim" id="pinModal">
+    <div class="pin-card">
+      <button class="pin-close" id="pinClose" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="pin-title" id="pinTitle">设置 PIN 码</div>
+      <div class="pin-desc" id="pinDesc">请设置一个 4 位数字 PIN 码，下次登录时需要输入</div>
+      <div class="pin-boxes" id="pinBoxes">
+        <span class="pin-box" data-i="0"></span>
+        <span class="pin-box" data-i="1"></span>
+        <span class="pin-box" data-i="2"></span>
+        <span class="pin-box" data-i="3"></span>
+        <input class="pin-hidden-input" id="pinInput" inputmode="numeric" maxlength="4" autocomplete="off" />
+      </div>
+      <div class="login-err" id="pinErr"></div>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div class="app" id="app">
+    <!-- 会话侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img class="logo" src="logo.svg?v=2" alt="FixPilot" />
+        <span class="sidebar-name">FixPilot</span>
+      </div>
+      <button class="new-btn" id="newChat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        新建对话
+      </button>
+      <div class="conv-label">最近对话</div>
+      <div class="conv-list" id="convList"></div>
+      <div class="sidebar-foot">故障排查 · 每轮独立窗口<br /><a class="contact-link" href="mailto:silver26719@gmail.com">联系我们</a></div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <!-- 主区 -->
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn" aria-label="菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div class="topbar-left">
+          <img class="logo" src="logo.svg?v=2" alt="FixPilot" />
+          <div class="topbar-title">
+            <div class="name">FixPilot</div>
+            <div class="sub">电脑故障排查助手</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="quota-wrap" id="quotaWrap" style="display:none">
+            <span class="quota" id="quotaBadge"></span>
+            <span class="quota quota-exp" id="quotaExp"></span>
+          </div>
+          <button class="logout-btn" id="shareBtn" aria-label="分享对话" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+          </button>
+          <button class="logout-btn" id="adminBtn" aria-label="管理后台" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          <button class="logout-btn" id="logoutBtn" aria-label="退出登录">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4"/><path d="M10 17l-5-5 5-5"/><path d="M15 12H5"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 分享菜单 -->
+      <div class="share-menu" id="shareMenu">
+        <button type="button" id="shareImgOpt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          生成长图
+        </button>
+        <button type="button" id="shareLinkOpt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          复制分享链接
+        </button>
+      </div>
+
+      <!-- 消息区 -->
+      <main class="chat" id="chat"></main>
+
+      <!-- 输入栏 -->
+      <footer class="composer-wrap">
+        <div class="img-preview" id="imgPreview" style="display:none">
+          <img id="previewImg" alt="图片预览" />
+          <button type="button" id="imgRemove" aria-label="移除图片">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="composer">
+          <input type="file" id="imgInput" accept="image/*" aria-label="上传图片" />
+          <button type="button" id="imgBtn" aria-label="上传图片">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          </button>
+          <textarea id="input" rows="1" placeholder="描述你的电脑问题…"></textarea>
+          <button type="button" id="send" aria-label="发送">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20 22 12 3 4v6l13 2-13 2z"/></svg>
+          </button>
+        </div>
+        <div class="hint">Enter 发送 / Shift+Enter 换行</div>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 邀请码管理面板（管理员齿轮打开） -->
+  <div class="admin-modal" id="adminModal">
+    <div class="admin-panel">
+      <div class="admin-head">
+        <div class="admin-title">邀请码管理</div>
+        <button class="pin-close" id="adminClose" type="button" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="admin-body" id="adminBody"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

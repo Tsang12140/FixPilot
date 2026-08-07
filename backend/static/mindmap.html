@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+(function(){var seg=(location.pathname.replace(/\/+$/,'').split('/')[1]||'');var prefix=(seg&&seg!=='share'&&seg!=='admin'&&seg!=='mindmap')?'/'+seg:'';document.write('<base href="'+(prefix?prefix+'/':'/')+'">')})();
+</script>
+<title>FixPilot - 电脑故障排查 - 排查导图</title>
+<style>
+:root{--text:#1f2430;--muted:#8a919f;--line:#e3e6ec;--accent:#3b6cf6}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7f9;color:var(--text);
+ font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+header{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header .brand{display:flex;align-items:center;gap:10px}
+header .brand img{width:32px;height:32px;border-radius:9px}
+header h1{font-size:16px;margin:0;font-weight:700}
+header .sub{font-size:12px;color:var(--muted)}
+.tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;color:var(--text)}
+button:hover{border-color:var(--accent);color:var(--accent)}
+#wrap{position:relative;width:100%;height:calc(100vh - 57px);background:#fff}
+#map{width:100%;height:100%;display:block;background:
+  radial-gradient(circle at 50% -20%, #ffffff 0%, #f3f5f9 80%)}
+#panel{position:absolute;right:16px;top:16px;width:280px;max-height:calc(100% - 40px);overflow:auto;
+ background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(20,30,60,.10);
+ padding:14px 16px;font-size:13px;line-height:1.6;display:none}
+#panel h3{margin:0 0 6px;font-size:14px}
+#panel .cat{display:inline-block;font-size:11px;color:#fff;border-radius:4px;padding:1px 6px;margin-bottom:8px}
+#panel ul{margin:0;padding-left:18px}
+#panel li{margin:3px 0}
+#legend{position:absolute;left:16px;bottom:16px;display:flex;flex-wrap:wrap;gap:6px;max-width:340px}
+#legend span{font-size:11px;color:#fff;border-radius:999px;padding:3px 9px}
+/* 禁选中 + 抓手 */
+#map, #map *{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+#map{cursor:grab;touch-action:none}
+#map.grabbing{cursor:grabbing}
+#panel{-webkit-user-select:text;user-select:text}
+/* 节点 */
+.node{cursor:pointer}
+.npill{stroke-width:1.5px;transition:filter .15s}
+.node:hover .npill{filter:drop-shadow(0 2px 5px rgba(20,30,60,.18))}
+.node text{user-select:none;paint-order:stroke;stroke:#fff;stroke-width:2px}
+.node.root text{font-size:15px;font-weight:700;fill:#fff;stroke:none}
+.node.cat text{font-size:13px;font-weight:650;fill:#fff;stroke:none}
+.node.sub text{font-size:12px;font-weight:600}
+.node.leaf text{font-size:12px;font-weight:400}
+.edge{stroke:#c6cdd9;stroke-width:1.5;fill:none}
+.edge.hidden{display:none}
+.node.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="logo.svg?v=2" alt=""/><div>
+    <h1>FixPilot - 电脑故障排查导图</h1>
+    <div class="sub">中心为总入口，9 大分支向右侧展开、末端文字竖排，点击节点折叠/展开</div>
+  </div></div>
+  <div class="tools">
+    <button id="zoomin">放大</button>
+    <button id="zoomout">缩小</button>
+    <button id="fit">复位视图</button>
+    <button id="expand">全部展开</button>
+    <button id="collapse">全部折叠</button>
+  </div>
+</header>
+<div id="wrap">
+  <svg id="map"></svg>
+  <div id="legend"></div>
+  <div id="panel"></div>
+</div>
+
+<script>
+/* ============ 树数据 ============ */
+const CATSP = [
+  {key:'阶段1',name:'开机不通电',color:'#3b6cf6'},
+  {key:'阶段2',name:'通电但黑屏',color:'#7c5cf0'},
+  {key:'阶段3',name:'进不了系统',color:'#0ea5a5'},
+  {key:'阶段4',name:'蓝屏、卡死',color:'#e08a2e'},
+  {key:'阶段5',name:'花屏、闪屏',color:'#d6457e'},
+  {key:'阶段6',name:'使用中常见问题',color:'#57a05a'},
+  {key:'阶段7',name:'安装系统',color:'#c0392b'},
+  {key:'阶段8',name:'重装常见问题',color:'#5a6b8a'},
+  {key:'阶段9',name:'系统优化',color:'#7d5aa6'},
+];
+const colorOf = Object.fromEntries(CATSP.map(c=>[c.key,c.color]));
+const nameOf = Object.fromEntries(CATSP.map(c=>[c.key,c.name]));
+
+const TREE = [
+ {cat:'阶段1', st:'开机不通电', kids:['插线板/电源开关','主板、CPU供电线','短接开机针脚','POWER/RESET/HDD接线','换品字电源线','短接待机绿线测电源']},
+ {cat:'阶段2', st:'通电但黑屏', kids:[
+   ['判断分流：按CapsLock', [
+     ['灯不亮→CPU/内存',['重插内存擦金手指','只插一根内存','重置BIOS(CMOS/电池)','CPU灯亮→查供电/重装']],
+     ['灯亮→显卡/显示器',['显示器通电、信号线','换HDMI/DP/换线','拆显卡擦金手指','延长线→GEN3或换4.0线']],
+   ]],
+ ]},
+ {cat:'阶段3', st:'进不了系统', kids:['NewCPU/F1→按F1后ESC','按键重复→拔U盘/重装','只能进BIOS→开CSM/换接口','系统修复→重置/重装']},
+ {cat:'阶段4', st:'蓝屏、卡死、掉盘', kids:['游戏中蓝屏→关超频','反复蓝屏→系统/驱动','轻碰死机→内存接触','游戏黑屏风扇满速→显卡供电','固态掉盘→通电30分钟','高负载黑屏→电源不足','低功耗死机→关CPU C状态']},
+ {cat:'阶段5', st:'花屏、闪屏、黑屏', kids:['偶尔黑屏→线材/G-Sync','高刷冬季花屏→降刷新率','渲染错误花屏→拷显存','固定形状花屏→显示器坏','老接口花屏→换数字信号']},
+ {cat:'阶段6', st:'使用中常见问题', kids:[
+   ['游戏帧数暴跌',['温度过高→散热/硅脂','N卡即时重放','延长线3.0拖累','显卡驱动','CPU异常占用']],
+   ['开机慢/反应慢',['固态看DiskInfo 03/0E','机械盘坏道检测']],
+   ['鼠标卡顿漂移','游戏报错缺运行库','游戏频繁闪退','切屏黑屏→分辨率','显示器不到高刷→手动设','新硬盘不显示→初始化','老游戏打不了中文','电脑没声音→驱动/接口','前置USB→机箱线接主板'],
+ ]},
+ {cat:'阶段7', st:'安装系统', kids:[['准备U盘+FAT32',['Win10制作媒体','Win11制作媒体+跳过联网']],'BIOS设U盘启动','删分区装到未分配空间','用户名用英文']},
+ {cat:'阶段8', st:'重装常见问题', kids:['找不到硬盘→关RST/开CSM','反复进安装→拔U盘','不满足Win11→绕过TPM']},
+ {cat:'阶段9', st:'系统优化', kids:['装网卡驱动','装显卡驱动(DDU)','开高刷+testufo验证','激活系统','硬盘分区','高性能电源计划','关自启软件','开内存XMP']},
+];
+
+/* 转通用节点树 */
+const root={id:'root',text:'FixPilot 电脑故障排查',cat:'',children:[]};
+let idc=0, depthMax=0;
+function build(item,cat,parent){
+  const node={id:'n'+(idc++),text:(Array.isArray(item)?item[0]:item),cat,children:[]};
+  if(Array.isArray(item)&&Array.isArray(item[1])) item[1].forEach(k=>build(k,cat,node));
+  parent.children.push(node);return node;
+}
+TREE.forEach(b=>build([b.st,b.kids],b.cat,root));
+
+/* ============ 竖排布局（左→右，末端文字从上往下） ============ */
+const colW=250, rowH=38, rootX=46;
+let yPtr=60;
+function countLeaves(n){ if(!n.children.length)return 1; return n.children.reduce((s,c)=>s+countLeaves(c),0); }
+function compute(n,depth){
+  if(depth>depthMax)depthMax=depth;
+  n.depth=depth;
+  n.x = rootX + depth*colW;
+  if(!n.children.length){ n.y=yPtr; yPtr+=rowH; return; }
+  n.children.forEach(c=>compute(c,depth+1));
+  n.y=(n.children[0].y+n.children[n.children.length-1].y)/2;
+}
+compute(root,0);
+const treeH=yPtr+40;
+const treeW=(depthMax+1)*colW+220;
+
+/* ============ 渲染 ============ */
+const svg=document.getElementById('map');
+const NS='http://www.w3.org/2000/svg';
+const collapsed=new Set();
+const allNodes=[root];
+(function collect(n){n.children.forEach(c=>{allNodes.push(c);collect(c);});})(root);
+allNodes.forEach(n=>n.children.forEach(c=>c._parent=n));
+
+// 简化可见性：祖先被折叠则隐藏
+function isVisible(n){let p=n;while(p){if(p!==root&&collapsed.has(p.id))return false;if(p===root)break;p=p._parent;}return true;}
+
+function pillW(n){const f=n.nodeKind==='root'?15:(n.nodeKind==='cat'?13:12);return Math.max(46,n.text.length*f+30);}
+function pillH(n){return n.nodeKind==='root'?40:30;}
+
+function render(){
+  svg.innerHTML='';
+  // 连线
+  allNodes.forEach(n=>{
+    if(n===root||!isVisible(n))return;
+    const p=n._parent; if(!isVisible(p))return;
+    const x1=p.x+pillW(p)/2, y1=p.y, x2=n.x-pillW(n)/2, y2=n.y, mx=(x1+x2)/2;
+    const e=document.createElementNS(NS,'path');
+    e.setAttribute('d','M'+x1+' '+y1+' H'+mx+' V'+y2+' H'+x2);
+    e.setAttribute('class','edge'); svg.appendChild(e);
+  });
+  // 节点
+  allNodes.forEach(n=>{
+    if(!isVisible(n))return;
+    const col=colorOf[n.cat]||'#3b6cf6';
+    const kind=n===root?'root':(n.cat&&n.children.length?'cat':(n.cat?'sub':'leaf'));
+    n.nodeKind=kind;
+    const w=pillW(n), h=pillH(n), x=n.x-w/2, y=n.y-h/2;
+    const g=document.createElementNS(NS,'g');
+    g.setAttribute('class','node '+kind);
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('class','npill');
+    r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',w);r.setAttribute('height',h);
+    r.setAttribute('rx',h/2);
+    if(kind==='root'||kind==='cat'){ r.setAttribute('fill',col); r.setAttribute('stroke','none'); }
+    else { r.setAttribute('fill','#ffffff'); r.setAttribute('stroke',col); }
+    g.appendChild(r);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',n.x);t.setAttribute('y',n.y+1);
+    t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
+    t.textContent=n.text;
+    g.appendChild(t);
+    g.addEventListener('click',e=>{e.stopPropagation();if(moved){moved=false;return;}toggleNode(n);});
+    g.addEventListener('mouseenter',()=>showPanel(n));
+    g.addEventListener('mouseleave',()=>{if(!panelPinned)hidePanel();});
+    svg.appendChild(g);
+  });
+}
+function toggleNode(n){ if(!n.children.length)return; if(collapsed.has(n.id))collapsed.delete(n.id);else collapsed.add(n.id); panelPinned=true; render(); }
+
+/* ============ 详情面板 ============ */
+let panelPinned=false;
+function showPanel(n){
+  const panel=document.getElementById('panel');
+  const col=colorOf[n.cat]||'#3b6cf6';
+  let html='<span class="cat" style="background:'+col+'">'+(nameOf[n.cat]||'总览')+'</span>';
+  html+='<h3>'+n.text+'</h3>';
+  if(n.children.length) html+='<ul>'+n.children.map(c=>'<li>'+c.text+'</li>').join('')+'</ul>';
+  else html+='<div style="color:#8a919f">解决方案/排查点。点击父节点可折叠。</div>';
+  panel.innerHTML=html; panel.style.display='block';
+}
+function hidePanel(){document.getElementById('panel').style.display='none';panelPinned=false;}
+
+/* 图例 */
+const legend=document.getElementById('legend');
+CATSP.forEach(c=>{const s=document.createElement('span');s.style.background=c.color;s.textContent=c.name;legend.appendChild(s)});
+
+/* ============ 缩放 + 抓手 ============ */
+const vb={x:0,y:0,w:treeW,h:treeH};
+function applyVB(){svg.setAttribute('viewBox',[vb.x,vb.y,vb.w,vb.h].join(' '));}
+function zoomAt(px,py,factor){
+  const vx=vb.x+px*vb.w, vy=vb.y+py*vb.h;
+  const nw=Math.min(vb.wMax,Math.max(200,vb.w*factor));
+  const nh=nw*(vb.h/vb.w);
+  vb.w=nw;vb.h=nh;vb.x=vx-px*nw;vb.y=vy-py*nh;applyVB();
+}
+vb.wMax=treeW;
+svg.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=svg.getBoundingClientRect();
+  zoomAt((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height,e.deltaY<0?0.85:1.18);
+},{passive:false});
+let dragging=false,moved=false,lastX=0,lastY=0;
+svg.addEventListener('mousedown',e=>{dragging=true;moved=false;lastX=e.clientX;lastY=e.clientY;svg.classList.add('grabbing');e.preventDefault();});
+window.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  const dx=e.clientX-lastX,dy=e.clientY-lastY;
+  if(!moved&&Math.abs(dx)+Math.abs(dy)>2)moved=true;
+  const r=svg.getBoundingClientRect();
+  vb.x-=dx/r.width*vb.w;vb.y-=dy/r.height*vb.h;
+  lastX=e.clientX;lastY=e.clientY;applyVB();
+});
+window.addEventListener('mouseup',()=>{dragging=false;svg.classList.remove('grabbing');});
+
+document.getElementById('zoomin').onclick=()=>zoomAt(0.5,0.5,0.8);
+document.getElementById('zoomout').onclick=()=>zoomAt(0.5,0.5,1.25);
+document.getElementById('fit').onclick=()=>{vb.x=0;vb.y=0;vb.w=treeW;vb.h=treeH;applyVB();};
+document.getElementById('expand').onclick=()=>{collapsed.clear();render();};
+document.getElementById('collapse').onclick=()=>{allNodes.forEach(n=>{if(n!==root&&n.children.length)collapsed.add(n.id)});render();};
+
+render();
+</script>
+</body>
+</html>
