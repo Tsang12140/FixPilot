@@ -85,6 +85,11 @@ const API_PRESETS = {
     models: ['deepseek-v4-flash'],
     keyPlaceholder: '\u706b\u5c71\u65b9\u821f API Key',
   },
+  volcengineResponses: {
+    base: 'https://ark.cn-beijing.volces.com/api/v3/responses',
+    models: ['deepseek-v4-flash-260425'],
+    keyPlaceholder: '\u706b\u5c71\u65b9\u821f API Key',
+  },
   openai: {
     base: 'https://api.openai.com/v1',
     models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],

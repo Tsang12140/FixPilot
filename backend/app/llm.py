@@ -118,12 +118,26 @@ def normalize_api_key(api_key: str) -> str:
     return key
 
 
-def chat_completions_url(api_base: str) -> str:
-    """Accept either an OpenAI-compatible API base or its full chat endpoint."""
+def api_endpoint_url(api_base: str) -> str:
+    """Accept an API base, a Chat Completions URL, or a Responses API URL.
+
+    A plain base keeps the historic /chat/completions behavior. Users who
+    enter a full /responses endpoint opt in to the OpenAI Responses format.
+    """
     url = (api_base or config.DEEPSEEK_BASE_URL).rstrip("/")
-    if url.endswith("/chat/completions"):
+    if url.endswith("/chat/completions") or url.endswith("/responses"):
         return url
     return url + "/chat/completions"
+
+
+def chat_completions_url(api_base: str) -> str:
+    """Backward-compatible name for callers that expect the resolved URL."""
+    return api_endpoint_url(api_base)
+
+
+def is_responses_api_url(url: str) -> bool:
+    """Whether the configured endpoint speaks the OpenAI Responses protocol."""
+    return (url or "").rstrip("/").endswith("/responses")
 
 
 def is_volcengine_ark_url(url: str) -> bool:
@@ -181,14 +195,62 @@ def build_chat_payload(messages: List[Dict[str, str]], model: str, url: str) -> 
     return payload
 
 
+def build_responses_payload(messages: List[Dict[str, str]], model: str) -> Dict:
+    """Translate FixPilot's message list into the OpenAI Responses format.
+
+    System policies become ``instructions`` so they retain their intended
+    priority. Conversation turns are represented as typed input/output text.
+    We deliberately do not enable the example's web_search tool: FixPilot has
+    no tool-result loop and its product policy must not claim live web access.
+    """
+    instructions = []
+    input_items = []
+    for message in messages:
+        role = message.get("role", "user")
+        content = str(message.get("content", ""))
+        if not content:
+            continue
+        if role == "system":
+            instructions.append(content)
+            continue
+        if role == "assistant":
+            input_items.append({
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": content}],
+            })
+            continue
+        input_items.append({
+            "role": "user",
+            "content": [{"type": "input_text", "text": content}],
+        })
+
+    payload = {
+        "model": model or config.DEEPSEEK_MODEL,
+        "stream": True,
+        "input": input_items or [{
+            "role": "user",
+            "content": [{"type": "input_text", "text": "Hi"}],
+        }],
+    }
+    if instructions:
+        payload["instructions"] = "\n\n".join(instructions)
+    return payload
+
+
+def build_request_payload(messages: List[Dict[str, str]], model: str, url: str) -> Dict:
+    if is_responses_api_url(url):
+        return build_responses_payload(messages, model)
+    return build_chat_payload(messages, model, url)
+
+
 def test_chat_connection(
     api_key: str,
     base_url: str = "",
     model: str = "",
 ) -> None:
     """Test an OpenAI-compatible endpoint without depending on SSE output."""
-    url = chat_completions_url(base_url)
-    payload = build_chat_payload([{"role": "user", "content": "Hi"}], model, url)
+    url = api_endpoint_url(base_url)
+    payload = build_request_payload([{"role": "user", "content": "Hi"}], model, url)
     payload["stream"] = False
     key = normalize_api_key(api_key)
     headers = {
@@ -214,12 +276,12 @@ def stream_chat(
     可选传入 api_key / base_url / model 覆盖默认配置（用户自带 Key 场景）。
     """
     key = normalize_api_key(api_key or config.DEEPSEEK_API_KEY)
-    url = chat_completions_url(base_url)
+    url = api_endpoint_url(base_url)
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
-    payload = build_chat_payload(messages, model, url)
+    payload = build_request_payload(messages, model, url)
     with httpx.stream(
         "POST", url, headers=headers, json=payload, timeout=120,
         **provider_request_options(url),
@@ -233,7 +295,14 @@ def stream_chat(
                 break
             try:
                 chunk = json.loads(data)
-                delta = chunk["choices"][0]["delta"].get("content", "")
+                if is_responses_api_url(url):
+                    # Responses API streams text in response.output_text.delta
+                    # events instead of choices[0].delta.
+                    if chunk.get("type") != "response.output_text.delta":
+                        continue
+                    delta = chunk.get("delta", "")
+                else:
+                    delta = chunk["choices"][0]["delta"].get("content", "")
                 if delta:
                     yield delta
             except (json.JSONDecodeError, KeyError, IndexError):
