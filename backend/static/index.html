@@ -221,8 +221,10 @@
             <label class="settings-label">服务商</label>
             <select class="settings-input api-select" id="apiProvider">
               <option value="deepseek">DeepSeek</option>
+              <option value="volcengine">火山方舟（免费额度）</option>
               <option value="openai">OpenAI 兼容</option>
             </select>
+            <div class="settings-hint api-provider-hint" id="apiProviderHint"></div>
             <label class="settings-label">API Key</label>
             <input class="settings-input" id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
             <label class="settings-label">API 地址（留空用默认）</label>

@@ -1096,6 +1096,7 @@ body.bg-5 .login-screen::after {
 /* API 设置弹窗内部样式 */
 .api-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 4px; }
 .api-select { cursor: pointer; }
+.api-provider-hint { margin-top: -4px; padding: 7px 9px; border: 1px solid #e2e8ff; border-radius: 8px; background: #f6f8ff; color: #55627b; }
 .api-status { font-size: 13px; min-height: 18px; text-align: center; }
 .api-status.ok { color: #16a34a; }
 .api-status.err { color: #dc2626; }

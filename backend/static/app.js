@@ -80,6 +80,11 @@ const API_PRESETS = {
     base: 'https://api.deepseek.com',
     models: ['deepseek-chat', 'deepseek-reasoner'],
   },
+  volcengine: {
+    base: 'https://ark.cn-beijing.volces.com/api/v3',
+    models: ['deepseek-v4-flash'],
+    keyPlaceholder: '\u706b\u5c71\u65b9\u821f API Key',
+  },
   openai: {
     base: 'https://api.openai.com/v1',
     models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
@@ -1557,6 +1562,24 @@ const apiBaseInput = document.getElementById('apiBaseInput');
 const apiModelInput = document.getElementById('apiModelInput');
 const apiStatus = document.getElementById('apiStatus');
 const preferencesSection = document.getElementById('preferencesPane');
+const apiProviderHint = document.getElementById('apiProviderHint');
+const API_PROVIDER_HINTS = {
+  deepseek: '\u76f4\u63a5\u586b\u5165 DeepSeek API Key\u5373\u53ef\u3002',
+  volcengine: '\u4f7f\u7528\u706b\u5c71\u65b9\u821f\u7684 API Key\u3002\u63a8\u8350\u4f7f\u7528\u514d\u8d39\u989d\u5ea6\u5df2\u5f00\u901a\u7684 DeepSeek-V4-Flash\uff1b\u5176\u4ed6\u6a21\u578b\u8bf7\u6309\u65b9\u821f\u63a7\u5236\u53f0\u7684 Model ID \u586b\u5199\u3002',
+  openai: '\u9002\u7528\u4e8e\u5176\u4ed6 OpenAI \u517c\u5bb9\u670d\u52a1\uff0c\u8bf7\u81ea\u884c\u786e\u8ba4\u5730\u5740\u548c\u6a21\u578b\u540d\u3002',
+};
+function applyApiProviderPreset(provider, replaceValues = false) {
+  const preset = API_PRESETS[provider] || API_PRESETS.deepseek;
+  if (replaceValues) {
+    apiBaseInput.value = preset.base;
+    apiModelInput.value = preset.models[0];
+  } else {
+    apiBaseInput.placeholder = preset.base;
+    apiModelInput.placeholder = preset.models[0];
+  }
+  apiKeyInput.placeholder = preset.keyPlaceholder || 'sk-...';
+  if (apiProviderHint) apiProviderHint.textContent = API_PROVIDER_HINTS[provider] || API_PROVIDER_HINTS.openai;
+}
 
 function openSettings(tab) {
   renderAccountSection();
@@ -1564,10 +1587,11 @@ function openSettings(tab) {
   renderPreferencesSection();
   /* API 设置回填 */
   const s = getApiSettings() || {};
-  apiProviderSel.value = s.provider || 'deepseek';
+  apiProviderSel.value = API_PRESETS[s.provider] ? s.provider : 'deepseek';
   apiKeyInput.value = s.apiKey || '';
   apiBaseInput.value = s.apiBase || '';
   apiModelInput.value = s.model || '';
+  applyApiProviderPreset(apiProviderSel.value, false);
   apiStatus.textContent = '';
   apiStatus.className = 'api-status';
   /* 指定标签打开（如 API），否则默认账号标签 */
@@ -1594,7 +1618,15 @@ settingsModal.querySelectorAll('.settings-tab').forEach(tab => {
 });
 document.getElementById('settingsBtn').addEventListener('click', openSettings);
 document.getElementById('settingsClose').addEventListener('click', closeSettings);
-settingsModal.addEventListener('click', e => { if (e.target === settingsModal) closeSettings(); });
+/* A native select can finish outside the card. Only close on a complete backdrop click. */
+let settingsBackdropPointerStarted = false;
+settingsModal.addEventListener('pointerdown', e => {
+  settingsBackdropPointerStarted = e.target === settingsModal;
+});
+settingsModal.addEventListener('click', e => {
+  if (e.target === settingsModal && settingsBackdropPointerStarted) closeSettings();
+  settingsBackdropPointerStarted = false;
+});
 
 /* ---------- 头像选择网格（并入账号标签页后，绑定 accountPane 内网格点击） ---------- */
 function renderAvatarGrid() {
@@ -1801,11 +1833,7 @@ function clearApiSettings_action() {
   updateModelPicker();
   updateQuotaBadge(currentUser);
 }
-apiProviderSel.addEventListener('change', () => {
-  const preset = API_PRESETS[apiProviderSel.value] || API_PRESETS.deepseek;
-  if (!apiBaseInput.value) apiBaseInput.placeholder = preset.base;
-  if (!apiModelInput.value) apiModelInput.placeholder = preset.models[0];
-});
+apiProviderSel.addEventListener('change', () => applyApiProviderPreset(apiProviderSel.value, true));
 document.getElementById('apiSaveBtn').addEventListener('click', saveApiSettings_action);
 document.getElementById('apiClearBtn').addEventListener('click', clearApiSettings_action);
 
