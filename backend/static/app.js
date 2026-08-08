@@ -1862,7 +1862,10 @@ async function testApiSettings_action() {
       apiStatus.className = 'api-status err';
       return;
     }
-    apiStatus.textContent = '\u8fde\u63a5\u6210\u529f\uff1a' + (data.protocol || 'OpenAI \u517c\u5bb9\u63a5\u53e3') + ' \u00b7 ' + (data.model || settings.model) + '\u3002';
+    saveApiSettings(settings);
+    updateModelPicker();
+    updateQuotaBadge(currentUser);
+    apiStatus.textContent = '\u8fde\u63a5\u6210\u529f\u5e76\u5df2\u542f\u7528\uff1a' + (data.protocol || 'OpenAI \u517c\u5bb9\u63a5\u53e3') + ' \u00b7 ' + (data.model || settings.model) + '\u3002\u804a\u5929\u6846\u5de6\u4fa7\u53ef\u5207\u6362\u6a21\u578b\u3002';
     apiStatus.className = 'api-status ok';
   } catch (e) {
     apiStatus.textContent = '测试请求没有到达 FixPilot 后端。请先启动本地服务，然后重试。';
@@ -1965,7 +1968,7 @@ function updateModelPicker() {
   }
   modelPickerBtn.style.display = 'inline-flex';
   const preset = API_PRESETS[s.provider] || API_PRESETS.deepseek;
-  _modelList = preset.models.slice();
+  _modelList = preset.models.filter(Boolean);
   if (s.model && !_modelList.includes(s.model)) _modelList.unshift(s.model);
   modelPickerLabel.textContent = s.model || preset.models[0];
 }
