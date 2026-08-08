@@ -634,14 +634,21 @@ body {
   .quota-compact-icon { display: inline-flex; align-items: center; justify-content: center; }
   .quota-compact-icon svg { width: 18px; height: 18px; }
 
-  .composer { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "input input input" "model img send"; gap: 8px; padding: 10px 12px; }
-  .composer textarea { min-height: 76px; max-height: 160px; padding: 0 2px; align-self: stretch; }
+  .composer { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "input img send"; gap: 8px; padding: 8px 10px; }
+  .composer textarea { min-height: 34px; max-height: 96px; padding: 5px 2px; align-self: center; }
   .bubble { padding: 8px 12px; line-height: 1.6; }
   .bubble p { margin-bottom: 7px; }
-  .model-picker-wrap { grid-area: model; width: 100%; }
-  .composer .model-picker-btn { min-width: 0; max-width: min(230px, 100%); }
+  .topbar { min-width: 0; }
+  .topbar-right { min-width: 0; flex: 0 0 auto; }
+  .topbar-right .model-picker-wrap { position: static; grid-area: auto; width: auto; align-self: center; }
+  .topbar-right .model-picker-btn { min-width: 0; max-width: 220px; height: 32px; padding: 4px 7px; border-radius: 9px; background: #f7f9fe; color: #34415a; box-shadow: none; }
+  .topbar-right .model-picker-btn:hover { background: #edf2ff; color: var(--accent-text); }
+  .model-picker-btn .chevron { width: 13px; height: 13px; flex: 0 0 13px; }
   #modelPickerLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .composer .model-dropdown { left: 0; right: auto; bottom: calc(100% + 8px); width: min(340px, calc(100vw - 32px)); }
+  .topbar-right .model-dropdown { top: calc(100% + 14px); right: 0; bottom: auto; left: auto; width: min(340px, calc(100vw - 24px)); }
+  .model-picker--short #modelPickerLabel { overflow: visible; }
+  .model-picker--tight { gap: 0 !important; padding-left: 6px !important; padding-right: 6px !important; }
+  .model-picker--tight .chevron { display: none; }
 }
 
 /* ---------- 登录界面 ---------- */

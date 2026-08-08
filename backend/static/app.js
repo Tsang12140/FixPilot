@@ -1388,7 +1388,7 @@ function maybeDivider(iso) {
 function scrollDown(anim = true) { chatEl.scrollTop = chatEl.scrollHeight; }
 function autoResize() {
   input.style.height = 'auto';
-  const maxHeight = 240;
+  const maxHeight = window.matchMedia('(max-width: 767px)').matches ? 96 : 240;
   const nextHeight = Math.min(input.scrollHeight, maxHeight);
   input.style.height = nextHeight + 'px';
   input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';
@@ -2151,14 +2151,50 @@ const modelDropdown = document.getElementById('modelDropdown');
 const modelPickerWrap = document.getElementById('modelPickerWrap');
 let _modelList = [];
 
-/* Keep the model picker inside the composer at every viewport size. */
-function keepModelPickerInComposer() {
-  const composer = document.querySelector('.composer');
-  if (composer && modelPickerWrap.parentNode !== composer) {
-    composer.insertBefore(modelPickerWrap, composer.querySelector('#imgBtn'));
+function compactModelLabel(label) {
+  const value = String(label || '').trim();
+  if (/deepseek/i.test(value)) return 'DS';
+  if (/glm/i.test(value)) return 'GLM';
+  if (/qwen/i.test(value)) return 'Qwen';
+  if (/kimi/i.test(value)) return 'Kimi';
+  if (/doubao|seed/i.test(value)) return 'DB';
+  return value.length > 7 ? value.slice(0, 6) : value || 'Model';
+}
+
+function syncMobileModelPicker() {
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+  const fullLabel = modelPickerBtn.dataset.fullLabel || modelPickerLabel.textContent || 'Model';
+  modelPickerBtn.classList.remove('model-picker--short', 'model-picker--tight');
+  modelPickerLabel.textContent = fullLabel;
+
+  if (!isMobile) return;
+
+  const labelOverflows = modelPickerLabel.scrollWidth > modelPickerLabel.clientWidth + 1;
+  const header = document.querySelector('.topbar');
+  const headerOverflows = header && header.scrollWidth > header.clientWidth + 1;
+  if (labelOverflows || headerOverflows) {
+    modelPickerBtn.classList.add('model-picker--short');
+    modelPickerLabel.textContent = compactModelLabel(fullLabel);
+  }
+  if (header && header.scrollWidth > header.clientWidth + 1) {
+    modelPickerBtn.classList.add('model-picker--tight');
   }
 }
-keepModelPickerInComposer();
+
+/* Mobile keyboards cover the composer, so its picker lives in the stable top bar.
+   Desktop keeps it beside the input. */
+function relocateModelPicker() {
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+  const target = isMobile ? document.querySelector('.topbar-right') : document.querySelector('.composer');
+  if (!target) return;
+  if (modelPickerWrap.parentNode !== target) {
+    if (isMobile) target.insertBefore(modelPickerWrap, target.firstChild);
+    else target.insertBefore(modelPickerWrap, target.querySelector('#imgBtn'));
+  }
+  requestAnimationFrame(syncMobileModelPicker);
+}
+relocateModelPicker();
+window.addEventListener('resize', relocateModelPicker);
 
 function configuredCustomModel(settings) {
   if (!settings || !settings.apiKey) return '';
@@ -2187,9 +2223,11 @@ function updateModelPicker() {
   _modelList = customModel ? [customModel] : [];
   modelPickerBtn.style.display = 'inline-flex';
   const label = customActive && customModel ? customModel : platformModelName;
+  modelPickerBtn.dataset.fullLabel = label;
   modelPickerLabel.textContent = label;
   modelPickerBtn.title = label;
   modelDropdown.style.display = 'none';
+  requestAnimationFrame(syncMobileModelPicker);
 }
 function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
