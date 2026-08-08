@@ -1601,7 +1601,10 @@ function openSettings(tab) {
   switchSettingsTab(tab || 'account');
   settingsModal.style.display = 'flex';
 }
-function closeSettings() { settingsModal.style.display = 'none'; }
+function closeSettings() {
+  settingsModal.style.display = 'none';
+  settingsBackdropPointerStarted = false;
+}
 function switchSettingsTab(tab) {
   /* 切换标签高亮 */
   settingsModal.querySelectorAll('.settings-tab').forEach(t => {
@@ -1719,6 +1722,7 @@ async function submitBind() {
     localStorage.setItem(USER_KEY, JSON.stringify(u));
     dismissBindBanner(true);
     renderAccountSection();
+    closeSettings();
     toast('已绑定账号 ' + d.username);
   } catch (e) {
     errEl.textContent = '网络错误，请重试';
