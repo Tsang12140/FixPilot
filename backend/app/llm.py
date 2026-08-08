@@ -45,6 +45,14 @@ STYLE_POLICIES = {
     "concise": """【表达偏好：少废话】结论优先，只给当前必要动作和一个判断题；少解释原理、不开玩笑，但绝不能省略风险、确认或关键路径。""",
 }
 
+ROAST_MEME_POLICY = """
+[Easter-egg presentation rules: this supersedes the older [JOKE6] instruction]
+- Use an easter egg only once, after a clearly confirmed, harmless low-level blunder. Never use one for confusion, urgency, data risk, hardware risk, or a complex fault.
+- When an easter egg is appropriate, the very first characters must be exactly one marker: [JOKE:emotion]. Then start the normal answer on a new line. Never output [JOKE6], and never explain the marker, the meme, or the number 6.
+- emotion must be one of: confused (a basic omission while suspecting a complex cause); facepalm (a harmless self-inflicted repeated wrong action); sweat (an absurd but harmless mistake); cool (a fully confirmed, light closing punchline).
+- The system randomly decides between showing 6 and a meme in that emotion group. Keep any roast brief and solve the problem immediately afterwards.
+"""
+
 LEVEL_POLICIES = {
     "beginner": "用户需要细一点的操作路径。术语首次出现时顺手解释，明确说在哪里点、做完应看到什么；不要默认知道 BIOS、安全模式或设备管理器。",
     "intermediate": "用户会折腾一些。常见术语可直接用，保留关键路径和必要的诊断理由，不必反复科普基础概念。",
@@ -63,11 +71,14 @@ def build_profile_policy(profile: Dict = None, temporary_level: str = "unknown")
         active_level = "unknown"
     if style not in STYLE_POLICIES:
         style = "normal"
+    style_policy = STYLE_POLICIES[style]
+    if style == "roast":
+        style_policy += ROAST_MEME_POLICY
     return "\n".join([
         "【当前用户画像】",
         f"技术水平：{level}；来源：{source}；本轮解释深度：{active_level}",
         LEVEL_POLICIES[active_level],
-        STYLE_POLICIES[style],
+        style_policy,
     ])
 
 

@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, db, llm, profiling, service
+from . import auth, db, llm, memes, profiling, service
 from .knowledge import load_chunks
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
@@ -21,11 +21,12 @@ async def no_cache_static(request, call_next):
     """禁用前端静态资源的强缓存，避免改版后浏览器仍使用旧文件。"""
     response = await call_next(request)
     path = request.url.path
-    if path.endswith((".js", ".css", ".html", ".svg")):
+    if path.endswith((".js", ".css", ".html", ".svg", ".png")):
         response.headers["Cache-Control"] = "no-cache, max-age=0, must-revalidate"
     return response
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+MEME_DIR = Path(__file__).resolve().parents[2] / "file" / "img"
 
 _chunks = load_chunks()
 db.init_db()
@@ -529,6 +530,9 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     def gen():
         yield "data:__start__\n\n"
         acc = []
+        prefix = []
+        effect = None
+        awaiting_directive = True
         try:
             for token in service.chat_stream(
                 normalized_messages,
@@ -539,6 +543,22 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                 temporary_level=temporary,
                 already_normalized=True,
             ):
+                if awaiting_directive:
+                    prefix.append(token)
+                    prefix_text = "".join(prefix)
+                    tone, remainder = memes.parse_joke_directive(prefix_text)
+                    if tone is not None:
+                        effect = memes.choose_joke_effect(tone)
+                        yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
+                        awaiting_directive = False
+                        if remainder:
+                            acc.append(remainder)
+                            yield f"data: {json.dumps(remainder, ensure_ascii=False)}\n\n"
+                        continue
+                    if memes.might_be_joke_directive(prefix_text):
+                        continue
+                    awaiting_directive = False
+                    token = prefix_text
                 acc.append(token)
                 yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
         except Exception as e:
@@ -548,7 +568,12 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         user_text, user_image = _content_to_text_and_image(req.messages[-1].get("content")) if req.messages else ("", None)
         db.add_message(conv_id, "user", user_text, user_image)
         full = "".join(acc).strip()
-        if full.startswith("[JOKE6]"):
+        if effect:
+            if effect["kind"] == "six":
+                db.add_message(conv_id, "assistant", "6")
+            else:
+                db.add_message(conv_id, "assistant", memes.meme_message(effect["meme"]))
+        if not effect and full.startswith("[JOKE6]"):
             db.add_message(conv_id, "assistant", "6")
             db.add_message(conv_id, "assistant", full.replace("[JOKE6]", "").strip())
         else:
@@ -603,6 +628,8 @@ def share_page(token: str):
 
 
 # 前端静态资源（必须放在 API 路由之后挂载）
+if MEME_DIR.is_dir():
+    app.mount("/memes", StaticFiles(directory=str(MEME_DIR)), name="memes")
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 

@@ -1,5 +1,6 @@
 """编排层：检索相关知识块 -> 组装提示词 -> 流式调用 DeepSeek。"""
 from typing import Dict, Iterator, List
+import re
 
 from . import llm, retriever
 from . import ocr
@@ -54,6 +55,9 @@ def normalize_messages(messages: List[Dict]) -> List[Dict]:
     for m in messages:
         role = m.get("role")
         content = _content_to_text(m.get("content"), seen)
+        # UI-only easter-egg messages must not become model conversation context.
+        if role == "assistant" and (content == "6" or re.fullmatch(r"\[MEME:[a-z_]+\]", content)):
+            continue
         out.append({"role": role, "content": content})
     return out
 
