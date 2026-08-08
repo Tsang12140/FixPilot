@@ -126,6 +126,15 @@ def chat_completions_url(api_base: str) -> str:
     return url + "/chat/completions"
 
 
+def is_volcengine_ark_url(url: str) -> bool:
+    return "ark.cn-beijing.volces.com" in (url or "").lower()
+
+
+def provider_trust_env(url: str) -> bool:
+    """Ark must bypass machine proxy settings so Authorization reaches Ark intact."""
+    return not is_volcengine_ark_url(url)
+
+
 def build_chat_payload(messages: List[Dict[str, str]], model: str, url: str) -> Dict:
     """Build a conservative OpenAI-compatible request payload.
 
@@ -157,7 +166,10 @@ def test_chat_connection(
         "Content-Type": "application/json",
     }
     timeout = httpx.Timeout(timeout=30.0, connect=10.0)
-    response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
+    response = httpx.post(
+        url, headers=headers, json=payload, timeout=timeout,
+        trust_env=provider_trust_env(url),
+    )
     response.raise_for_status()
 
 
@@ -178,7 +190,10 @@ def stream_chat(
         "Content-Type": "application/json",
     }
     payload = build_chat_payload(messages, model, url)
-    with httpx.stream("POST", url, headers=headers, json=payload, timeout=120) as resp:
+    with httpx.stream(
+        "POST", url, headers=headers, json=payload, timeout=120,
+        trust_env=provider_trust_env(url),
+    ) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():
             if not line or not line.startswith("data:"):
