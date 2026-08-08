@@ -983,32 +983,91 @@ function renderWelcome() {
 input.addEventListener('focus', showOnboardingNudge);
 
 /* ---------- 选项按钮 ---------- */
-function parseOptions(text) {
-  // 兼容「选项：」独立成行，或与正文/选项同行的两种输出
-  const m = text.match(/选项\s*[:：]/);
-  if (!m) return { main: text, options: [] };
-  const main = text.slice(0, m.index).trim();
-  let optStr = text.slice(m.index + m[0].length).trim();
-  const options = [];
-  // 支持同行连写：1.xxx2.yyy3.zzz
-  const re = /\d+[.、)]\s*/g;
-  let last = 0;
-  let mm;
-  while ((mm = re.exec(optStr))) {
-    const item = optStr.slice(last, mm.index).trim();
-    if (item) options.push(item);
-    last = mm.index + mm[0].length;
-  }
-  const tail = optStr.slice(last).trim();
-  if (tail) options.push(tail);
-  // 兜底：没有编号时按行切分
-  if (!options.length) {
-    for (const l of optStr.split(/\n+/)) {
-      const t = l.trim();
-      if (t) options.push(t);
+const MAX_CLICKABLE_OPTIONS = 4;
+
+/*
+ * Options are the only model output rendered as controls. Prefer the strict
+ * marker protocol, then conservatively recover legacy numbered choice lists.
+ * Ordinary numbered instructions must remain ordinary text.
+ */
+function extractNumberedOptionBlock(source) {
+  const re = /(?:^|\n)[ \t]*(\d{1,2})[.\u3001)]\s+([^\n]*)/g;
+  let best = null;
+  let current = null;
+  let match;
+  while ((match = re.exec(source))) {
+    const number = Number(match[1]);
+    const start = match.index;
+    const end = match.index + match[0].length;
+    const item = (match[2] || '').trim();
+    const isAdjacent = current && /^\s*$/.test(source.slice(current.end, start));
+    if (number === 1) {
+      if (current && current.items.length >= 2 && (!best || current.items.length > best.items.length)) best = current;
+      current = { start, end, items: [item] };
+    } else if (current && isAdjacent && number === current.items.length + 1) {
+      current.items.push(item);
+      current.end = end;
+    } else {
+      if (current && current.items.length >= 2 && (!best || current.items.length > best.items.length)) best = current;
+      current = null;
     }
   }
-  return { main, options: options.slice(0, 4) };
+  if (current && current.items.length >= 2 && (!best || current.items.length > best.items.length)) best = current;
+  return best;
+}
+
+function mergeBrokenOptionFragments(items) {
+  const merged = [];
+  for (const raw of items) {
+    const item = raw.trim();
+    const previous = merged[merged.length - 1];
+    const looksLikeContinuation = previous && /^[.\u3002\u2026\uff0c,\u3001\uff1b;:\uff1a\uff09\]\u3011}]/.test(item);
+    if (!looksLikeContinuation) {
+      if (item) merged.push(item);
+      continue;
+    }
+    /* A model can rarely split a value such as 0xc... into a fake next item. */
+    if (/0x[\da-f]*$/i.test(previous) && /^[.\u3002\u2026]+/.test(item)) {
+      merged[merged.length - 1] = previous + '...' + item.replace(/^[.\u3002\u2026]+/, '');
+    } else {
+      merged[merged.length - 1] = previous + item;
+    }
+  }
+  return merged;
+}
+
+function parseOptions(text) {
+  const marker = text.match(/(?:^|\n)\s*\u9009\u9879\s*[:\uff1a]/);
+  let source = text;
+  let prefix = '';
+  let strict = false;
+  if (marker) {
+    strict = true;
+    prefix = text.slice(0, marker.index).trim();
+    source = text.slice(marker.index + marker[0].length);
+  }
+
+  const block = extractNumberedOptionBlock(source);
+  if (!block) return { main: text, options: [] };
+
+  const suffix = source.slice(block.end).trim();
+  if (!strict) {
+    const context = source.slice(Math.max(0, block.start - 280), block.start);
+    const hasQuestion = /[\uff1f?]/.test(context);
+    const hasChoiceCue = /(?:\u6311(?:\u4e00|\u4e2a)|\u9009(?:\u4e00|\u4e2a|\u62e9)|\u54ea(?:\u79cd|\u4e00\u9879|\u4e2a)|\u6700\u8d34\u8fd1|\u66f4\u63a5\u8fd1|\u544a\u8bc9\u6211|\u56de\u590d(?:\u6211|\u5bf9\u5e94)?|\u6709\u6ca1\u6709|\u662f\u5426)/.test(context + suffix);
+    const looksLikeProcedure = /(?:\u6309(?:\u7167|\u4ee5\u4e0b|\u4e0b\u9762)|\u64cd\u4f5c\u6b65\u9aa4|\u4f9d\u6b21|\u6b65\u9aa4\u5982\u4e0b)/.test(context);
+    if (!hasQuestion || !hasChoiceCue || looksLikeProcedure) return { main: text, options: [] };
+    prefix = source.slice(0, block.start).trim();
+  }
+
+  const options = mergeBrokenOptionFragments(block.items).slice(0, MAX_CLICKABLE_OPTIONS);
+  if (options.length < 2) return { main: text, options: [] };
+  const main = [prefix, suffix].filter(Boolean).join('\n\n');
+  return { main, options };
+}
+
+function isGenericOption(option) {
+  return /^(?:\u5176\u4ed6|\u5176\u5b83|\u90fd\u4e0d\u662f|\u4ee5\u4e0a\u5747\u4e0d\u662f|\u6211\u6765\u63cf\u8ff0|\u81ea\u5df1\u63cf\u8ff0|\u624b\u52a8\u8f93\u5165|\u81ea\u5b9a\u4e49)/.test(option.trim());
 }
 /* 把紧跟在文字后、同行连写的编号步骤拆到新行，保留已有空行，便于排版 */
 function breakNumbered(text) {
@@ -1032,7 +1091,7 @@ function renderBotMsg(div, text) {
       b.className = 'opt';
       b.textContent = o;
       /* 泛化选项（如"其他问题""我来描述"）视为"其他"入口，聚焦输入框而非发送，避免浪费 token */
-      const isGeneric = /^(其他|其它|都不是|以上都不是|我来描述|其他问题|其他情况|都不是以上|自己描述|手动输入|自定义|其他描述|其他补充|都不是这些|都不是以上这些|以上均不是)$/.test(o);
+      const isGeneric = isGenericOption(o);
       b.addEventListener('click', () => {
         collapseOpts(wrap);
         if (isGeneric) {
@@ -1045,7 +1104,8 @@ function renderBotMsg(div, text) {
       });
       wrap.appendChild(b);
     });
-    const otherBtn = document.createElement('button');
+    if (!options.some(isGenericOption)) {
+      const otherBtn = document.createElement('button');
     otherBtn.type = 'button';
     otherBtn.className = 'opt other';
     otherBtn.textContent = '其他';
@@ -1054,7 +1114,8 @@ function renderBotMsg(div, text) {
       input.placeholder = '输入你的情况...';
       input.focus();
     });
-    wrap.appendChild(otherBtn);
+      wrap.appendChild(otherBtn);
+    }
     div.appendChild(wrap);
   }
 }
