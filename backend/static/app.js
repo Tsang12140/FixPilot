@@ -1270,7 +1270,10 @@ function maybeDivider(iso) {
 function scrollDown(anim = true) { chatEl.scrollTop = chatEl.scrollHeight; }
 function autoResize() {
   input.style.height = 'auto';
-  input.style.height = input.scrollHeight + 'px'; /* 不设上限，超高时整体向上顶，无滚动条 */
+  const maxHeight = 120;
+  const nextHeight = Math.min(input.scrollHeight, maxHeight);
+  input.style.height = nextHeight + 'px';
+  input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';
 }
 
 /* ---------- 图片上传 ---------- */
@@ -1940,6 +1943,7 @@ document.getElementById('bbClose').addEventListener('click', () => dismissBindBa
 const modelPickerBtn = document.getElementById('modelPickerBtn');
 const modelPickerLabel = document.getElementById('modelPickerLabel');
 const modelDropdown = document.getElementById('modelDropdown');
+const DEFAULT_MODEL_LABEL = 'DeepSeek with Flash';
 let _modelList = [];
 
 /* 移动端：把模型选择器从输入框移入顶栏（按钮左侧），节省输入框空间 */
@@ -1962,7 +1966,9 @@ window.addEventListener('resize', relocateModelPicker);
 function updateModelPicker() {
   const s = getApiSettings();
   if (!s || !s.apiKey) {
-    modelPickerBtn.style.display = 'none';
+    _modelList = [];
+    modelPickerBtn.style.display = 'inline-flex';
+    modelPickerLabel.textContent = DEFAULT_MODEL_LABEL;
     modelDropdown.style.display = 'none';
     return;
   }
@@ -1976,7 +1982,7 @@ function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
   if (!show) { modelDropdown.style.display = 'none'; modelPickerBtn.classList.remove('open'); return; }
   const s = getApiSettings();
-  const current = (s && s.model) || (API_PRESETS[s && s.provider] && API_PRESETS[s.provider].models[0]) || '';
+  const current = (s && s.model) || (API_PRESETS[s && s.provider] && API_PRESETS[s.provider].models[0]) || DEFAULT_MODEL_LABEL;
   modelDropdown.innerHTML = _modelList.map(m =>
     '<button type="button" class="model-opt' + (m === current ? ' active' : '') + '" data-model="' + m + '">' + m + '</button>'
   ).join('') + '<button type="button" class="model-opt model-custom" data-model="__custom">自定义...</button>';
