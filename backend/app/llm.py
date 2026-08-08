@@ -248,7 +248,7 @@ def test_chat_connection(
     base_url: str = "",
     model: str = "",
 ) -> None:
-    """Test an OpenAI-compatible endpoint without depending on SSE output."""
+    """Test a user-supplied API and verify that it returns readable text."""
     url = api_endpoint_url(base_url)
     payload = build_request_payload([{"role": "user", "content": "Hi"}], model, url)
     payload["stream"] = False
@@ -263,6 +263,27 @@ def test_chat_connection(
         **provider_request_options(url),
     )
     response.raise_for_status()
+    body = response.json()
+    if is_responses_api_url(url):
+        if not extract_responses_output_text(body):
+            raise RuntimeError("Responses API test succeeded but did not contain output text")
+    elif not str(((body.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip():
+        raise RuntimeError("Chat Completions API test succeeded but did not contain output text")
+
+
+def extract_responses_output_text(body: Dict) -> str:
+    """Return plain text from a completed OpenAI Responses API object."""
+    top_level = body.get("output_text")
+    if isinstance(top_level, str) and top_level.strip():
+        return top_level.strip()
+    parts = []
+    for item in body.get("output") or []:
+        for content in item.get("content") or []:
+            if content.get("type") in {"output_text", "text"}:
+                text = content.get("text") or content.get("value") or ""
+                if isinstance(text, str) and text:
+                    parts.append(text)
+    return "".join(parts).strip()
 
 
 def stream_chat(
@@ -271,10 +292,7 @@ def stream_chat(
     base_url: str = "",
     model: str = "",
 ) -> Iterator[str]:
-    """messages: 已完成的历史对话（role/content）。
-
-    可选传入 api_key / base_url / model 覆盖默认配置（用户自带 Key 场景）。
-    """
+    """Stream a displayable answer from the configured OpenAI-compatible API."""
     key = normalize_api_key(api_key or config.DEEPSEEK_API_KEY)
     url = api_endpoint_url(base_url)
     headers = {
@@ -282,9 +300,26 @@ def stream_chat(
         "Content-Type": "application/json",
     }
     payload = build_request_payload(messages, model, url)
+    request_options = provider_request_options(url)
+
+    # The Ark Responses endpoint can keep a proxied SSE connection open without
+    # ever sending a text delta. Ask it for one completed response instead, then
+    # retain FixPilot's browser-side SSE protocol for a stable UI experience.
+    if is_responses_api_url(url):
+        payload["stream"] = False
+        timeout = httpx.Timeout(timeout=45.0, connect=12.0)
+        response = httpx.post(url, headers=headers, json=payload, timeout=timeout, **request_options)
+        response.raise_for_status()
+        text = extract_responses_output_text(response.json())
+        if not text:
+            raise RuntimeError("Responses API returned no displayable output text")
+        yield text
+        return
+
+    timeout = httpx.Timeout(timeout=75.0, connect=12.0)
     with httpx.stream(
-        "POST", url, headers=headers, json=payload, timeout=120,
-        **provider_request_options(url),
+        "POST", url, headers=headers, json=payload, timeout=timeout,
+        **request_options,
     ) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():
@@ -295,14 +330,7 @@ def stream_chat(
                 break
             try:
                 chunk = json.loads(data)
-                if is_responses_api_url(url):
-                    # Responses API streams text in response.output_text.delta
-                    # events instead of choices[0].delta.
-                    if chunk.get("type") != "response.output_text.delta":
-                        continue
-                    delta = chunk.get("delta", "")
-                else:
-                    delta = chunk["choices"][0]["delta"].get("content", "")
+                delta = chunk["choices"][0]["delta"].get("content", "")
                 if delta:
                     yield delta
             except (json.JSONDecodeError, KeyError, IndexError):

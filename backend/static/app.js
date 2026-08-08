@@ -1455,28 +1455,46 @@ function makeThumb(dataUrl) {
 }
 
 /* ---------- 发送 ---------- */
-async function send() {
-  const text = (input.value || '').trim();
-  if ((!text && !pendingImage) || busy) return;
+function showReplyFailure(bubble, message, retryState) {
+  bubble.innerHTML = '<p>' + escapeHtml(message || '服务出现异常，请重试。') + '</p>' +
+    '<button type="button" class="reply-retry">重试这一条</button>';
+  const retryBtn = bubble.querySelector('.reply-retry');
+  if (retryBtn) retryBtn.addEventListener('click', () => send(retryState));
+}
+
+/* ---------- 发送 ---------- */
+async function send(retryState = null) {
+  const isRetry = Boolean(retryState);
+  const typedText = (input.value || '').trim();
+  if (busy) return;
+  if (isRetry && (!retryState || retryState.convId !== activeConvId)) {
+    toast('请回到原对话再重试这一条');
+    return;
+  }
+  if (!isRetry && (!typedText && !pendingImage)) return;
   if (!activeConvId) return;
   if (!canUse) { showQuotaBlock(); return; }
 
-  const isFirst = chatEl.querySelector('.welcome') ? true : (chatEl.children.length === 0);
-  if (chatEl.querySelector('.onboarding-guide')) { showOnboardingNudge(); }
-  /* 首次提问后展开「转为长期账号」提示条（仅未绑定邀请码用户） */
+  const isFirst = !isRetry && (chatEl.querySelector('.welcome') ? true : (chatEl.children.length === 0));
+  if (!isRetry && chatEl.querySelector('.onboarding-guide')) showOnboardingNudge();
   if (isFirst) showBindBanner();
-  const content = pendingImage
-    ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: pendingImage, thumbnail: pendingThumb || pendingImage } }]
-    : text;
-  input.value = '';
-  pendingImage = null;
-  pendingThumb = null;
-  imgPreview.style.display = 'none';
-  autoResize();
-  if (chatEl.querySelector('.welcome')) chatEl.innerHTML = '';
 
-  addMsg('user', content);
-  const convId = activeConvId;
+  const text = isRetry ? retryState.text : typedText;
+  const content = isRetry ? retryState.content : (pendingImage
+    ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: pendingImage, thumbnail: pendingThumb || pendingImage } }]
+    : text);
+  const convId = isRetry ? retryState.convId : activeConvId;
+  const retry = { convId, text, content };
+
+  if (!isRetry) {
+    input.value = '';
+    pendingImage = null;
+    pendingThumb = null;
+    imgPreview.style.display = 'none';
+    autoResize();
+    if (chatEl.querySelector('.welcome')) chatEl.innerHTML = '';
+    addMsg('user', content);
+  }
 
   busy = true;
   sendBtn.disabled = true;
@@ -1487,6 +1505,7 @@ async function send() {
   let jokeStartTime = 0;
   let jokeEffect = null;
   let profileNoticeText = '';
+  let completed = false;
 
   if (isFirst && text) genTitle(convId, text);
 
@@ -1507,13 +1526,13 @@ async function send() {
     }
     if (!resp.ok) {
       const d = await resp.json().catch(() => ({}));
-      bubble.innerHTML = '<p>' + escapeHtml(d.detail || '请求失败') + '</p>';
+      showReplyFailure(bubble, d.detail || '请求失败', retry);
       return;
     }
     const reader = resp.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
-    while (true) {
+    while (!completed) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -1524,16 +1543,15 @@ async function send() {
         if (!line.startsWith('data:')) continue;
         const data = line.slice(5).trim();
         if (data === '__start__') continue;
-        if (data === '__end__') { break; }
+        if (data === '__end__') { completed = true; break; }
         if (data.startsWith('__error__:')) {
-          bubble.innerHTML = '<p>服务出错：' + escapeHtml(data.slice(10)) + '</p>';
+          showReplyFailure(bubble, data.slice(10), retry);
           return;
         }
         if (data.startsWith('__profile_notice__:')) {
           try { profileNoticeText = JSON.parse(data.slice(19)); } catch (e) { profileNoticeText = data.slice(19); }
           continue;
         }
-        /* 后端 JSON 编码了 token（避免 \n 破坏 SSE），此处解码还原 */
         if (data.startsWith('__joke__:')) {
           try { jokeEffect = JSON.parse(data.slice(9)); } catch (e) { jokeEffect = { kind: 'six' }; }
           if (!jokeEffect || (jokeEffect.kind === 'meme' && !MEME_ASSETS[jokeEffect.meme])) jokeEffect = { kind: 'six' };
@@ -1561,8 +1579,10 @@ async function send() {
         }
       }
     }
-    if (!acc.length) {
-      bubble.innerHTML = '<p>&#x670D;&#x52A1;&#x6CA1;&#x6709;&#x8FD4;&#x56DE;&#x53EF;&#x663E;&#x793A;&#x7684;&#x56DE;&#x590D;&#xFF0C;&#x8BF7;&#x91CD;&#x8BD5;&#x3002;</p>';
+    if (!completed || !acc.length) {
+      showReplyFailure(bubble, !completed
+        ? '回复中途断开了，你可以重试这一条。'
+        : '服务没有返回可显示的回复，请重试。', retry);
       return;
     }
     if (!jokeLocked) {
@@ -1571,7 +1591,6 @@ async function send() {
       addMsgTime(msgEl);
       if (profileNoticeText) addProfileNotice(profileNoticeText);
     } else {
-      /* 彩蛋模式：等"6"显示满 1.5 秒后，追加新气泡显示正片 */
       const elapsed = Date.now() - jokeStartTime;
       const delay = Math.max(0, jokeEffectDelay(jokeEffect) - elapsed);
       setTimeout(() => {
@@ -1582,7 +1601,7 @@ async function send() {
     }
     refreshQuota();
   } catch (e) {
-    bubble.innerHTML = '<p>请求失败：' + escapeHtml(e.message) + '</p>';
+    showReplyFailure(bubble, '请求失败：' + (e && e.message ? e.message : '网络异常'), retry);
   } finally {
     busy = false;
     scrollDown();

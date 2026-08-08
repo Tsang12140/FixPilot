@@ -1144,14 +1144,14 @@ body.bg-5 .login-screen::after {
 .model-section + .model-section { margin-top: 7px; padding-top: 8px; border-top: 1px solid var(--border); }
 .model-section-title { padding: 2px 8px 6px; color: var(--text-2); font-size: 12px; font-weight: 600; }
 .model-dropdown .model-opt {
-  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px;
+  display: flex; justify-content: flex-start; align-items: center; gap: 8px; width: 100%; min-height: 38px;
   padding: 8px 10px; font-size: 14px; text-align: left; border: none; border-radius: 8px;
   background: transparent; color: var(--text); cursor: pointer; box-shadow: none;
   transition: background .12s, color .12s;
 }
 .model-dropdown .model-opt:hover { background: var(--bg); }
 .model-dropdown .model-opt.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
-.model-opt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-opt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .model-opt-check { margin-left: auto; flex-shrink: 0; color: var(--accent); font-size: 16px; line-height: 1; }
 .model-dropdown .model-opt.model-config { color: var(--text-2); }
 .model-dropdown .model-opt.model-config:hover { color: var(--accent); }
@@ -1683,3 +1683,8 @@ body.no-textclip .login-bigbrand .bb-name {
   .onboarding-card { transition: none; }
 }
 .reply-failed-msg .bubble { color: var(--text-2); font-size: 12px; background: #f7f8fa; border-style: dashed; }
+.reply-retry {
+  margin-top: 9px; padding: 5px 9px; border: 1px solid #cbd8ff; border-radius: 8px;
+  background: #f4f7ff; color: #2563eb; font: inherit; font-size: 12px; cursor: pointer; box-shadow: none;
+}
+.reply-retry:hover { background: #eaf0ff; }
