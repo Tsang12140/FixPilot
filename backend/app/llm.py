@@ -132,6 +132,24 @@ def build_chat_payload(messages: List[Dict[str, str]], model: str, url: str) -> 
     return payload
 
 
+def test_chat_connection(
+    api_key: str,
+    base_url: str = "",
+    model: str = "",
+) -> None:
+    """Test an OpenAI-compatible endpoint without depending on SSE output."""
+    url = chat_completions_url(base_url)
+    payload = build_chat_payload([{"role": "user", "content": "Hi"}], model, url)
+    payload["stream"] = False
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    timeout = httpx.Timeout(timeout=30.0, connect=10.0)
+    response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
+    response.raise_for_status()
+
+
 def stream_chat(
     messages: List[Dict[str, str]],
     api_key: str = "",

@@ -452,14 +452,11 @@ def test_api(req: ApiTestRequest, authorization: Optional[str] = Header(None)):
     _require_auth(authorization)
     attempt_id = api_diagnostics.start("test", req.apiBase or "", req.model or "")
     try:
-        for _chunk in llm.stream_chat(
-            messages=[{"role": "user", "content": "Hi"}],
+        llm.test_chat_connection(
             api_key=req.apiKey,
             base_url=req.apiBase or "",
             model=req.model or "",
-        ):
-            api_diagnostics.success(attempt_id)
-            return {"ok": True}
+        )
         api_diagnostics.success(attempt_id)
         return {"ok": True}
     except Exception as exc:
