@@ -68,6 +68,9 @@ let platformModelName = 'deepseek-v4-flash'; // ??????????????    // 后端保�
 /* ---------- 随机用户头像（42 张 WebP，首次登录随机分配） ---------- */
 const AVATAR_KEY = 'fixpilot_avatar';
 const AVATAR_COUNT = 42;
+const AVATAR_PAGE_SIZE = 12;
+let avatarPickerExpanded = false;
+let avatarPickerOffset = 0;
 function getAvatarIdx() {
   let idx = parseInt(localStorage.getItem(AVATAR_KEY) || '0', 10);
   if (!idx || idx < 1 || idx > AVATAR_COUNT) {
@@ -727,8 +730,11 @@ async function loadConversations() {
     conversations = d.conversations || [];
     renderList();
     if (conversations.length) {
-      activeConvId = conversations[0].id;
-      await openConversation(activeConvId);
+      const requestedId = conversationIdFromHash();
+      const initialConversation = conversations.find(c => c.id === requestedId) || conversations[0];
+      activeConvId = initialConversation.id;
+      await openConversation(activeConvId, false);
+      setConversationLocation(activeConvId, true);
     } else {
       await newConversation();
     }
@@ -745,14 +751,16 @@ async function newConversation() {
     const c = { id: d.id, title: '新对话' };
     conversations.unshift(c);
     activeConvId = c.id;
+    setConversationLocation(activeConvId);
     renderList();
     renderWelcome();
     closeDrawer();
   } catch (e) {}
 }
 
-async function openConversation(id) {
+async function openConversation(id, syncLocation = true) {
   activeConvId = id;
+  if (syncLocation) setConversationLocation(id);
   renderList();
   closeDrawer();
   try {
@@ -764,6 +772,10 @@ async function openConversation(id) {
     lastMsgTime = null;
     msgs.forEach(m => {
       const isBot = m.role !== 'user';
+      if (isBot && !String(m.content || '').trim()) {
+        addLegacyEmptyReplyMessage(m.created_at);
+        return;
+      }
       const memeId = isBot ? memeIdFromMessage(m.content) : null;
       if (memeId) { addMemeMsg(memeId, m.created_at); return; }
       maybeDivider(m.created_at);
@@ -845,6 +857,17 @@ async function genTitle(convId, question) {
 
 /* ---------- 侧边栏（移动端抽屉） ---------- */
 const SIDEBAR_COLLAPSED_KEY = 'fixpilot_sidebar_collapsed';
+function conversationIdFromHash() {
+  const match = location.hash.match(/^#\/?c\/([^/?#]+)$/);
+  if (!match) return '';
+  try { return decodeURIComponent(match[1]); } catch (e) { return ''; }
+}
+function setConversationLocation(convId, replace = false) {
+  if (!convId) return;
+  const nextHash = '#/c/' + encodeURIComponent(convId);
+  if (location.hash === nextHash) return;
+  history[replace ? 'replaceState' : 'pushState'](null, '', location.pathname + location.search + nextHash);
+}
 function updateSidebarToggle(collapsed) {
   const label = collapsed ? '\u5c55\u5f00\u4fa7\u8fb9\u680f' : '\u6536\u8d77\u4fa7\u8fb9\u680f';
   sidebarToggleBtn.setAttribute('aria-label', label);
@@ -886,6 +909,12 @@ sidebarToggleBtn.addEventListener('click', () => {
 sidebarAccountBtn.addEventListener('click', () => {
   closeDrawer();
   openSettings('account');
+});
+window.addEventListener('hashchange', () => {
+  const requestedId = conversationIdFromHash();
+  if (requestedId && requestedId !== activeConvId && conversations.some(c => c.id === requestedId)) {
+    openConversation(requestedId, false);
+  }
 });
 
 /* ---------- 轻量 Markdown 渲染 ---------- */
@@ -1533,7 +1562,8 @@ async function send() {
       }
     }
     if (!acc.length) {
-      bubble.innerHTML = '<p>未收到回复，请确认后端已配置 DeepSeek API Key。</p>';
+      bubble.innerHTML = '<p>&#x670D;&#x52A1;&#x6CA1;&#x6709;&#x8FD4;&#x56DE;&#x53EF;&#x663E;&#x793A;&#x7684;&#x56DE;&#x590D;&#xFF0C;&#x8BF7;&#x91CD;&#x8BD5;&#x3002;</p>';
+      return;
     }
     if (!jokeLocked) {
       maybeDivider(new Date().toISOString());
@@ -1559,6 +1589,19 @@ async function send() {
     sendBtn.disabled = false;
     input.focus();
   }
+}
+function addLegacyEmptyReplyMessage(iso) {
+  maybeDivider(iso);
+  const div = document.createElement('div');
+  div.className = 'msg bot reply-failed-msg';
+  div.appendChild(botAvatar());
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  div.appendChild(bubble);
+  chatEl.appendChild(div);
+  renderBotMsg(div, '\u4e0a\u4e00\u6761\u56de\u590d\u6ca1\u80fd\u6210\u529f\u751f\u6210\uff0c\u4f60\u53ef\u4ee5\u76f4\u63a5\u7ee7\u7eed\u95ee\uff0c\u6211\u4f1a\u4ece\u8fd9\u91cc\u5f80\u4e0b\u6392\u67e5\u3002');
+  addMsgTime(div, iso);
+  scrollDown(false);
 }
 function addMsg(role, content, iso) {
   maybeDivider(iso);
@@ -1657,6 +1700,7 @@ function applyApiProviderPreset(provider, replaceValues = false) {
 }
 
 function openSettings(tab) {
+  avatarPickerExpanded = false;
   renderAccountSection();
   renderAvatarGrid();
   renderPreferencesSection();
@@ -1707,17 +1751,40 @@ settingsModal.addEventListener('click', e => {
 });
 
 /* ---------- 头像选择网格（并入账号标签页后，绑定 accountPane 内网格点击） ---------- */
+function avatarPageStart(index) {
+  return Math.floor((Math.max(1, index) - 1) / AVATAR_PAGE_SIZE) * AVATAR_PAGE_SIZE;
+}
 function renderAvatarGrid() {
+  const edit = accountSection.querySelector('#avatarEditBtn');
+  if (edit) {
+    edit.addEventListener('click', () => {
+      avatarPickerExpanded = !avatarPickerExpanded;
+      if (avatarPickerExpanded) avatarPickerOffset = avatarPageStart(getAvatarIdx());
+      renderAccountSection();
+      renderAvatarGrid();
+    });
+  }
+  const next = accountSection.querySelector('#avatarNextBtn');
+  if (next) {
+    next.addEventListener('click', () => {
+      const nextOffset = avatarPickerOffset + AVATAR_PAGE_SIZE;
+      avatarPickerOffset = nextOffset < AVATAR_COUNT ? nextOffset : 0;
+      renderAccountSection();
+      renderAvatarGrid();
+    });
+  }
   const grid = accountSection.querySelector('.avatar-grid');
   if (!grid) return;
   grid.querySelectorAll('.avatar-opt').forEach(img => {
     img.addEventListener('click', () => {
       const idx = parseInt(img.dataset.idx, 10);
       localStorage.setItem(AVATAR_KEY, String(idx));
-      grid.querySelectorAll('.avatar-opt').forEach(el => el.classList.remove('selected'));
-      img.classList.add('selected');
+      avatarPickerExpanded = false;
+      avatarPickerOffset = avatarPageStart(idx);
+      renderAccountSection();
+      renderAvatarGrid();
       updateSidebarAccount();
-      toast('头像已更新');
+      toast('\u5934\u50cf\u5df2\u66f4\u65b0');
     });
   });
 }
@@ -1767,13 +1834,23 @@ function renderAccountSection() {
 /* 头像选择块（并入账号标签页） */
 function renderAvatarBlock() {
   const current = getAvatarIdx();
-  let html = '<div class="pane-title" style="margin-top:16px">选择头像</div>';
-  html += '<div class="avatar-grid">';
-  for (let i = 1; i <= AVATAR_COUNT; i++) {
-    html += '<img src="avatars/' + i + '.webp" class="avatar-opt' + (i === current ? ' selected' : '') + '" data-idx="' + i + '" alt="" />';
+  if (!avatarPickerExpanded) avatarPickerOffset = avatarPageStart(current);
+  let html = '<div class="avatar-picker">' +
+    '<div class="avatar-current">' +
+      '<img src="avatars/' + current + '.webp" alt="" />' +
+      '<div class="avatar-current-copy"><strong>\u5f53\u524d\u5934\u50cf</strong><span>\u70b9\u51fb\u53f3\u4e0a\u89d2\u66f4\u6362</span></div>' +
+      '<button class="avatar-edit" id="avatarEditBtn" type="button" aria-label="\u7f16\u8f91\u5934\u50cf" title="\u66f4\u6362\u5934\u50cf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>' +
+    '</div>';
+  if (avatarPickerExpanded) {
+    const page = [];
+    for (let offset = 0; offset < AVATAR_PAGE_SIZE; offset++) {
+      const i = avatarPickerOffset + offset + 1;
+      if (i > AVATAR_COUNT) break;
+      page.push('<img src="avatars/' + i + '.webp" class="avatar-opt' + (i === current ? ' selected' : '') + '" data-idx="' + i + '" alt="" />');
+    }
+    html += '<div class="avatar-picker-panel"><div class="avatar-picker-toolbar"><span>\u9009\u4e00\u4e2a\u5934\u50cf</span><button type="button" id="avatarNextBtn">\u6362\u4e00\u6279</button></div><div class="avatar-grid">' + page.join('') + '</div></div>';
   }
-  html += '</div>';
-  return html;
+  return html + '</div>';
 }
 
 async function submitBind() {

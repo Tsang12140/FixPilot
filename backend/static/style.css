@@ -958,15 +958,34 @@ body.bg-5 .login-screen::after {
 .settings-input::placeholder { color: #b0b6c2; font-size: 12px; }
 .settings-input.preference-select { width: min(360px, 100%); }
 /* 头像选择 */
-.avatar-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.avatar-picker { margin: 14px 0 10px; }
+.avatar-current {
+  position: relative; display: flex; align-items: center; gap: 11px; min-height: 62px; padding: 8px 44px 8px 8px;
+  border: 1px solid #e5e9f2; border-radius: 12px; background: #fbfcfe;
+}
+.avatar-current > img { width: 46px; height: 46px; object-fit: cover; border-radius: 13px; background: #fff; }
+.avatar-current-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.avatar-current-copy strong { font-size: 13px; }
+.avatar-current-copy span { color: var(--text-2); font-size: 11px; }
+.avatar-edit {
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border: none; border-radius: 9px;
+  background: var(--accent-weak); color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.avatar-edit:hover { background: var(--accent); color: #fff; }
+.avatar-edit svg { width: 14px; height: 14px; }
+.avatar-picker-panel { margin-top: 8px; padding: 10px; border: 1px solid #e5e9f2; border-radius: 12px; background: #fff; animation: hero-in .18s ease both; }
+.avatar-picker-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; color: var(--text-2); font-size: 12px; }
+.avatar-picker-toolbar button { border: none; background: transparent; color: var(--accent); font: inherit; font-weight: 650; cursor: pointer; padding: 3px 4px; border-radius: 6px; }
+.avatar-picker-toolbar button:hover { background: var(--accent-weak); }
+.avatar-grid { display: grid; grid-template-columns: repeat(6, 40px); gap: 8px; }
 .avatar-opt {
-  width: 44px; height: 44px; border-radius: 8px; cursor: pointer;
-  border: 2.5px solid transparent; object-fit: cover;
-  background: #fff; /* 与聊天头像一致，避免透明角落透出深色背景 */
+  width: 40px; height: 40px; border-radius: 10px; cursor: pointer;
+  border: 2px solid transparent; object-fit: cover; background: #fff;
   transition: border-color .15s, transform .12s;
 }
-.avatar-opt:hover { transform: scale(1.12); }
+.avatar-opt:hover { transform: scale(1.08); }
 .avatar-opt.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,108,246,.2); }
+
 /* 小按钮 */
 .settings-btn {
   padding: 7px 16px; font-size: 13px; font-weight: 600;
@@ -1663,3 +1682,4 @@ body.no-textclip .login-bigbrand .bb-name {
   .onboarding-guide.onboarding-first, .onboarding-guide.nudging { animation: none; }
   .onboarding-card { transition: none; }
 }
+.reply-failed-msg .bubble { color: var(--text-2); font-size: 12px; background: #f7f8fa; border-style: dashed; }

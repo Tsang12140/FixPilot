@@ -523,6 +523,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         acc = []
         prefix = []
         effect = None
+        effect_sent = False
         awaiting_directive = True
         try:
             for token in service.chat_stream(
@@ -540,10 +541,11 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                     tone, remainder = memes.parse_joke_directive(prefix_text)
                     if tone is not None:
                         effect = memes.choose_joke_effect(tone)
-                        yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
                         awaiting_directive = False
-                        if remainder:
+                        if remainder and remainder.strip():
                             acc.append(remainder)
+                            yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
+                            effect_sent = True
                             yield f"data: {json.dumps(remainder, ensure_ascii=False)}\n\n"
                         continue
                     if memes.might_be_joke_directive(prefix_text):
@@ -551,6 +553,9 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                     awaiting_directive = False
                     token = prefix_text
                 acc.append(token)
+                if effect and not effect_sent and token.strip():
+                    yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
+                    effect_sent = True
                 yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
         except Exception as exc:
             message = "服务出错，请稍后重试"
@@ -561,7 +566,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
             return
 
         full = "".join(acc).strip()
-        if not effect and not full:
+        if not full:
             empty_reply_error = RuntimeError("Provider returned an empty streamed reply")
             if attempt_id:
                 api_diagnostics.failure(attempt_id, empty_reply_error)
