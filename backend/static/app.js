@@ -22,6 +22,11 @@ const sidebar = document.getElementById('sidebar');
 const scrim = document.getElementById('scrim');
 const menuBtn = document.getElementById('menuBtn');
 const newChatBtn = document.getElementById('newChat');
+const conversationSearch = document.getElementById('conversationSearch');
+const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+const sidebarAccountBtn = document.getElementById('sidebarAccountBtn');
+const sidebarAccountAvatar = document.getElementById('sidebarAccountAvatar');
+const sidebarAccountName = document.getElementById('sidebarAccountName');
 const quotaBadge = document.getElementById('quotaBadge');
 const shareBtn = document.getElementById('shareBtn');
 const shareMenu = document.getElementById('shareMenu');
@@ -163,6 +168,7 @@ function showApp() {
   loginScreen.style.display = 'none';
   appEl.style.display = 'flex';
   shareBtn.style.display = 'inline-flex';
+  updateSidebarAccount();
   closeShareMenu();
 }
 
@@ -793,8 +799,20 @@ async function deleteConversation(id, e) {
 
 function renderList() {
   convList.innerHTML = '';
-  if (!conversations.length) return;
-  conversations.forEach(c => {
+  const query = (conversationSearch ? conversationSearch.value : '').trim().toLocaleLowerCase();
+  const visibleConversations = query
+    ? conversations.filter(c => String(c.title || '').toLocaleLowerCase().includes(query))
+    : conversations;
+  if (!visibleConversations.length) {
+    if (query) {
+      const empty = document.createElement('div');
+      empty.className = 'conv-empty';
+      empty.textContent = '\u6ca1\u6709\u627e\u5230\u76f8\u5173\u5bf9\u8bdd';
+      convList.appendChild(empty);
+    }
+    return;
+  }
+  visibleConversations.forEach(c => {
     const item = document.createElement('div');
     item.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
     const title = document.createElement('span');
@@ -826,11 +844,49 @@ async function genTitle(convId, question) {
 }
 
 /* ---------- 侧边栏（移动端抽屉） ---------- */
+const SIDEBAR_COLLAPSED_KEY = 'fixpilot_sidebar_collapsed';
+function updateSidebarToggle(collapsed) {
+  const label = collapsed ? '\u5c55\u5f00\u4fa7\u8fb9\u680f' : '\u6536\u8d77\u4fa7\u8fb9\u680f';
+  sidebarToggleBtn.setAttribute('aria-label', label);
+  sidebarToggleBtn.title = label;
+}
+function setSidebarCollapsed(collapsed, persist = true) {
+  appEl.classList.toggle('sidebar-collapsed', collapsed);
+  updateSidebarToggle(collapsed);
+  if (persist) localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+}
+function updateSidebarAccount() {
+  if (!sidebarAccountBtn || !sidebarAccountAvatar || !sidebarAccountName) return;
+  const user = getUser() || {};
+  const name = boundUsername || user.username || (currentUser && currentUser.username) || '\u6211\u7684\u8d26\u53f7';
+  sidebarAccountAvatar.src = avatarUrl();
+  sidebarAccountName.textContent = name;
+  sidebarAccountBtn.title = '\u6253\u5f00 ' + name + ' \u7684\u8bbe\u7f6e';
+}
 function openDrawer() { sidebar.classList.add('open'); scrim.classList.add('show'); }
 function closeDrawer() { sidebar.classList.remove('open'); scrim.classList.remove('show'); }
+setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1', false);
 menuBtn.addEventListener('click', openDrawer);
 scrim.addEventListener('click', closeDrawer);
 newChatBtn.addEventListener('click', newConversation);
+conversationSearch.addEventListener('input', renderList);
+conversationSearch.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { conversationSearch.value = ''; renderList(); conversationSearch.blur(); }
+});
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    conversationSearch.focus();
+    conversationSearch.select();
+  }
+});
+sidebarToggleBtn.addEventListener('click', () => {
+  setSidebarCollapsed(!appEl.classList.contains('sidebar-collapsed'));
+});
+sidebarAccountBtn.addEventListener('click', () => {
+  closeDrawer();
+  openSettings('account');
+});
 
 /* ---------- 轻量 Markdown 渲染 ---------- */
 function escapeHtml(s) {
@@ -1660,6 +1716,7 @@ function renderAvatarGrid() {
       localStorage.setItem(AVATAR_KEY, String(idx));
       grid.querySelectorAll('.avatar-opt').forEach(el => el.classList.remove('selected'));
       img.classList.add('selected');
+      updateSidebarAccount();
       toast('头像已更新');
     });
   });
@@ -1738,6 +1795,7 @@ async function submitBind() {
     localStorage.setItem(USER_KEY, JSON.stringify(u));
     dismissBindBanner(true);
     renderAccountSection();
+    updateSidebarAccount();
     closeSettings();
     toast('已绑定账号 ' + d.username);
   } catch (e) {
