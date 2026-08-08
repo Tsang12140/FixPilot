@@ -1944,21 +1944,20 @@ document.getElementById('bbClose').addEventListener('click', () => dismissBindBa
 const modelPickerBtn = document.getElementById('modelPickerBtn');
 const modelPickerLabel = document.getElementById('modelPickerLabel');
 const modelDropdown = document.getElementById('modelDropdown');
+const modelPickerWrap = document.getElementById('modelPickerWrap');
 const DEFAULT_MODEL_LABEL = 'DeepSeek with Flash';
 let _modelList = [];
 
 /* 移动端：把模型选择器从输入框移入顶栏（按钮左侧），节省输入框空间 */
 function relocateModelPicker() {
-  const pickerWrap = modelPickerBtn.parentNode;
+  const pickerWrap = modelPickerWrap.parentNode;
   const topbarRight = document.querySelector('.topbar-right');
   const composer = document.querySelector('.composer');
   const mobile = window.matchMedia('(max-width: 767px)').matches;
   if (mobile && pickerWrap !== topbarRight && topbarRight && composer) {
-    topbarRight.insertBefore(modelPickerBtn, topbarRight.firstChild);
-    topbarRight.insertBefore(modelDropdown, modelPickerBtn.nextSibling);
+    topbarRight.insertBefore(modelPickerWrap, topbarRight.firstChild);
   } else if (!mobile && pickerWrap !== composer && composer) {
-    composer.insertBefore(modelPickerBtn, composer.querySelector('#imgBtn'));
-    composer.insertBefore(modelDropdown, modelPickerBtn.nextSibling);
+    composer.insertBefore(modelPickerWrap, composer.querySelector('#imgBtn'));
   }
 }
 relocateModelPicker();
@@ -1970,6 +1969,7 @@ function updateModelPicker() {
     _modelList = [];
     modelPickerBtn.style.display = 'inline-flex';
     modelPickerLabel.textContent = DEFAULT_MODEL_LABEL;
+    modelPickerBtn.title = DEFAULT_MODEL_LABEL;
     modelDropdown.style.display = 'none';
     return;
   }
@@ -1978,6 +1978,7 @@ function updateModelPicker() {
   _modelList = preset.models.filter(Boolean);
   if (s.model && !_modelList.includes(s.model)) _modelList.unshift(s.model);
   modelPickerLabel.textContent = s.model || preset.models[0];
+  modelPickerBtn.title = modelPickerLabel.textContent;
 }
 function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
@@ -1987,12 +1988,13 @@ function toggleModelDropdown() {
   modelDropdown.innerHTML = _modelList.map(m =>
     '<button type="button" class="model-opt' + (m === current ? ' active' : '') + '" data-model="' + m + '">' + m + '</button>'
   ).join('') + '<button type="button" class="model-opt model-custom" data-model="__custom">自定义...</button>';
+  modelDropdown.querySelectorAll('.model-opt').forEach((option) => { option.title = option.textContent.trim(); });
   modelDropdown.style.display = 'block';
   modelPickerBtn.classList.add('open');
 }
 modelPickerBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleModelDropdown(); });
 document.addEventListener('click', (e) => {
-  if (!modelDropdown.contains(e.target) && e.target !== modelPickerBtn) { modelDropdown.style.display = 'none'; modelPickerBtn.classList.remove('open'); }
+  if (!modelDropdown.contains(e.target) && !modelPickerBtn.contains(e.target)) { modelDropdown.style.display = 'none'; modelPickerBtn.classList.remove('open'); }
 });
 modelDropdown.addEventListener('click', (e) => {
   const btn = e.target.closest('.model-opt');

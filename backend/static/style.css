@@ -1060,11 +1060,12 @@ body.bg-5 .login-screen::after {
   font-size: 13px; font-weight: 500; cursor: pointer;
   box-shadow: none;
   transition: background .15s, color .15s;
-  white-space: nowrap; max-width: none;
+  white-space: nowrap; max-width: min(320px, 30vw);
 }
+.model-picker-wrap { position: relative; grid-area: model; align-self: end; min-width: 0; }
 .composer .model-picker-btn {
   position: static;
-  grid-area: model;
+  grid-area: auto;
   transform: none;
   z-index: 2;
   align-self: end;
@@ -1075,12 +1076,12 @@ body.bg-5 .login-screen::after {
 .composer .model-picker-btn:hover,
 .composer .model-picker-btn:active { transform: none; color: #1d4ed8; background: #eef3ff; }
 .composer .model-dropdown {
-  right: 8px; left: auto;
-  bottom: calc(100% + 6px);
+  right: 0; left: auto;
+  bottom: calc(100% + 4px);
   margin-bottom: 0;
 }
 .model-picker-btn:hover { background: var(--bg); color: var(--text); }
-.model-picker-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-picker-btn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-picker-btn .chevron {
   width: 10px; height: 10px; opacity: .45; flex-shrink: 0;
   transition: transform .15s;
@@ -1091,7 +1092,7 @@ body.bg-5 .login-screen::after {
   position: absolute; bottom: 100%; left: 0; z-index: 50;
   margin-bottom: 6px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15,23,42,.16); padding: 4px; min-width: 180px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.16); padding: 4px; min-width: 180px; max-width: min(360px, calc(100vw - 32px));
 }
 /* 移动端：模型选择器移入顶栏（按钮左侧），下拉改为向下展开 */
 .topbar-right { position: relative; }
@@ -1104,7 +1105,7 @@ body.bg-5 .login-screen::after {
   padding: 7px 12px; font-size: 13px; border: none; border-radius: 7px;
   background: transparent; color: var(--text); cursor: pointer;
   box-shadow: none;
-  transition: background .12s;
+  transition: background .12s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .model-dropdown .model-opt:hover { background: var(--bg); }
 .model-dropdown .model-opt.active { background: var(--bg); font-weight: 600; color: var(--text); }
