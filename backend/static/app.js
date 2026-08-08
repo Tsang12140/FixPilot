@@ -1747,6 +1747,7 @@ function applyApiProviderPreset(provider, replaceValues = false) {
 }
 
 function openSettings(tab) {
+  const initialTab = typeof tab === 'string' ? tab : 'account';
   avatarPickerExpanded = false;
   renderAccountSection();
   renderAvatarGrid();
@@ -1761,7 +1762,7 @@ function openSettings(tab) {
   apiStatus.textContent = '';
   apiStatus.className = 'api-status';
   /* 指定标签打开（如 API），否则默认账号标签 */
-  switchSettingsTab(tab || 'account');
+  switchSettingsTab(initialTab);
   settingsModal.style.display = 'flex';
 }
 function closeSettings() {
@@ -1779,13 +1780,9 @@ function switchSettingsTab(tab) {
   });
 }
 settingsModal.querySelectorAll('.settings-tab').forEach(tab => {
-  if (tab.id === 'logoutTab') {
-    tab.addEventListener('click', doLogout);
-  } else {
-    tab.addEventListener('click', () => switchSettingsTab(tab.dataset.tab));
-  }
+  tab.addEventListener('click', () => switchSettingsTab(tab.dataset.tab));
 });
-document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('settingsBtn').addEventListener('click', () => openSettings('account'));
 document.getElementById('settingsClose').addEventListener('click', closeSettings);
 /* A native select can finish outside the card. Only close on a complete backdrop click. */
 let settingsBackdropPointerStarted = false;
@@ -1802,6 +1799,11 @@ function avatarPageStart(index) {
   return Math.floor((Math.max(1, index) - 1) / AVATAR_PAGE_SIZE) * AVATAR_PAGE_SIZE;
 }
 function renderAvatarGrid() {
+  const logout = accountSection.querySelector('#accountLogoutBtn');
+  if (logout) logout.addEventListener('click', () => {
+    closeSettings();
+    doLogout();
+  });
   const edit = accountSection.querySelector('#avatarEditBtn');
   if (edit) {
     edit.addEventListener('click', () => {
@@ -1877,6 +1879,9 @@ function renderAvatarBlock(name, meta) {
         '<span class="avatar-edit" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span>' +
       '</button>' +
       '<div class="avatar-current-copy"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(meta) + '</span></div>' +
+      '<button class="account-logout" id="accountLogoutBtn" type="button" title="\u9000\u51fa\u767b\u5f55">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path><path d="M21 19V5a2 2 0 0 0-2-2h-5"></path></svg><span>\u9000\u51fa\u767b\u5f55</span>' +
+      '</button>' +
     '</div>';
   if (avatarPickerExpanded) {
     const all = [];
