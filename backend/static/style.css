@@ -470,8 +470,10 @@ body {
 .composer {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  grid-template-areas: "input model img send";
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "input input input input"
+    "model . img send";
   align-items: end;
   gap: 6px;
   background: var(--panel);
@@ -600,6 +602,11 @@ body {
   .chat { padding: 24px 28px 16px; }
   .bubble { max-width: 72%; }
   .composer-wrap { padding: 14px 24px 16px; }
+  .sidebar-toggle-btn {
+    position: absolute; left: 20px; bottom: 28px; z-index: 4;
+    background: rgba(255,255,255,.76); border: 1px solid rgba(226,232,240,.9);
+    box-shadow: 0 4px 14px rgba(31,52,110,.10);
+  }
 }
 
 @media (max-width: 767px) {
@@ -1192,6 +1199,7 @@ body.bg-5 .login-screen::after {
   box-shadow: 0 12px 32px rgba(15,23,42,.16);
 }
 .topbar-right { position: relative; }
+.composer .model-dropdown { right: auto; left: 0; }
 .model-section + .model-section { margin-top: 7px; padding-top: 8px; border-top: 1px solid var(--border); }
 .model-section-title { padding: 2px 8px 6px; color: var(--text-2); font-size: 12px; font-weight: 600; }
 .model-dropdown .model-opt {

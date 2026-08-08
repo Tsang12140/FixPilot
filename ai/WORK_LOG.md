@@ -235,6 +235,35 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   external/old servers or a future bad write must never turn a safety warning
   into question marks again.
 
+### 2026-08-09 - relocate desktop sidebar toggle and model control
+
+- Request / symptom: the desktop sidebar toggle was in the top bar, and the
+  model picker shared the lower-right action cluster. The requested layout put
+  the sidebar control at the main area's lower-left and the model picker at the
+  composer's lower-left.
+- Finding / root cause: the desktop composer used a single grid row
+  (`input model img send`), which forced the picker into the same right-aligned
+  control group as image upload and send.
+- Changed:
+  - `backend/static/index.html` - moved the sidebar-toggle element out of the
+    top bar to the main area beside the composer footer; bumped the CSS cache
+    version.
+  - `backend/static/style.css` - changed desktop composer grid to text row plus
+    controls row (`model` left, image/send right), positioned the desktop
+    sidebar toggle at main lower-left, and left-aligned the desktop model menu.
+- Verified:
+  - browser test at 2048x1215 confirmed the model is lower-left of the
+    composer, image/send stay lower-right, the model menu is left-anchored, and
+    the relocated toggle still collapses the sidebar;
+  - browser test at 390x844 confirmed the picker remains in the mobile top bar,
+    the mobile toggle stays hidden, the one-line composer remains 52px tall,
+    and no horizontal overflow/page errors occur;
+  - `node --check backend/static/app.js` and `git diff --check` passed.
+- Commit: pending.
+- Follow-up / risk: preserve the mobile relocation rule; do not reintroduce the
+  desktop two-row composer layout on mobile, where the keyboard requires the
+  compact one-line input.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.
