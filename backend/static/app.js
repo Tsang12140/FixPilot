@@ -645,12 +645,12 @@ async function enterApp() {
     bindBannerDismissed = false;
     document.getElementById('bindBanner').style.display = 'none';
     initFavIcon();
-    updateModelPicker();
     if (me.role === 'admin') {
       document.getElementById('adminBtn').style.display = 'inline-flex';
       document.getElementById('quotaWrap').style.display = 'none';
       await loadConversations();
       showApp();
+      updateModelPicker();
       return;
     }
     document.getElementById('adminBtn').style.display = 'none';
@@ -659,6 +659,7 @@ async function enterApp() {
     updateQuotaBadge(me);
     await loadConversations();
     showApp();
+    updateModelPicker();
     if (!canUse) showQuotaBlock();
   } catch (e) {
     showLogin();
@@ -1270,7 +1271,7 @@ function maybeDivider(iso) {
 function scrollDown(anim = true) { chatEl.scrollTop = chatEl.scrollHeight; }
 function autoResize() {
   input.style.height = 'auto';
-  const maxHeight = 120;
+  const maxHeight = 160;
   const nextHeight = Math.min(input.scrollHeight, maxHeight);
   input.style.height = nextHeight + 'px';
   input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';

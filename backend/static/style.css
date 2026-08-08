@@ -448,8 +448,8 @@ body {
   font: inherit;
   font-size: 16px; /* 16px 防止 iOS 聚焦自动放大 */
   line-height: 1.5;
-  min-height: 24px;
-  max-height: 120px;
+  min-height: 60px;
+  max-height: 160px;
   overflow-y: hidden;
   resize: none;
   outline: none;
