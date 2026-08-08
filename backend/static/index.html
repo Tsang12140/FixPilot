@@ -223,12 +223,13 @@
               <option value="deepseek">DeepSeek</option>
               <option value="volcengine">火山方舟（Chat Completions）</option>
               <option value="volcengineResponses">火山方舟（Responses）</option>
-              <option value="openai">OpenAI 兼容</option>
+              <option value="openai">OpenAI 官方</option>
+              <option value="custom">全自定义（OpenAI 兼容）</option>
             </select>
             <div class="settings-hint api-provider-hint" id="apiProviderHint"></div>
             <label class="settings-label">API Key</label>
             <input class="settings-input" id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
-            <label class="settings-label">API 地址（留空用默认）</label>
+            <label class="settings-label">API 地址（全自定义时必须填写）</label>
             <input class="settings-input" id="apiBaseInput" placeholder="https://api.deepseek.com" autocomplete="off" />
             <label class="settings-label">模型</label>
             <input class="settings-input" id="apiModelInput" placeholder="deepseek-chat" autocomplete="off" />

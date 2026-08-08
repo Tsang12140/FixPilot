@@ -94,6 +94,13 @@ const API_PRESETS = {
     base: 'https://api.openai.com/v1',
     models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   },
+  custom: {
+    base: '',
+    models: [''],
+    basePlaceholder: 'https://api.example.com/v1/chat/completions',
+    modelPlaceholder: 'provider model ID',
+    keyPlaceholder: 'provider API Key',
+  },
 };
 function getApiSettings() {
   try { return JSON.parse(localStorage.getItem(API_SETTINGS_KEY) || 'null'); } catch (e) { return null; }
@@ -1571,6 +1578,7 @@ const API_PROVIDER_HINTS = {
   volcengine: '\u4f7f\u7528\u706b\u5c71\u65b9\u821f\u7684 API Key\u3002\u63a8\u8350\u4f7f\u7528\u514d\u8d39\u989d\u5ea6\u5df2\u5f00\u901a\u7684 DeepSeek-V4-Flash\uff1b\u5176\u4ed6\u6a21\u578b\u8bf7\u6309\u65b9\u821f\u63a7\u5236\u53f0\u7684 Model ID \u586b\u5199\u3002',
   volcengineResponses: '\u4f7f\u7528\u65b9\u821f Responses API\uff0c\u81ea\u52a8\u4f7f\u7528 /responses \u548c input \u683c\u5f0f\u3002\u793a\u4f8b\u4e2d\u7684 web_search \u5de5\u5177\u4e0d\u4f1a\u5f00\u542f\uff0cFixPilot \u76ee\u524d\u4e0d\u63d0\u4f9b\u5b9e\u65f6\u7f51\u7edc\u67e5\u8be2\u3002',
   openai: '\u9002\u7528\u4e8e\u5176\u4ed6 OpenAI \u517c\u5bb9\u670d\u52a1\uff0c\u8bf7\u81ea\u884c\u786e\u8ba4\u5730\u5740\u548c\u6a21\u578b\u540d\u3002',
+  custom: '\u586b\u5165\u670d\u52a1\u5546\u63d0\u4f9b\u7684\u5b8c\u6574\u63a5\u53e3\u5730\u5740\u3001\u6a21\u578b ID \u548c API Key\u3002\u652f\u6301 OpenAI \u517c\u5bb9\u7684 /chat/completions\uff1b\u5982\u679c\u586b\u5b8c\u6574 /responses\uff0cFixPilot \u4f1a\u81ea\u52a8\u4f7f\u7528 Responses \u534f\u8bae\u3002',
 };
 function applyApiProviderPreset(provider, replaceValues = false) {
   const preset = API_PRESETS[provider] || API_PRESETS.deepseek;
@@ -1578,8 +1586,8 @@ function applyApiProviderPreset(provider, replaceValues = false) {
     apiBaseInput.value = preset.base;
     apiModelInput.value = preset.models[0];
   } else {
-    apiBaseInput.placeholder = preset.base;
-    apiModelInput.placeholder = preset.models[0];
+    apiBaseInput.placeholder = preset.base || preset.basePlaceholder || '';
+    apiModelInput.placeholder = preset.models[0] || preset.modelPlaceholder || '';
   }
   apiKeyInput.placeholder = preset.keyPlaceholder || 'sk-...';
   if (apiProviderHint) apiProviderHint.textContent = API_PROVIDER_HINTS[provider] || API_PROVIDER_HINTS.openai;
@@ -1806,10 +1814,18 @@ function readApiSettingsForm() {
   };
 }
 
+function apiSettingsValidationError(settings) {
+  if (!settings.apiKey) return '\u8bf7\u8f93\u5165 API Key';
+  if (settings.provider === 'custom' && !settings.apiBase) return '\u5168\u81ea\u5b9a\u4e49\u8bf7\u586b\u5199\u5b8c\u6574 API \u5730\u5740';
+  if (settings.provider === 'custom' && !settings.model) return '\u5168\u81ea\u5b9a\u4e49\u8bf7\u586b\u5199\u6a21\u578b ID';
+  return '';
+}
+
 function saveApiSettings_action() {
   const settings = readApiSettingsForm();
-  if (!settings.apiKey) {
-    apiStatus.textContent = '请输入 API Key';
+  const validationError = apiSettingsValidationError(settings);
+  if (validationError) {
+    apiStatus.textContent = validationError;
     apiStatus.className = 'api-status err';
     return;
   }
@@ -1822,8 +1838,9 @@ function saveApiSettings_action() {
 
 async function testApiSettings_action() {
   const settings = readApiSettingsForm();
-  if (!settings.apiKey) {
-    apiStatus.textContent = '请输入 API Key';
+  const validationError = apiSettingsValidationError(settings);
+  if (validationError) {
+    apiStatus.textContent = validationError;
     apiStatus.className = 'api-status err';
     return;
   }
