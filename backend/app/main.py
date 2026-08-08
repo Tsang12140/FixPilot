@@ -43,6 +43,13 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None        # 自定义模型名
 
 
+class ApiTestRequest(BaseModel):
+    """Custom API connectivity tests do not require chat messages."""
+    apiKey: str
+    apiBase: Optional[str] = None
+    model: Optional[str] = None
+
+
 class TitleRequest(BaseModel):
     question: str
     convId: Optional[str] = None
@@ -440,7 +447,7 @@ def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
 
 
 @app.post("/api/test-api")
-def test_api(req: ChatRequest, authorization: Optional[str] = Header(None)):
+def test_api(req: ApiTestRequest, authorization: Optional[str] = Header(None)):
     """测试用户自定义 API 是否可用（发送一条极简请求）。"""
     _require_auth(authorization)
     if not req.apiKey:

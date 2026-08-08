@@ -112,6 +112,22 @@ def chat_completions_url(api_base: str) -> str:
     return url + "/chat/completions"
 
 
+def build_chat_payload(messages: List[Dict[str, str]], model: str, url: str) -> Dict:
+    """Build a conservative OpenAI-compatible request payload.
+
+    Ark model capabilities differ by endpoint, so use only the required
+    Chat Completions fields there. Other providers retain FixPilot's limits.
+    """
+    payload = {
+        "model": model or config.DEEPSEEK_MODEL,
+        "messages": messages,
+        "stream": True,
+    }
+    if "ark.cn-beijing.volces.com" not in url.lower():
+        payload.update({"temperature": 0.8, "max_tokens": 1500})
+    return payload
+
+
 def stream_chat(
     messages: List[Dict[str, str]],
     api_key: str = "",
@@ -128,13 +144,7 @@ def stream_chat(
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
-    payload = {
-        "model": model or config.DEEPSEEK_MODEL,
-        "messages": messages,
-        "stream": True,
-        "temperature": 0.8,
-        "max_tokens": 1500,
-    }
+    payload = build_chat_payload(messages, model, url)
     with httpx.stream("POST", url, headers=headers, json=payload, timeout=120) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():
