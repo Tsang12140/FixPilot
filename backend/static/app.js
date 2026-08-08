@@ -53,6 +53,10 @@ const USER_KEY = 'fixpilot_user';
 
 /* ---------- 会话状态 ---------- */
 let conversations = [];
+let conversationSearchResults = null;
+let conversationSearchPending = false;
+let conversationSearchTimer = null;
+let conversationSearchRequest = 0;
 let activeConvId = null;
 let busy = false;
 let canUse = true;
@@ -820,17 +824,57 @@ async function deleteConversation(id, e) {
   } catch (e) {}
 }
 
+function currentConversationSearchQuery() {
+  return (conversationSearch ? conversationSearch.value : '').trim();
+}
+
+function scheduleConversationSearch() {
+  if (conversationSearchTimer) clearTimeout(conversationSearchTimer);
+  const query = currentConversationSearchQuery();
+  const requestId = ++conversationSearchRequest;
+  if (!query) {
+    conversationSearchResults = null;
+    conversationSearchPending = false;
+    renderList();
+    return;
+  }
+
+  conversationSearchResults = null;
+  conversationSearchPending = true;
+  renderList();
+  conversationSearchTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('api/conversations/search?q=' + encodeURIComponent(query), { headers: authHeaders() });
+      const d = r.ok ? await r.json() : null;
+      if (requestId !== conversationSearchRequest || currentConversationSearchQuery() !== query) return;
+      conversationSearchResults = { query, items: d && d.conversations ? d.conversations : [] };
+    } catch (e) {
+      if (requestId !== conversationSearchRequest || currentConversationSearchQuery() !== query) return;
+      // Keep local title matching usable if the search request itself fails.
+      conversationSearchResults = { query, items: conversations.filter(c => String(c.title || '').toLocaleLowerCase().includes(query.toLocaleLowerCase())) };
+    } finally {
+      if (requestId === conversationSearchRequest && currentConversationSearchQuery() === query) {
+        conversationSearchPending = false;
+        renderList();
+      }
+    }
+  }, 180);
+}
+
 function renderList() {
   convList.innerHTML = '';
-  const query = (conversationSearch ? conversationSearch.value : '').trim().toLocaleLowerCase();
+  const query = currentConversationSearchQuery();
+  const normalizedQuery = query.toLocaleLowerCase();
+  const cachedResult = conversationSearchResults && conversationSearchResults.query === query
+    ? conversationSearchResults.items : null;
   const visibleConversations = query
-    ? conversations.filter(c => String(c.title || '').toLocaleLowerCase().includes(query))
+    ? (cachedResult || conversations.filter(c => String(c.title || '').toLocaleLowerCase().includes(normalizedQuery)))
     : conversations;
   if (!visibleConversations.length) {
     if (query) {
       const empty = document.createElement('div');
       empty.className = 'conv-empty';
-      empty.textContent = '\u6ca1\u6709\u627e\u5230\u76f8\u5173\u5bf9\u8bdd';
+      empty.textContent = conversationSearchPending ? '\u641c\u7d22\u4e2d\u2026' : '\u6ca1\u6709\u627e\u5230\u76f8\u5173\u5bf9\u8bdd';
       convList.appendChild(empty);
     }
     return;
@@ -844,7 +888,7 @@ function renderList() {
     title.title = c.title;
     const del = document.createElement('button');
     del.className = 'conv-del';
-    del.setAttribute('aria-label', '删除');
+    del.setAttribute('aria-label', '\u5220\u9664');
     del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
     del.addEventListener('click', (e2) => deleteConversation(c.id, e2));
     item.addEventListener('click', (e2) => { if (e2.target.closest('.conv-del')) return; openConversation(c.id); });
@@ -854,7 +898,6 @@ function renderList() {
   });
 }
 
-/* ---------- 标题生成 ---------- */
 async function genTitle(convId, question) {
   try {
     const d = await fetch('api/title', {
@@ -903,15 +946,16 @@ setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1', false);
 menuBtn.addEventListener('click', openDrawer);
 scrim.addEventListener('click', closeDrawer);
 newChatBtn.addEventListener('click', newConversation);
-conversationSearch.addEventListener('input', renderList);
+conversationSearch.addEventListener('input', scheduleConversationSearch);
 conversationSearch.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { conversationSearch.value = ''; renderList(); conversationSearch.blur(); }
-});
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    conversationSearch.focus();
-    conversationSearch.select();
+  if (e.key === 'Escape') {
+    conversationSearch.value = '';
+    conversationSearchRequest += 1;
+    if (conversationSearchTimer) clearTimeout(conversationSearchTimer);
+    conversationSearchResults = null;
+    conversationSearchPending = false;
+    renderList();
+    conversationSearch.blur();
   }
 });
 sidebarToggleBtn.addEventListener('click', () => {

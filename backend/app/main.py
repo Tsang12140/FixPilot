@@ -379,6 +379,14 @@ def list_conv(authorization: Optional[str] = Header(None)):
     return {"conversations": db.list_conversations(_owner(payload))}
 
 
+@app.get("/api/conversations/search")
+def search_conv(q: str = "", authorization: Optional[str] = Header(None)):
+    payload = _require_auth(authorization)
+    if payload.get("role") not in ("user", "admin"):
+        raise HTTPException(status_code=403, detail="无权限")
+    return {"conversations": db.search_conversations(_owner(payload), q)}
+
+
 @app.post("/api/conversations")
 def new_conv(req: NewConvRequest, authorization: Optional[str] = Header(None)):
     payload = _require_auth(authorization)

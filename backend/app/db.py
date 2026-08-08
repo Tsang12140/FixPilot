@@ -341,6 +341,35 @@ def list_conversations(code: str) -> List[dict]:
         return [dict(r) for r in rows]
 
 
+def search_conversations(code: str, query: str) -> List[dict]:
+    """Search one owner's conversation titles and message text."""
+    text = (query or "").strip()
+    if not text:
+        return list_conversations(code)
+    escaped = text.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+    pattern = f"%{escaped}%"
+    with _lock, _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT c.*
+            FROM conversations AS c
+            WHERE c.invite_code = ?
+              AND (
+                c.title LIKE ? ESCAPE '!'
+                OR EXISTS (
+                    SELECT 1
+                    FROM messages AS m
+                    WHERE m.conv_id = c.id
+                      AND m.content LIKE ? ESCAPE '!'
+                )
+              )
+            ORDER BY c.created_at DESC
+            """,
+            (code, pattern, pattern),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_conversation(conv_id: str) -> Optional[dict]:
     with _lock, _connect() as conn:
         row = conn.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()

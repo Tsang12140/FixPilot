@@ -264,6 +264,38 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   desktop two-row composer layout on mobile, where the keyboard requires the
   compact one-line input.
 
+### 2026-08-09 - search conversation message bodies
+
+- Request / symptom: sidebar history search only matched conversation titles;
+  users could not find a prior conversation by words that appeared in its
+  message body. The visible `Ctrl K` shortcut hint was also unwanted.
+- Finding / root cause: `renderList` filtered the already-loaded conversation
+  metadata only, and `/api/conversations` intentionally contains no message
+  content. Fetching every message into the browser would be wasteful and would
+  make search state/races harder to control.
+- Changed:
+  - `backend/app/db.py` - added owner-scoped title/body search using `EXISTS`
+    against `messages`, with literal LIKE escaping for `!`, `%`, and `_`.
+  - `backend/app/main.py` - added authenticated
+    `GET /api/conversations/search?q=...` before dynamic conversation routes.
+  - `backend/static/app.js` - added 180ms-debounced search requests, stale
+    response protection, a local title fallback on request failure, and Escape
+    reset behavior; removed the Ctrl/Cmd+K search handler.
+  - `backend/static/index.html` - removed the visible `Ctrl K` badge and
+    bumped the JS cache version.
+- Verified:
+  - isolated SQLite tests covered title match, message-body match, owner
+    isolation, literal percent escaping, and direct authenticated route output;
+  - `py_compile` passed for the changed backend modules;
+  - browser test intercepted the search endpoint and verified a conversation
+    whose title lacked the query appeared from a body-search result, with no
+    `kbd` shortcut element, no page errors, and no horizontal overflow;
+  - `node --check backend/static/app.js` and `git diff --check` passed.
+- Commit: pending.
+- Follow-up / risk: body search currently returns matching conversations by
+  creation time but not a message excerpt. Add a privacy-reviewed snippet only
+  if users need to know which exact message caused a match.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.
