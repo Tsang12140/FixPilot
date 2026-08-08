@@ -995,6 +995,18 @@ function userAvatar() {
   a.innerHTML = '<img src="' + avatarUrl() + '" alt="" />';
   return a;
 }
+const QUICK_QUESTIONS = Object.freeze([
+  '\u6e38\u620f\u7ecf\u5e38\u95ea\u9000',
+  '\u5f00\u673a\u9ed1\u5c4f',
+  '\u9f20\u6807\u5361\u987f',
+  '\u6ca1\u6709\u58f0\u97f3',
+]);
+function quickQuestionChipsHtml() {
+  return '<div class="chips">' + QUICK_QUESTIONS.map(question => {
+    const safe = escapeHtml(question);
+    return '<button class="chip" data-q="' + safe + '">' + safe + '</button>';
+  }).join('') + '</div>';
+}
 const WELCOME_HTML =
   '<div class="welcome">' +
     '<div class="hero">' +
@@ -1007,12 +1019,7 @@ const WELCOME_HTML =
       '<div class="bubble"><p>你好，我是 <strong>FixPilot</strong>。描述一下你遇到的电脑问题，我会帮你逐步定位故障并给出解决办法。</p>' +
       '<p>比如：<em>开机黑屏但风扇在转</em>、<em>游戏经常闪退</em>、<em>电脑没声音</em>。</p></div>' +
     '</div>' +
-    '<div class="chips">' +
-      '<button class="chip" data-q="游戏经常闪退怎么办">游戏经常闪退</button>' +
-      '<button class="chip" data-q="&#x5F00;&#x673A;&#x9ED1;&#x5C4F;">开机黑屏</button>' +
-      '<button class="chip" data-q="电脑鼠标卡顿漂移">鼠标卡顿</button>' +
-      '<button class="chip" data-q="电脑没有声音">没有声音</button>' +
-    '</div>' +
+    quickQuestionChipsHtml() +
   '</div>';
 
 function onboardingStep() {
