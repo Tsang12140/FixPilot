@@ -1075,43 +1075,33 @@ body.bg-5 .login-screen::after {
 }
 .composer .model-picker-btn:hover,
 .composer .model-picker-btn:active { transform: none; color: #1d4ed8; background: #eef3ff; }
-.composer .model-dropdown {
-  right: 0; left: auto;
-  bottom: 100%;
-  margin-bottom: 0;
-}
-.model-picker-btn:hover { background: var(--bg); color: var(--text); }
-.model-picker-btn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.model-picker-btn .chevron {
-  width: 10px; height: 10px; opacity: .45; flex-shrink: 0;
-  transition: transform .15s;
-}
-.model-picker-btn.open .chevron { transform: rotate(180deg); }
-.model-picker-btn.open { background: var(--bg); color: var(--text); }
 .model-dropdown {
-  position: absolute; bottom: 100%; left: 0; z-index: 50;
-  margin-bottom: 6px;
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15,23,42,.16); padding: 4px; min-width: 180px; max-width: min(360px, calc(100vw - 32px));
+  position: absolute; right: 0; bottom: 100%; left: auto; z-index: 50;
+  margin: 0; width: 340px; min-width: 0; max-width: calc(100vw - 24px);
+  box-sizing: border-box; padding: 8px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.16);
 }
-/* 移动端：模型选择器移入顶栏（按钮左侧），下拉改为向下展开 */
+/* Model picker moves into the top bar on narrow screens. */
 .topbar-right { position: relative; }
 .topbar-right .model-dropdown {
   top: 100%; bottom: auto;
-  margin-bottom: 0; margin-top: 6px;
+  margin: 0;
 }
+.model-section + .model-section { margin-top: 7px; padding-top: 8px; border-top: 1px solid var(--border); }
+.model-section-title { padding: 2px 8px 6px; color: var(--text-2); font-size: 12px; font-weight: 600; }
 .model-dropdown .model-opt {
-  display: block; width: 100%; height: auto; text-align: left;
-  padding: 7px 12px; font-size: 13px; border: none; border-radius: 7px;
-  background: transparent; color: var(--text); cursor: pointer;
-  box-shadow: none;
-  transition: background .12s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px;
+  padding: 8px 10px; font-size: 14px; text-align: left; border: none; border-radius: 8px;
+  background: transparent; color: var(--text); cursor: pointer; box-shadow: none;
+  transition: background .12s, color .12s;
 }
 .model-dropdown .model-opt:hover { background: var(--bg); }
-.model-dropdown .model-opt.active { background: var(--bg); font-weight: 600; color: var(--text); }
-.model-dropdown .model-opt.model-custom { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; color: var(--text-2); font-size: 12px; }
-.model-dropdown--single-action { width: 100%; min-width: 0; box-sizing: border-box; padding: 3px; }
-.model-dropdown--single-action .model-opt.model-custom { border-top: none; margin-top: 0; padding: 8px 10px; text-align: center; font-size: 13px; }
+.model-dropdown .model-opt.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+.model-opt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-opt-check { margin-left: auto; flex-shrink: 0; color: var(--accent); font-size: 16px; line-height: 1; }
+.model-dropdown .model-opt.model-config { color: var(--text-2); }
+.model-dropdown .model-opt.model-config:hover { color: var(--accent); }
 
 /* API 设置弹窗内部样式 */
 .api-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 4px; }

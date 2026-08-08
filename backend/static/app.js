@@ -111,7 +111,7 @@ function clearApiSettings() { localStorage.removeItem(API_SETTINGS_KEY); }
 /** 返回当前应随 chat 请求发送的自定义 API 参数，无则返回 null */
 function chatApiParams() {
   const s = getApiSettings();
-  if (!s || !s.apiKey) return null;
+  if (!s || !s.apiKey || s.activeSource === 'platform') return null;
   return { apiKey: s.apiKey, apiBase: s.apiBase || '', model: s.model || '' };
 }
 
@@ -677,7 +677,7 @@ function updateQuotaBadge(me) {
     return;
   }
   // 检测到自定义 API 时隐藏次数显示
-  if (getApiSettings()) {
+  if (chatApiParams()) {
     wrap.style.display = 'none';
     return;
   }
@@ -1836,6 +1836,7 @@ function saveApiSettings_action() {
     apiStatus.className = 'api-status err';
     return;
   }
+  settings.activeSource = 'custom';
   saveApiSettings(settings);
   apiStatus.textContent = '已保存。点「测试连接」确认这套 API 是否可用。';
   apiStatus.className = 'api-status ok';
@@ -1869,6 +1870,7 @@ async function testApiSettings_action() {
       apiStatus.className = 'api-status err';
       return;
     }
+    settings.activeSource = 'custom';
     saveApiSettings(settings);
     updateModelPicker();
     updateQuotaBadge(currentUser);
@@ -1965,33 +1967,58 @@ function relocateModelPicker() {
 relocateModelPicker();
 window.addEventListener('resize', relocateModelPicker);
 
+function configuredCustomModel(settings) {
+  if (!settings || !settings.apiKey) return '';
+  const preset = API_PRESETS[settings.provider] || API_PRESETS.deepseek;
+  return settings.model || preset.models.find(Boolean) || '';
+}
+function usesCustomModel(settings) {
+  return Boolean(settings && settings.apiKey && settings.activeSource !== 'platform');
+}
+function escapeModelHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+}
+function modelOption(source, model, active) {
+  const safeModel = escapeModelHtml(model);
+  return '<button type="button" class="model-opt' + (active ? ' active' : '') + '" data-source="' + source + '" data-model="' + safeModel + '">' +
+    '<span class="model-opt-name">' + safeModel + '</span>' +
+    (active ? '<span class="model-opt-check" aria-label="selected">&#10003;</span>' : '') +
+    '</button>';
+}
 function updateModelPicker() {
-  const s = getApiSettings();
-  if (!s || !s.apiKey) {
-    _modelList = [];
-    modelPickerBtn.style.display = 'inline-flex';
-    modelPickerLabel.textContent = platformModelName;
-    modelPickerBtn.title = platformModelName;
-    modelDropdown.style.display = 'none';
-    return;
-  }
+  const settings = getApiSettings();
+  const customModel = configuredCustomModel(settings);
+  const customActive = usesCustomModel(settings);
+  _modelList = customModel ? [customModel] : [];
   modelPickerBtn.style.display = 'inline-flex';
-  const preset = API_PRESETS[s.provider] || API_PRESETS.deepseek;
-  _modelList = preset.models.filter(Boolean);
-  if (s.model && !_modelList.includes(s.model)) _modelList.unshift(s.model);
-  modelPickerLabel.textContent = s.model || preset.models[0];
-  modelPickerBtn.title = modelPickerLabel.textContent;
+  const label = customActive && customModel ? customModel : platformModelName;
+  modelPickerLabel.textContent = label;
+  modelPickerBtn.title = label;
+  modelDropdown.style.display = 'none';
 }
 function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
   if (!show) { modelDropdown.style.display = 'none'; modelPickerBtn.classList.remove('open'); return; }
-  const s = getApiSettings();
-  const current = (s && s.model) || (API_PRESETS[s && s.provider] && API_PRESETS[s.provider].models[0]) || platformModelName;
-  const isPlatformOnly = _modelList.length === 0;
-  modelDropdown.classList.toggle('model-dropdown--single-action', isPlatformOnly);
-  modelDropdown.innerHTML = _modelList.map(m =>
-    '<button type="button" class="model-opt' + (m === current ? ' active' : '') + '" data-model="' + m + '">' + m + '</button>'
-  ).join('') + '<button type="button" class="model-opt model-custom" data-model="__custom">' + (isPlatformOnly ? '????????' : '????') + '</button>';
+  const settings = getApiSettings();
+  const customModel = configuredCustomModel(settings);
+  const customActive = usesCustomModel(settings);
+  const builtinTitle = '\u5185\u7f6e\u6a21\u578b';
+  const customTitle = '\u81ea\u5b9a\u4e49\u6a21\u578b';
+  const configureCustom = '\u914d\u7f6e\u81ea\u5b9a\u4e49\u6a21\u578b\u2026';
+  let customContent = '';
+  if (customModel) {
+    customContent = modelOption('custom', customModel, customActive);
+  } else {
+    customContent = '<button type="button" class="model-opt model-config" data-source="configure"><span class="model-opt-name">' + configureCustom + '</span></button>';
+  }
+  modelDropdown.classList.remove('model-dropdown--single-action');
+  modelDropdown.innerHTML =
+    '<section class="model-section"><div class="model-section-title">' + builtinTitle + '</div>' +
+    modelOption('platform', platformModelName, !customActive) +
+    '</section><section class="model-section"><div class="model-section-title">' + customTitle + '</div>' +
+    customContent + '</section>';
   modelDropdown.querySelectorAll('.model-opt').forEach((option) => { option.title = option.textContent.trim(); });
   modelDropdown.style.display = 'block';
   modelPickerBtn.classList.add('open');
@@ -2003,20 +2030,33 @@ document.addEventListener('click', (e) => {
 modelDropdown.addEventListener('click', (e) => {
   const btn = e.target.closest('.model-opt');
   if (!btn) return;
-  const m = btn.dataset.model;
+  const source = btn.dataset.source;
+  const model = btn.dataset.model || '';
   modelDropdown.style.display = 'none';
   modelPickerBtn.classList.remove('open');
-  if (m === '__custom') {
+  if (source === 'configure') {
     openSettings('api');
     return;
   }
-  const s = getApiSettings();
-  if (s) { s.model = m; saveApiSettings(s); }
-  updateModelPicker();
-  toast('已切换模型：' + m);
+  const settings = getApiSettings();
+  if (source === 'platform') {
+    if (settings) { settings.activeSource = 'platform'; saveApiSettings(settings); }
+    updateModelPicker();
+    updateQuotaBadge(currentUser);
+    toast('\u5df2\u5207\u6362\u4e3a\u5185\u7f6e\u6a21\u578b\uff1a' + platformModelName);
+    return;
+  }
+  if (source === 'custom' && settings) {
+    settings.model = model;
+    settings.activeSource = 'custom';
+    saveApiSettings(settings);
+    updateModelPicker();
+    updateQuotaBadge(currentUser);
+    toast('\u5df2\u5207\u6362\u4e3a\u81ea\u5b9a\u4e49\u6a21\u578b\uff1a' + model);
+  }
 });
 
-/* ---------- 事件 ---------- */
+/* ---------- Events ---------- */
 sendBtn.addEventListener('click', send);
 input.addEventListener('input', autoResize);
 input.addEventListener('keydown', (e) => {
