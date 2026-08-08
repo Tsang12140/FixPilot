@@ -450,7 +450,9 @@ def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
 def test_api(req: ApiTestRequest, authorization: Optional[str] = Header(None)):
     """Test a user-supplied API with a minimal compatible request."""
     _require_auth(authorization)
-    attempt_id = api_diagnostics.start("test", req.apiBase or "", req.model or "", req.apiKey)
+    endpoint = llm.api_endpoint_url(req.apiBase or "")
+    protocol = "Responses API" if llm.is_responses_api_url(endpoint) else "Chat Completions"
+    attempt_id = api_diagnostics.start("test", endpoint, req.model or "", req.apiKey)
     try:
         llm.test_chat_connection(
             api_key=req.apiKey,
@@ -458,7 +460,12 @@ def test_api(req: ApiTestRequest, authorization: Optional[str] = Header(None)):
             model=req.model or "",
         )
         api_diagnostics.success(attempt_id)
-        return {"ok": True}
+        return {
+            "ok": True,
+            "protocol": protocol,
+            "model": req.model or "default model",
+            "diagnosticId": attempt_id,
+        }
     except Exception as exc:
         api_diagnostics.failure(attempt_id, exc)
         raise HTTPException(status_code=400, detail=api_diagnostics.public_message(exc, attempt_id))

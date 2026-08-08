@@ -1569,6 +1569,7 @@ const apiProviderHint = document.getElementById('apiProviderHint');
 const API_PROVIDER_HINTS = {
   deepseek: '\u76f4\u63a5\u586b\u5165 DeepSeek API Key\u5373\u53ef\u3002',
   volcengine: '\u4f7f\u7528\u706b\u5c71\u65b9\u821f\u7684 API Key\u3002\u63a8\u8350\u4f7f\u7528\u514d\u8d39\u989d\u5ea6\u5df2\u5f00\u901a\u7684 DeepSeek-V4-Flash\uff1b\u5176\u4ed6\u6a21\u578b\u8bf7\u6309\u65b9\u821f\u63a7\u5236\u53f0\u7684 Model ID \u586b\u5199\u3002',
+  volcengineResponses: '\u4f7f\u7528\u65b9\u821f Responses API\uff0c\u81ea\u52a8\u4f7f\u7528 /responses \u548c input \u683c\u5f0f\u3002\u793a\u4f8b\u4e2d\u7684 web_search \u5de5\u5177\u4e0d\u4f1a\u5f00\u542f\uff0cFixPilot \u76ee\u524d\u4e0d\u63d0\u4f9b\u5b9e\u65f6\u7f51\u7edc\u67e5\u8be2\u3002',
   openai: '\u9002\u7528\u4e8e\u5176\u4ed6 OpenAI \u517c\u5bb9\u670d\u52a1\uff0c\u8bf7\u81ea\u884c\u786e\u8ba4\u5730\u5740\u548c\u6a21\u578b\u540d\u3002',
 };
 function applyApiProviderPreset(provider, replaceValues = false) {
@@ -1835,8 +1836,8 @@ async function testApiSettings_action() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
       body: JSON.stringify(settings),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       let detail = data.detail;
       if (Array.isArray(detail)) detail = detail.map(e => e.msg || e.message || '').filter(Boolean).join('；');
       else if (typeof detail === 'object' && detail !== null) detail = detail.message || detail.msg || JSON.stringify(detail);
@@ -1844,7 +1845,7 @@ async function testApiSettings_action() {
       apiStatus.className = 'api-status err';
       return;
     }
-    apiStatus.textContent = '连接成功。当前填写的配置可用。';
+    apiStatus.textContent = '\u8fde\u63a5\u6210\u529f\uff1a' + (data.protocol || 'OpenAI \u517c\u5bb9\u63a5\u53e3') + ' \u00b7 ' + (data.model || settings.model) + '\u3002';
     apiStatus.className = 'api-status ok';
   } catch (e) {
     apiStatus.textContent = '测试请求没有到达 FixPilot 后端。请先启动本地服务，然后重试。';
