@@ -1271,7 +1271,7 @@ function maybeDivider(iso) {
 function scrollDown(anim = true) { chatEl.scrollTop = chatEl.scrollHeight; }
 function autoResize() {
   input.style.height = 'auto';
-  const maxHeight = 160;
+  const maxHeight = 240;
   const nextHeight = Math.min(input.scrollHeight, maxHeight);
   input.style.height = nextHeight + 'px';
   input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';

@@ -425,12 +425,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   grid-template-areas: "input model img send";
-  align-items: center;
+  align-items: end;
   gap: 6px;
   background: var(--panel);
   border: 1.5px solid var(--border);
   border-radius: 16px;
-  padding: 7px 8px 7px 14px;
+  padding: 10px 10px 10px 14px;
   box-shadow: 0 2px 10px rgba(15,23,42,.05);
   transition: border-color .18s, background .15s, box-shadow .18s;
 }
@@ -448,8 +448,8 @@ body {
   font: inherit;
   font-size: 16px; /* 16px 防止 iOS 聚焦自动放大 */
   line-height: 1.5;
-  min-height: 60px;
-  max-height: 160px;
+  min-height: 120px;
+  max-height: 240px;
   overflow-y: hidden;
   resize: none;
   outline: none;
@@ -466,6 +466,7 @@ body {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(59,108,246,.35);
   transition: transform .12s cubic-bezier(.22,1,.36,1), box-shadow .18s, filter .18s;
+  align-self: end;
 }
 .composer button svg { width: 17px; height: 17px; }
 #send { grid-area: send; }
@@ -1066,11 +1067,13 @@ body.bg-5 .login-screen::after {
   grid-area: model;
   transform: none;
   z-index: 2;
-  width: auto; height: auto; border-radius: 6px;
-  background: transparent; box-shadow: none;
+  align-self: end;
+  width: auto; height: 36px; min-height: 36px; padding: 0 10px;
+  border: 1px solid #e1e7f0; border-radius: 10px;
+  background: #f8fafc; color: #273244; box-shadow: 0 2px 8px rgba(15,23,42,.08);
 }
 .composer .model-picker-btn:hover,
-.composer .model-picker-btn:active { transform: none; }
+.composer .model-picker-btn:active { transform: none; color: #1d4ed8; background: #eef3ff; }
 .composer .model-dropdown {
   right: 8px; left: auto;
   bottom: calc(100% + 6px);
