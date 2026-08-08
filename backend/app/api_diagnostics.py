@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -31,17 +32,32 @@ def _write(entry: Dict[str, Any]) -> None:
         handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def start(kind: str, api_base: str, model: str) -> str:
+def key_metadata(api_key: str) -> Dict[str, Any]:
+    """Diagnostic-only key facts; the secret value is never written to disk."""
+    raw = str(api_key or "")
+    trimmed = raw.strip()
+    return {
+        "api_key": "[NOT_LOGGED]",
+        "api_key_present": bool(trimmed),
+        "api_key_length": len(trimmed),
+        "api_key_prefix": trimmed[:4] if trimmed else "",
+        "api_key_has_bearer_prefix": trimmed.lower().startswith("bearer "),
+        "api_key_fingerprint": hashlib.sha256(trimmed.encode("utf-8")).hexdigest()[:12] if trimmed else "",
+    }
+
+
+def start(kind: str, api_base: str, model: str, api_key: str = "") -> str:
     event_id = f"api-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
-    _write({
+    entry = {
         "id": event_id,
         "time": datetime.now().isoformat(timespec="seconds"),
         "event": "start",
         "kind": kind,
         "api_base": redact(api_base),
         "model": redact(model),
-        "api_key": "[NOT_LOGGED]",
-    })
+    }
+    entry.update(key_metadata(api_key))
+    _write(entry)
     return event_id
 
 

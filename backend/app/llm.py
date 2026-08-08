@@ -108,6 +108,16 @@ def _build_context(texts: List[str]) -> str:
     return f"以下是知识库中检索到的相关内容，请据此回答：\n\n{blocks}"
 
 
+def normalize_api_key(api_key: str) -> str:
+    """Accept raw keys and harmless copy/paste wrappers without changing the secret."""
+    key = (api_key or "").strip()
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
+    if len(key) >= 2 and key[0] == key[-1] and key[0] in {"\"", "'"}:
+        key = key[1:-1].strip()
+    return key
+
+
 def chat_completions_url(api_base: str) -> str:
     """Accept either an OpenAI-compatible API base or its full chat endpoint."""
     url = (api_base or config.DEEPSEEK_BASE_URL).rstrip("/")
@@ -141,8 +151,9 @@ def test_chat_connection(
     url = chat_completions_url(base_url)
     payload = build_chat_payload([{"role": "user", "content": "Hi"}], model, url)
     payload["stream"] = False
+    key = normalize_api_key(api_key)
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
     timeout = httpx.Timeout(timeout=30.0, connect=10.0)
@@ -160,7 +171,7 @@ def stream_chat(
 
     可选传入 api_key / base_url / model 覆盖默认配置（用户自带 Key 场景）。
     """
-    key = api_key or config.DEEPSEEK_API_KEY
+    key = normalize_api_key(api_key or config.DEEPSEEK_API_KEY)
     url = chat_completions_url(base_url)
     headers = {
         "Authorization": f"Bearer {key}",

@@ -450,7 +450,7 @@ def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
 def test_api(req: ApiTestRequest, authorization: Optional[str] = Header(None)):
     """Test a user-supplied API with a minimal compatible request."""
     _require_auth(authorization)
-    attempt_id = api_diagnostics.start("test", req.apiBase or "", req.model or "")
+    attempt_id = api_diagnostics.start("test", req.apiBase or "", req.model or "", req.apiKey)
     try:
         llm.test_chat_connection(
             api_key=req.apiKey,
@@ -512,7 +512,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
 
     def gen():
         yield "data:__start__\n\n"
-        attempt_id = api_diagnostics.start("chat", req.apiBase or "", req.model or "") if use_custom_api else ""
+        attempt_id = api_diagnostics.start("chat", req.apiBase or "", req.model or "", req.apiKey or "") if use_custom_api else ""
         acc = []
         prefix = []
         effect = None
