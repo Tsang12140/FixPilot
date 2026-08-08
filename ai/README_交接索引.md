@@ -1,3 +1,7 @@
+> **Required before implementation:** read [`../AGENTS.md`](../AGENTS.md) and
+> [`WORK_LOG.md`](WORK_LOG.md) first. Every completed task must append a
+> verified handoff entry to `WORK_LOG.md` before commit or handoff.
+
 # FixPilot AI 产品规则包 v1.0
 
 > 交接对象：继续负责 FixPilot 实现/迭代的 AI 或开发者  
