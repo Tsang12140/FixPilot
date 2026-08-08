@@ -1106,7 +1106,7 @@ function memeIdFromMessage(content) {
   return match && Object.prototype.hasOwnProperty.call(MEME_ASSETS, match[1]) ? match[1] : null;
 }
 function memeSrc(memeId) {
-  return 'memes/' + encodeURIComponent(MEME_ASSETS[memeId]);
+  return 'memes/' + memeId + '.png';
 }
 function renderMemeMsg(div, memeId) {
   const filename = MEME_ASSETS[memeId];

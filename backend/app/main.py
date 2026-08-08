@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -626,6 +626,16 @@ def share_page(token: str):
     f = STATIC_DIR / "share.html"
     return f.read_text(encoding="utf-8") if f.exists() else "share.html not found"
 
+
+@app.get("/memes/{meme_id}.png", include_in_schema=False)
+def meme_asset(meme_id: str):
+    filename = memes.MEME_ASSETS.get(meme_id)
+    if not filename:
+        raise HTTPException(status_code=404, detail="meme not found")
+    asset = MEME_DIR / filename
+    if not asset.is_file():
+        raise HTTPException(status_code=404, detail="meme asset missing")
+    return FileResponse(asset, media_type="image/png")
 
 # 前端静态资源（必须放在 API 路由之后挂载）
 if MEME_DIR.is_dir():
