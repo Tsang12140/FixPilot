@@ -556,12 +556,19 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
             yield f"data: __error__:{message}\n\n"
             return
 
+        full = "".join(acc).strip()
+        if not effect and not full:
+            empty_reply_error = RuntimeError("Provider returned an empty streamed reply")
+            if attempt_id:
+                api_diagnostics.failure(attempt_id, empty_reply_error)
+            yield "data: __error__:服务没有返回可显示的回复，请重试。\n\n"
+            return
+
         if attempt_id:
             api_diagnostics.success(attempt_id)
 
         user_text, user_image = _content_to_text_and_image(req.messages[-1].get("content")) if req.messages else ("", None)
         db.add_message(conv_id, "user", user_text, user_image)
-        full = "".join(acc).strip()
         if effect:
             if effect["kind"] == "six":
                 db.add_message(conv_id, "assistant", "6")

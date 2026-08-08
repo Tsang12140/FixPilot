@@ -188,11 +188,15 @@
         if (!msgs.length) { html += '<div class="empty">暂无内容</div>'; }
         for (const m of msgs) {
           const role = m.role === 'user' ? 'user' : 'bot';
+          const content = typeof m.content === 'string' ? m.content : '';
+          // Old interrupted replies may have been persisted as an empty assistant message.
+          // They are not useful transcript content, so never render an empty bubble.
+          if (role === 'bot' && !content.trim() && !m.image) continue;
           const ts = m.created_at ? (() => {
             const d = new Date(m.created_at);
             return (isNaN(d.getTime()) ? m.created_at : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2));
           })() : '';
-          const memeId = role === 'bot' ? memeIdFromMessage(m.content) : null;
+          const memeId = role === 'bot' ? memeIdFromMessage(content) : null;
           if (memeId) {
             html += '<div class="msg bot meme-msg"><div class="avatar"><img src="logo.svg?v=2" alt="" /></div><div class="msg-body"><div class="bubble meme-card"><img class="meme-img" src="' + memeSrc(memeId) + '" alt="FixPilot meme" /></div>' + (ts ? '<div class="msg-time">' + ts + '</div>' : '') + '</div></div>';
             continue;
@@ -203,7 +207,7 @@
               : '') +
             '<div class="msg-body">' +
             '<div class="bubble">' +
-              (role === 'bot' ? mdToHtml(m.content) : (m.image ? '<img class="msg-img" src="' + esc(m.image) + '" alt="图片" />' : '') + esc(m.content)) +
+              (role === 'bot' ? mdToHtml(content) : (m.image ? '<img class="msg-img" src="' + esc(m.image) + '" alt="图片" />' : '') + esc(content)) +
             '</div>' +
             (ts ? '<div class="msg-time">' + ts + '</div>' : '') +
             '</div>' +
