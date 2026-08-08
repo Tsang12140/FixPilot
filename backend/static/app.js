@@ -1787,15 +1787,6 @@ function renderAvatarGrid() {
       renderAvatarGrid();
     });
   }
-  const next = accountSection.querySelector('#avatarNextBtn');
-  if (next) {
-    next.addEventListener('click', () => {
-      const nextOffset = avatarPickerOffset + AVATAR_PAGE_SIZE;
-      avatarPickerOffset = nextOffset < AVATAR_COUNT ? nextOffset : 0;
-      renderAccountSection();
-      renderAvatarGrid();
-    });
-  }
   const grid = accountSection.querySelector('.avatar-grid');
   if (!grid) return;
   grid.querySelectorAll('.avatar-opt').forEach(img => {
@@ -1818,15 +1809,13 @@ function renderAccountSection() {
     const u = getUser() || {};
     accountSection.innerHTML =
       '<div class="pane-title">账号</div>' +
-      '<div class="account-info">管理员：<b>' + escapeHtml(u.username || 'admin') + '</b></div>' +
-      renderAvatarBlock();
+      renderAvatarBlock(u.username || 'admin', '管理员账号');
     return;
   }
   if (boundUsername) {
     accountSection.innerHTML =
       '<div class="pane-title">账号</div>' +
-      '<div class="account-info"><b>' + escapeHtml(boundUsername) + '</b></div>' +
-      renderAvatarBlock() +
+      renderAvatarBlock(boundUsername, '已绑定账号') +
       '<div class="pane-title" style="margin-top:16px">修改密码</div>' +
       '<label class="settings-label">原密码</label>' +
       '<input class="settings-input" id="oldPass" type="password" placeholder="输入原密码" autocomplete="current-password" />' +
@@ -1848,30 +1837,29 @@ function renderAccountSection() {
       '<input class="settings-input" id="bindPass" type="password" placeholder="至少 6 位" autocomplete="new-password" />' +
       '<div class="login-err" id="bindErr"></div>' +
       '<div class="btn-row"><button class="settings-btn" id="bindSubmitBtn">绑定</button></div>' +
-      renderAvatarBlock();
+      renderAvatarBlock('暂未绑定账号', '可以先选个头像');
     document.getElementById('bindSubmitBtn').addEventListener('click', submitBind);
     document.getElementById('bindPass').addEventListener('keydown', e => { if (e.key === 'Enter') submitBind(); });
   }
 }
 
-/* 头像选择块（并入账号标签页） */
-function renderAvatarBlock() {
+/* 头像选择块：默认收起，点头像或右下角编辑按钮展开全部头像。 */
+function renderAvatarBlock(name, meta) {
   const current = getAvatarIdx();
-  if (!avatarPickerExpanded) avatarPickerOffset = avatarPageStart(current);
   let html = '<div class="avatar-picker">' +
     '<div class="avatar-current">' +
-      '<img src="avatars/' + current + '.webp" alt="" />' +
-      '<div class="avatar-current-copy"><strong>\u5f53\u524d\u5934\u50cf</strong><span>\u70b9\u51fb\u53f3\u4e0a\u89d2\u66f4\u6362</span></div>' +
-      '<button class="avatar-edit" id="avatarEditBtn" type="button" aria-label="\u7f16\u8f91\u5934\u50cf" title="\u66f4\u6362\u5934\u50cf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>' +
+      '<button class="avatar-image-button" id="avatarEditBtn" type="button" aria-label="编辑头像" title="更换头像">' +
+        '<img src="avatars/' + current + '.webp" alt="" />' +
+        '<span class="avatar-edit" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span>' +
+      '</button>' +
+      '<div class="avatar-current-copy"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(meta) + '</span></div>' +
     '</div>';
   if (avatarPickerExpanded) {
-    const page = [];
-    for (let offset = 0; offset < AVATAR_PAGE_SIZE; offset++) {
-      const i = avatarPickerOffset + offset + 1;
-      if (i > AVATAR_COUNT) break;
-      page.push('<img src="avatars/' + i + '.webp" class="avatar-opt' + (i === current ? ' selected' : '') + '" data-idx="' + i + '" alt="" />');
+    const all = [];
+    for (let i = 1; i <= AVATAR_COUNT; i++) {
+      all.push('<img src="avatars/' + i + '.webp" class="avatar-opt' + (i === current ? ' selected' : '') + '" data-idx="' + i + '" alt="" />');
     }
-    html += '<div class="avatar-picker-panel"><div class="avatar-picker-toolbar"><span>\u9009\u4e00\u4e2a\u5934\u50cf</span><button type="button" id="avatarNextBtn">\u6362\u4e00\u6279</button></div><div class="avatar-grid">' + page.join('') + '</div></div>';
+    html += '<div class="avatar-picker-panel"><div class="avatar-picker-toolbar"><span>选一个头像</span></div><div class="avatar-grid">' + all.join('') + '</div></div>';
   }
   return html + '</div>';
 }
