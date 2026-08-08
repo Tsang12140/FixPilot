@@ -1239,14 +1239,11 @@ function fmtDividerTime(d) {
   const pad = n => String(n).padStart(2, '0');
   const hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
   const now = new Date();
-  if (d.toDateString() === now.toDateString()) {
-    const h = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
-    return (d.getHours() < 12 ? '上午 ' : '下午 ') + h + ':' + pad(d.getMinutes());
-  }
+  if (d.toDateString() === now.toDateString()) return hm;
   const y = new Date(now);
   y.setDate(now.getDate() - 1);
-  if (d.toDateString() === y.toDateString()) return '昨天 ' + hm;
-  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
+  if (d.toDateString() === y.toDateString()) return '\u6628\u5929 ' + hm;
+  return (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5 ' + hm;
 }
 function maybeDivider(iso) {
   const t = new Date(iso || Date.now());

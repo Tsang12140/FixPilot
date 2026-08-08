@@ -245,8 +245,8 @@ body {
 .msg.user .msg-time { text-align: right; margin: 2px 62px 0 0; }
 .msg:hover .msg-time { opacity: 1; }
 .share-node .msg-time { opacity: 1; }
-.share-node .msg.bot .msg-time { margin: 5px 0 0 61px; }
-.share-node .msg.user .msg-time { margin: 5px 61px 0 0; }
+.share-node .msg.bot .msg-time { margin: 0 0 0 48px; }
+.share-node .msg.user .msg-time { margin: 0 48px 0 0; }
 
 /* 时间分隔条：间隔较大时居中淡色显示 */
 .time-divider {
@@ -287,9 +287,8 @@ body {
   height: auto;
   object-fit: contain;
 }
-.msg.bot.meme-msg .msg-time {
-  margin-left: 46px;
-}
+.msg.meme-msg { row-gap: 6px; }
+.msg.bot.meme-msg .msg-time { margin: 0 0 0 48px; }
 .msg.user .bubble {
   background: var(--user-grad);
   color: #fff;
@@ -1191,7 +1190,7 @@ body.bg-5 .login-screen::after {
 }
 .share-node .share-title { font-size: 16px; font-weight: 700; color: #1d2129; padding: 0 4px; word-break: break-word; }
 .share-node .share-sub { font-size: 12px; color: #6b7280; padding: 4px 4px 14px; }
-.share-node .msg { margin-bottom: 12px; animation: none; }
+.share-node .msg { margin-bottom: 12px; row-gap: 4px; animation: none; }
 .share-node .msg .bubble {
   padding: 9px 13px;
   line-height: 1.55;
