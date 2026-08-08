@@ -130,9 +130,39 @@ def is_volcengine_ark_url(url: str) -> bool:
     return "ark.cn-beijing.volces.com" in (url or "").lower()
 
 
-def provider_trust_env(url: str) -> bool:
-    """Ark must bypass machine proxy settings so Authorization reaches Ark intact."""
-    return not is_volcengine_ark_url(url)
+def system_https_proxy() -> str:
+    """Read Windows' HTTPS proxy so Ark uses the same network route as desktop apps."""
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Internet Settings") as key:
+            enabled = winreg.QueryValueEx(key, "ProxyEnable")[0]
+            raw = str(winreg.QueryValueEx(key, "ProxyServer")[0] or "").strip()
+        if not enabled or not raw:
+            return ""
+        selected = raw
+        if "=" in raw:
+            pairs = {}
+            for item in raw.split(";"):
+                if "=" in item:
+                    name, value = item.split("=", 1)
+                    pairs[name.strip().lower()] = value.strip()
+            selected = pairs.get("https") or pairs.get("http") or ""
+        if not selected:
+            return ""
+        return selected if "://" in selected else f"http://{selected}"
+    except (ImportError, OSError):
+        return ""
+
+
+def provider_request_options(url: str) -> Dict:
+    """Ark must use the user-configured system proxy, not inherited proxy variables."""
+    if not is_volcengine_ark_url(url):
+        return {}
+    proxy = system_https_proxy()
+    options = {"trust_env": False}
+    if proxy:
+        options["proxy"] = proxy
+    return options
 
 
 def build_chat_payload(messages: List[Dict[str, str]], model: str, url: str) -> Dict:
@@ -168,7 +198,7 @@ def test_chat_connection(
     timeout = httpx.Timeout(timeout=30.0, connect=10.0)
     response = httpx.post(
         url, headers=headers, json=payload, timeout=timeout,
-        trust_env=provider_trust_env(url),
+        **provider_request_options(url),
     )
     response.raise_for_status()
 
@@ -192,7 +222,7 @@ def stream_chat(
     payload = build_chat_payload(messages, model, url)
     with httpx.stream(
         "POST", url, headers=headers, json=payload, timeout=120,
-        trust_env=provider_trust_env(url),
+        **provider_request_options(url),
     ) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():

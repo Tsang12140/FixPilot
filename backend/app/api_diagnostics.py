@@ -41,6 +41,7 @@ def key_metadata(api_key: str) -> Dict[str, Any]:
         "api_key_present": bool(trimmed),
         "api_key_length": len(trimmed),
         "api_key_prefix": trimmed[:4] if trimmed else "",
+        "api_key_last4": trimmed[-4:] if trimmed else "",
         "api_key_has_bearer_prefix": trimmed.lower().startswith("bearer "),
         "api_key_fingerprint": hashlib.sha256(trimmed.encode("utf-8")).hexdigest()[:12] if trimmed else "",
     }
