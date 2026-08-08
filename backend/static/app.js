@@ -1009,7 +1009,7 @@ const WELCOME_HTML =
     '</div>' +
     '<div class="chips">' +
       '<button class="chip" data-q="游戏经常闪退怎么办">游戏经常闪退</button>' +
-      '<button class="chip" data-q="开机黑屏，但风扇在转">开机黑屏</button>' +
+      '<button class="chip" data-q="&#x5F00;&#x673A;&#x9ED1;&#x5C4F;">开机黑屏</button>' +
       '<button class="chip" data-q="电脑鼠标卡顿漂移">鼠标卡顿</button>' +
       '<button class="chip" data-q="电脑没有声音">没有声音</button>' +
     '</div>' +
