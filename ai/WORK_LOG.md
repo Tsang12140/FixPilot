@@ -208,6 +208,33 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
 - Follow-up / risk: every future AI must update this file in the same commit as
   implementation work; a stale log is a defect and must be corrected first.
 
+### 2026-08-09 - P1: repair corrupted risk-notice Chinese and add client fallback
+
+- Request / symptom: medium- and high-risk warning cards displayed literal
+  question marks. The defect affected every safety notice sent by the backend.
+- Finding / root cause: `backend/app/safety.py` introduced in `16403f8` stored
+  the title/message as ASCII question marks, not as a display encoding issue.
+  The frontend used `notice.title || safe.title`; the corrupted but non-empty
+  strings were truthy, so they replaced the frontend's correct local fallback.
+- Changed:
+  - `backend/app/safety.py` - restored correct UTF-8 medium/high title and
+    message values.
+  - `backend/static/app.js` - added `safeRiskCopy`, which treats strings made
+    only of ASCII/full-width question marks and whitespace as invalid and uses
+    the trusted local fallback.
+  - `backend/static/index.html` - bumped the JS cache version.
+- Verified:
+  - backend unit check asserted exact Chinese values, no question marks, and
+    `json.dumps(..., ensure_ascii=False)` payload content for both levels;
+  - Python compiled `safety.py` and `main.py`;
+  - browser test passed a corrupted `{title: '?????', message: '????'}` notice
+    into `riskNoticeHtml` and verified it rendered the Chinese fallback while
+    preserving valid server text.
+- Commit: pending.
+- Follow-up / risk: retain the frontend guard even though the backend is fixed;
+  external/old servers or a future bad write must never turn a safety warning
+  into question marks again.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.

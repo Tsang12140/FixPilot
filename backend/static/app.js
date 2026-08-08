@@ -1203,10 +1203,16 @@ const RISK_NOTICES = {
   medium: { title: '中风险操作', message: '这一步会改动系统、驱动或设备状态。先看清对象和恢复方式，再继续。' },
   high: { title: '高风险操作', message: '这一步可能影响数据、启动或硬件。先备份并确认目标；不确定就停止。' },
 };
+function safeRiskCopy(value, fallback) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  // A previous backend write turned Chinese notices into literal question marks.
+  // Treat that non-empty but unusable value the same as a missing value.
+  return text && !/^[?\uFF1F\s]+$/.test(text) ? text : fallback;
+}
 function riskNoticeHtml(notice) {
   const safe = RISK_NOTICES[(notice || {}).level] || RISK_NOTICES.medium;
-  const title = escapeHtml((notice || {}).title || safe.title);
-  const message = escapeHtml((notice || {}).message || safe.message);
+  const title = escapeHtml(safeRiskCopy((notice || {}).title, safe.title));
+  const message = escapeHtml(safeRiskCopy((notice || {}).message, safe.message));
   return '<div class="risk-notice risk-' + ((notice || {}).level === 'high' ? 'high' : 'medium') + '" role="note">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.7 20h18.6L12 3Z"></path><path d="M12 9v5"></path><path d="M12 17.5h.01"></path></svg>' +
     '<div><strong>' + title + '</strong><span>' + message + '</span></div></div>';
