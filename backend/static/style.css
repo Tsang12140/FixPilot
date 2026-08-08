@@ -1077,7 +1077,7 @@ body.bg-5 .login-screen::after {
 .composer .model-picker-btn:active { transform: none; color: #1d4ed8; background: #eef3ff; }
 .composer .model-dropdown {
   right: 0; left: auto;
-  bottom: calc(100% + 4px);
+  bottom: 100%;
   margin-bottom: 0;
 }
 .model-picker-btn:hover { background: var(--bg); color: var(--text); }
@@ -1110,6 +1110,8 @@ body.bg-5 .login-screen::after {
 .model-dropdown .model-opt:hover { background: var(--bg); }
 .model-dropdown .model-opt.active { background: var(--bg); font-weight: 600; color: var(--text); }
 .model-dropdown .model-opt.model-custom { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; color: var(--text-2); font-size: 12px; }
+.model-dropdown--single-action { width: 100%; min-width: 0; box-sizing: border-box; padding: 3px; }
+.model-dropdown--single-action .model-opt.model-custom { border-top: none; margin-top: 0; padding: 8px 10px; text-align: center; font-size: 13px; }
 
 /* API 设置弹窗内部样式 */
 .api-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 4px; }

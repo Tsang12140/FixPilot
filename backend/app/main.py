@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import api_diagnostics, auth, db, llm, memes, profiling, service
+from . import api_diagnostics, auth, config, db, llm, memes, profiling, service
 from .knowledge import load_chunks
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
@@ -256,7 +256,7 @@ def invite_login(req: InviteLoginRequest):
 def me(authorization: Optional[str] = Header(None)):
     payload = _require_auth(authorization)
     if payload.get("role") == "admin":
-        return {"role": "admin", "username": payload.get("username"), "profile": _public_profile(db.get_profile(_owner(payload)))}
+        return {"role": "admin", "username": payload.get("username"), "platform_model": config.DEEPSEEK_MODEL, "profile": _public_profile(db.get_profile(_owner(payload)))}
     code = payload.get("code", "")
     invite = db.get_invite(code)
     if not invite:
@@ -264,7 +264,7 @@ def me(authorization: Optional[str] = Header(None)):
     ok, reason = auth.can_use(invite)
     # 查询当前邀请码是否已绑定账号
     bound = db.get_user_by_invite_code(code)
-    return {"role": "user", "code": code,
+    return {"role": "user", "code": code, "platform_model": config.DEEPSEEK_MODEL,
             "username": payload.get("username") or (bound["username"] if bound else None),
             "bound_username": bound["username"] if bound else None,
             "quota_used": invite["quota_used"], "quota_total": invite["quota_total"],

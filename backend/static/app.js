@@ -57,7 +57,8 @@ let boundUsername = null;     // 邀请码用户已绑定的账号名，null 表
 let bindBannerShown = false;  // 本次会话是否已弹过绑定提示条
 let bindBannerDismissed = false; // 用户已手动关闭提示条，本次会话不再弹
 let currentUser = null;       // /api/auth/me 返回的完整用户对象
-let currentProfile = null;    // 后端保存的回答偏好与技术水平画像
+let currentProfile = null;
+let platformModelName = 'deepseek-v4-flash'; // ??????????????    // 后端保存的回答偏好与技术水平画像
 
 /* ---------- 随机用户头像（42 张 WebP，首次登录随机分配） ---------- */
 const AVATAR_KEY = 'fixpilot_avatar';
@@ -637,6 +638,7 @@ async function enterApp() {
       clearSession(); showLogin(); return;
     }
     const me = await r.json();
+    platformModelName = me.platform_model || platformModelName;
     useProfile(me.profile);
     /* 同步身份与绑定状态到全局，供提示条与收藏逻辑使用 */
     currentRole = me.role;
@@ -1559,6 +1561,7 @@ async function refreshQuota() {
   try {
     const r = await fetch('api/auth/me', { headers: authHeaders() });
     const me = await r.json();
+    platformModelName = me.platform_model || platformModelName;
     currentUser = me;
     useProfile(me.profile || currentProfile);
     canUse = me.role === 'admin' ? true : me.can_use;
@@ -1945,7 +1948,6 @@ const modelPickerBtn = document.getElementById('modelPickerBtn');
 const modelPickerLabel = document.getElementById('modelPickerLabel');
 const modelDropdown = document.getElementById('modelDropdown');
 const modelPickerWrap = document.getElementById('modelPickerWrap');
-const DEFAULT_MODEL_LABEL = 'DeepSeek with Flash';
 let _modelList = [];
 
 /* 移动端：把模型选择器从输入框移入顶栏（按钮左侧），节省输入框空间 */
@@ -1968,8 +1970,8 @@ function updateModelPicker() {
   if (!s || !s.apiKey) {
     _modelList = [];
     modelPickerBtn.style.display = 'inline-flex';
-    modelPickerLabel.textContent = DEFAULT_MODEL_LABEL;
-    modelPickerBtn.title = DEFAULT_MODEL_LABEL;
+    modelPickerLabel.textContent = platformModelName;
+    modelPickerBtn.title = platformModelName;
     modelDropdown.style.display = 'none';
     return;
   }
@@ -1984,10 +1986,12 @@ function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
   if (!show) { modelDropdown.style.display = 'none'; modelPickerBtn.classList.remove('open'); return; }
   const s = getApiSettings();
-  const current = (s && s.model) || (API_PRESETS[s && s.provider] && API_PRESETS[s.provider].models[0]) || DEFAULT_MODEL_LABEL;
+  const current = (s && s.model) || (API_PRESETS[s && s.provider] && API_PRESETS[s.provider].models[0]) || platformModelName;
+  const isPlatformOnly = _modelList.length === 0;
+  modelDropdown.classList.toggle('model-dropdown--single-action', isPlatformOnly);
   modelDropdown.innerHTML = _modelList.map(m =>
     '<button type="button" class="model-opt' + (m === current ? ' active' : '') + '" data-model="' + m + '">' + m + '</button>'
-  ).join('') + '<button type="button" class="model-opt model-custom" data-model="__custom">自定义...</button>';
+  ).join('') + '<button type="button" class="model-opt model-custom" data-model="__custom">' + (isPlatformOnly ? '????????' : '????') + '</button>';
   modelDropdown.querySelectorAll('.model-opt').forEach((option) => { option.title = option.textContent.trim(); });
   modelDropdown.style.display = 'block';
   modelPickerBtn.classList.add('open');
