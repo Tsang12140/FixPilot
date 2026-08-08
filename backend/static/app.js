@@ -81,7 +81,7 @@ const API_PRESETS = {
     models: ['deepseek-chat', 'deepseek-reasoner'],
   },
   volcengine: {
-    base: 'https://ark.cn-beijing.volces.com/api/v3',
+    base: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     models: ['deepseek-v4-flash'],
     keyPlaceholder: '\u706b\u5c71\u65b9\u821f API Key',
   },

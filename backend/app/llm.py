@@ -104,6 +104,14 @@ def _build_context(texts: List[str]) -> str:
     return f"以下是知识库中检索到的相关内容，请据此回答：\n\n{blocks}"
 
 
+def chat_completions_url(api_base: str) -> str:
+    """Accept either an OpenAI-compatible API base or its full chat endpoint."""
+    url = (api_base or config.DEEPSEEK_BASE_URL).rstrip("/")
+    if url.endswith("/chat/completions"):
+        return url
+    return url + "/chat/completions"
+
+
 def stream_chat(
     messages: List[Dict[str, str]],
     api_key: str = "",
@@ -115,7 +123,7 @@ def stream_chat(
     可选传入 api_key / base_url / model 覆盖默认配置（用户自带 Key 场景）。
     """
     key = api_key or config.DEEPSEEK_API_KEY
-    url = (base_url or config.DEEPSEEK_BASE_URL).rstrip("/") + "/chat/completions"
+    url = chat_completions_url(base_url)
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
