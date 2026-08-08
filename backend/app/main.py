@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import api_diagnostics, auth, config, db, llm, memes, profiling, service
+from . import api_diagnostics, auth, config, db, llm, memes, profiling, safety, service
 from .knowledge import load_chunks
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
@@ -525,6 +525,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         effect = None
         effect_sent = False
         awaiting_directive = True
+        risk_seen = False
         try:
             for token in service.chat_stream(
                 normalized_messages,
@@ -538,20 +539,41 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                 if awaiting_directive:
                     prefix.append(token)
                     prefix_text = "".join(prefix)
-                    tone, remainder = memes.parse_joke_directive(prefix_text)
-                    if tone is not None:
-                        effect = memes.choose_joke_effect(tone)
+                    risk_level, risk_remainder = safety.parse_risk_directive(prefix_text)
+                    if risk_level is not None:
+                        yield f"data: __risk__:{json.dumps(safety.risk_notice(risk_level), ensure_ascii=False)}\n\n"
+                        risk_seen = True
+                        prefix = [risk_remainder] if risk_remainder else []
+                        prefix_text = risk_remainder
+                    elif safety.might_be_risk_directive(prefix_text):
+                        continue
+                    if risk_seen:
+                        # Safety context wins even if a provider ignores the prompt
+                        # and tries to add an easter-egg marker after the risk tag.
+                        tone, safe_remainder = memes.parse_joke_directive(prefix_text)
+                        if tone is not None:
+                            prefix_text = safe_remainder
+                        elif memes.might_be_joke_directive(prefix_text):
+                            continue
+                        if not prefix_text:
+                            continue
                         awaiting_directive = False
-                        if remainder and remainder.strip():
-                            acc.append(remainder)
-                            yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
-                            effect_sent = True
-                            yield f"data: {json.dumps(remainder, ensure_ascii=False)}\n\n"
-                        continue
-                    if memes.might_be_joke_directive(prefix_text):
-                        continue
-                    awaiting_directive = False
-                    token = prefix_text
+                        token = prefix_text
+                    else:
+                        tone, remainder = memes.parse_joke_directive(prefix_text)
+                        if tone is not None:
+                            effect = memes.choose_joke_effect(tone)
+                            awaiting_directive = False
+                            if remainder and remainder.strip():
+                                acc.append(remainder)
+                                yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
+                                effect_sent = True
+                                yield f"data: {json.dumps(remainder, ensure_ascii=False)}\n\n"
+                            continue
+                        if memes.might_be_joke_directive(prefix_text):
+                            continue
+                        awaiting_directive = False
+                        token = prefix_text
                 acc.append(token)
                 if effect and not effect_sent and token.strip():
                     yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"

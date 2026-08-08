@@ -442,6 +442,20 @@ body {
   color: var(--text-2);
 }
 
+.risk-notice {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; padding: 9px 10px;
+  border: 1px solid #f3cf61; border-radius: 10px; background: #fff9e8; color: #76520a;
+  font-size: 12px; line-height: 1.45;
+}
+.risk-notice svg { flex: 0 0 auto; width: 17px; height: 17px; margin-top: 1px; fill: #f6c744; stroke: #9a6700; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.risk-notice strong, .risk-notice span { display: block; }
+.risk-notice strong { margin-bottom: 1px; color: #805a00; font-size: 12px; }
+.risk-notice span { color: #896d2d; }
+.risk-notice.risk-high { border-color: #f0b56a; background: #fff5e9; }
+.risk-notice.risk-high svg { fill: #f7c44c; stroke: #a55416; }
+.risk-notice.risk-high strong { color: #9a4d13; }
+.risk-notice.risk-high span { color: #8a603d; }
+
 /* ---------- 输入栏 ---------- */
 .composer-wrap {
   flex-shrink: 0;
@@ -449,6 +463,10 @@ body {
   background: transparent;
   border-top: 1px solid var(--border);
 }
+.composer-disclaimer {
+  margin: 8px 0 0; text-align: center; color: #98a1af; font-size: 11px; line-height: 1.35;
+}
+
 .composer {
   position: relative;
   display: grid;

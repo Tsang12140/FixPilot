@@ -1185,10 +1185,22 @@ function breakNumbered(text) {
     before.trim() ? before + '\n' + num : '\n' + num
   );
 }
-function renderBotMsg(div, text) {
+const RISK_NOTICES = {
+  medium: { title: '中风险操作', message: '这一步会改动系统、驱动或设备状态。先看清对象和恢复方式，再继续。' },
+  high: { title: '高风险操作', message: '这一步可能影响数据、启动或硬件。先备份并确认目标；不确定就停止。' },
+};
+function riskNoticeHtml(notice) {
+  const safe = RISK_NOTICES[(notice || {}).level] || RISK_NOTICES.medium;
+  const title = escapeHtml((notice || {}).title || safe.title);
+  const message = escapeHtml((notice || {}).message || safe.message);
+  return '<div class="risk-notice risk-' + ((notice || {}).level === 'high' ? 'high' : 'medium') + '" role="note">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.7 20h18.6L12 3Z"></path><path d="M12 9v5"></path><path d="M12 17.5h.01"></path></svg>' +
+    '<div><strong>' + title + '</strong><span>' + message + '</span></div></div>';
+}
+function renderBotMsg(div, text, riskNotice = null) {
   const { main, options } = parseOptions(text);
   const bubble = div.querySelector('.bubble');
-  bubble.innerHTML = mdToHtml(breakNumbered(main));
+  bubble.innerHTML = (riskNotice ? riskNoticeHtml(riskNotice) : '') + mdToHtml(breakNumbered(main));
   let wrap = div.querySelector('.opts');
   if (wrap) wrap.remove();
   if (options.length) {
@@ -1509,6 +1521,7 @@ async function send(retryState = null) {
   let jokeStartTime = 0;
   let jokeEffect = null;
   let profileNoticeText = '';
+  let riskNotice = null;
   let completed = false;
 
   if (isFirst && text) genTitle(convId, text);
@@ -1556,6 +1569,10 @@ async function send(retryState = null) {
           try { profileNoticeText = JSON.parse(data.slice(19)); } catch (e) { profileNoticeText = data.slice(19); }
           continue;
         }
+        if (data.startsWith('__risk__:')) {
+          try { riskNotice = JSON.parse(data.slice(9)); } catch (e) { riskNotice = { level: 'medium' }; }
+          continue;
+        }
         if (data.startsWith('__joke__:')) {
           try { jokeEffect = JSON.parse(data.slice(9)); } catch (e) { jokeEffect = { kind: 'six' }; }
           if (!jokeEffect || (jokeEffect.kind === 'meme' && !MEME_ASSETS[jokeEffect.meme])) jokeEffect = { kind: 'six' };
@@ -1578,7 +1595,7 @@ async function send(retryState = null) {
             showJokeEffect(msgEl, { kind: 'six' });
             continue;
           }
-          renderBotMsg(msgEl, full);
+          renderBotMsg(msgEl, full, riskNotice);
           scrollDown();
         }
       }
@@ -1591,7 +1608,7 @@ async function send(retryState = null) {
     }
     if (!jokeLocked) {
       maybeDivider(new Date().toISOString());
-      renderBotMsg(msgEl, acc.join(''));
+      renderBotMsg(msgEl, acc.join(''), riskNotice);
       addMsgTime(msgEl);
       if (profileNoticeText) addProfileNotice(profileNoticeText);
     } else {
