@@ -44,7 +44,7 @@
     .conv-meta { font-size: 12px; color: var(--text-2); margin: 4px 4px 20px; }
 
     .msg { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 16px; }
-    .msg.user { flex-direction: row-reverse; }
+    .msg.user { justify-content: flex-end; }
     .avatar {
       width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
@@ -53,7 +53,6 @@
     .avatar img { width: 100%; height: 100%; display: block; }
     .msg.user .avatar { background: transparent; }
     .bubble {
-      max-width: 78%;
       padding: 11px 14px;
       font-size: 15px; line-height: 1.75;
       word-break: break-word;
@@ -66,6 +65,11 @@
 
     .bubble p { margin: 0 0 10px; }
     .bubble p:last-child { margin-bottom: 0; }
+    .bubble .msg-img {
+      display: block; max-width: 100%; max-height: 260px;
+      border-radius: 8px; margin: 2px 0 8px; object-fit: contain;
+    }
+    .bubble .msg-img:last-child { margin-bottom: 0; }
     .bubble strong { font-weight: 650; }
     .bubble em { font-style: normal; color: var(--accent-text); }
     .bubble h1, .bubble h2, .bubble h3 { margin: 12px 0 8px; font-size: 15px; font-weight: 700; line-height: 1.4; }
@@ -87,6 +91,16 @@
     .empty { text-align: center; color: var(--text-2); padding: 60px 20px; }
     .spinner { text-align: center; color: var(--text-2); padding: 60px 20px; }
     .foot { text-align: center; color: var(--text-2); font-size: 12px; margin-top: 30px; }
+    .msg-time {
+      font-size: 11px; color: var(--text-2); margin-top: 4px;
+      padding: 0 14px; opacity: 0.7;
+    }
+    .msg.user .msg-time { text-align: right; }
+    .msg.bot .msg-time { text-align: left; }
+    .avatar { user-select: none; -webkit-user-select: none; }
+    .msg-body { display: flex; flex-direction: column; max-width: 78%; flex: 1; }
+    .msg.user .msg-body { align-items: flex-end; }
+    .msg.user .avatar { display: flex; }
   </style>
 </head>
 <body>
@@ -145,14 +159,29 @@
         if (!r.ok) throw new Error('not found');
         const d = await r.json();
         const msgs = d.messages || [];
+        const avatarIdx = d.avatar || 1;
         let html = '<div class="conv-title">' + esc(d.title) + '</div>';
         html += '<div class="conv-meta">FixPilot 对话分享 · 只读</div>';
         if (!msgs.length) { html += '<div class="empty">暂无内容</div>'; }
         for (const m of msgs) {
           const role = m.role === 'user' ? 'user' : 'bot';
+          const ts = m.created_at ? (() => {
+            const d = new Date(m.created_at);
+            return (isNaN(d.getTime()) ? m.created_at : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2));
+          })() : '';
           html += '<div class="msg ' + role + '">' +
-            '<div class="avatar">' + (role === 'bot' ? '<img src="logo.svg?v=2" alt="" />' : '') + '</div>' +
-            '<div class="bubble">' + (role === 'bot' ? mdToHtml(m.content) : esc(m.content)) + '</div>' +
+            (role === 'bot'
+              ? '<div class="avatar"><img src="logo.svg?v=2" alt="" /></div>'
+              : '') +
+            '<div class="msg-body">' +
+            '<div class="bubble">' +
+              (role === 'bot' ? mdToHtml(m.content) : (m.image ? '<img class="msg-img" src="' + esc(m.image) + '" alt="图片" />' : '') + esc(m.content)) +
+            '</div>' +
+            (ts ? '<div class="msg-time">' + ts + '</div>' : '') +
+            '</div>' +
+            (role === 'user'
+              ? '<div class="avatar"><img src="avatars/' + avatarIdx + '.webp" alt="" /></div>'
+              : '') +
             '</div>';
         }
         html += '<div class="foot">由 FixPilot 生成</div>';

@@ -1,4 +1,5 @@
 """SQLite 数据层：管理员、邀请码、会话、消息。"""
+import json
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -38,11 +39,21 @@ def init_db():
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,      -- 账号名，小写存储
+                password_hash TEXT NOT NULL,       -- salt$digest，与 admin 同算法
+                invite_code TEXT UNIQUE NOT NULL,  -- 一对一绑定邀请码
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (invite_code) REFERENCES invite_codes(code)
+            );
+
             CREATE TABLE IF NOT EXISTS conversations (
                 id TEXT PRIMARY KEY,
                 invite_code TEXT NOT NULL,
                 title TEXT NOT NULL DEFAULT '新对话',
                 share_token TEXT,
+                avatar INTEGER DEFAULT 1,
                 created_at TEXT NOT NULL
             );
 
@@ -51,8 +62,29 @@ def init_db():
                 conv_id TEXT NOT NULL,
                 role TEXT NOT NULL,
                 content TEXT NOT NULL,
+                image TEXT,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (conv_id) REFERENCES conversations(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                owner_key TEXT PRIMARY KEY,
+                technical_level TEXT NOT NULL DEFAULT 'unknown',
+                technical_level_source TEXT NOT NULL DEFAULT 'inferred_pending',
+                technical_confidence TEXT NOT NULL DEFAULT 'low',
+                response_style TEXT NOT NULL DEFAULT 'normal',
+                onboarding_completed INTEGER NOT NULL DEFAULT 0,
+                onboarding_seen INTEGER NOT NULL DEFAULT 0,
+                onboarding_nudge_shown INTEGER NOT NULL DEFAULT 0,
+                level_notice_shown INTEGER NOT NULL DEFAULT 0,
+                level_notice_pending INTEGER NOT NULL DEFAULT 0,
+                profiling_valid_turns INTEGER NOT NULL DEFAULT 0,
+                beginner_score INTEGER NOT NULL DEFAULT 0,
+                intermediate_score INTEGER NOT NULL DEFAULT 0,
+                advanced_score INTEGER NOT NULL DEFAULT 0,
+                profiling_evidence_types TEXT NOT NULL DEFAULT '[]',
+                opposite_strong_signals INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conv_id);
@@ -74,10 +106,108 @@ def _migrate(conn: sqlite3.Connection):
     ccols = {r[1] for r in conn.execute("PRAGMA table_info(conversations)").fetchall()}
     if "share_token" not in ccols:
         conn.execute("ALTER TABLE conversations ADD COLUMN share_token TEXT")
+    if "avatar" not in ccols:
+        conn.execute("ALTER TABLE conversations ADD COLUMN avatar INTEGER DEFAULT 1")
+    # messages
+    mcols = {r[1] for r in conn.execute("PRAGMA table_info(messages)").fetchall()}
+    if "image" not in mcols:
+        conn.execute("ALTER TABLE messages ADD COLUMN image TEXT")
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ---------- 用户回答偏好 / 技术水平画像 ----------
+
+_PROFILE_FIELDS = (
+    "technical_level", "technical_level_source", "technical_confidence", "response_style",
+    "onboarding_completed", "onboarding_seen", "onboarding_nudge_shown",
+    "level_notice_shown", "level_notice_pending", "profiling_valid_turns",
+    "beginner_score", "intermediate_score", "advanced_score", "profiling_evidence_types",
+    "opposite_strong_signals", "updated_at",
+)
+
+
+def _create_profile(conn: sqlite3.Connection, owner_key: str) -> None:
+    conn.execute("INSERT OR IGNORE INTO user_profiles (owner_key, updated_at) VALUES (?, ?)", (owner_key, _now()))
+
+
+def _get_profile(conn: sqlite3.Connection, owner_key: str) -> dict:
+    _create_profile(conn, owner_key)
+    row = conn.execute("SELECT * FROM user_profiles WHERE owner_key = ?", (owner_key,)).fetchone()
+    profile = dict(row)
+    try:
+        profile["profiling_evidence_types"] = json.loads(profile["profiling_evidence_types"] or "[]")
+    except json.JSONDecodeError:
+        profile["profiling_evidence_types"] = []
+    return profile
+
+
+def _save_profile(conn: sqlite3.Connection, owner_key: str, profile: dict) -> dict:
+    profile = dict(profile)
+    profile["updated_at"] = _now()
+    profile["profiling_evidence_types"] = json.dumps(profile.get("profiling_evidence_types") or [], ensure_ascii=False)
+    assignments = ", ".join(f"{field} = ?" for field in _PROFILE_FIELDS)
+    conn.execute("UPDATE user_profiles SET " + assignments + " WHERE owner_key = ?", [profile.get(field) for field in _PROFILE_FIELDS] + [owner_key])
+    profile["profiling_evidence_types"] = json.loads(profile["profiling_evidence_types"])
+    return profile
+
+
+def get_profile(owner_key: str) -> dict:
+    with _lock, _connect() as conn:
+        return _get_profile(conn, owner_key)
+
+
+def update_profile_preferences(owner_key: str, technical_level: Optional[str] = None,
+                               response_style: Optional[str] = None,
+                               onboarding_completed: Optional[bool] = None,
+                               onboarding_seen: Optional[bool] = None) -> dict:
+    """保存用户显式偏好。显式设置始终覆盖自动画像。"""
+    with _lock, _connect() as conn:
+        profile = _get_profile(conn, owner_key)
+        if technical_level is not None:
+            profile.update({
+                "technical_level": technical_level,
+                "technical_level_source": "explicit" if technical_level != "unknown" else "inferred_pending",
+                "technical_confidence": "high" if technical_level != "unknown" else "low",
+                "profiling_valid_turns": 0, "beginner_score": 0, "intermediate_score": 0,
+                "advanced_score": 0, "profiling_evidence_types": [], "opposite_strong_signals": 0,
+                "level_notice_shown": 0, "level_notice_pending": 0,
+            })
+        if response_style is not None:
+            profile["response_style"] = response_style
+        if onboarding_completed is not None:
+            profile["onboarding_completed"] = int(onboarding_completed)
+        if onboarding_seen is not None:
+            profile["onboarding_seen"] = int(onboarding_seen)
+        return _save_profile(conn, owner_key, profile)
+
+
+def mark_onboarding_nudge(owner_key: str) -> dict:
+    with _lock, _connect() as conn:
+        profile = _get_profile(conn, owner_key)
+        profile["onboarding_seen"] = 1
+        profile["onboarding_nudge_shown"] = 1
+        return _save_profile(conn, owner_key, profile)
+
+
+def record_profile_signal(owner_key: str, signal: dict) -> dict:
+    """记录判定器的结构化证据；显式选择永远不被覆盖。"""
+    from .profiling import apply_signal
+    with _lock, _connect() as conn:
+        profile = _get_profile(conn, owner_key)
+        if profile["technical_level_source"] == "explicit":
+            return profile
+        return _save_profile(conn, owner_key, apply_signal(profile, signal))
+
+
+def mark_level_notice_shown(owner_key: str) -> dict:
+    with _lock, _connect() as conn:
+        profile = _get_profile(conn, owner_key)
+        profile["level_notice_pending"] = 0
+        profile["level_notice_shown"] = 1
+        return _save_profile(conn, owner_key, profile)
 
 
 # ---------- 管理员 ----------
@@ -158,6 +288,40 @@ def delete_invite(code: str) -> None:
         conn.execute("DELETE FROM invite_codes WHERE code = ?", (code,))
 
 
+# ---------- 用户账号（账号密码绑定） ----------
+
+def create_user(username: str, password_hash: str, invite_code: str) -> None:
+    """创建用户账号并绑定到邀请码。username 应已规范化为小写。"""
+    with _lock, _connect() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO users (username, password_hash, invite_code, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (username, password_hash, invite_code, _now()),
+        )
+
+
+def get_user_by_username(username: str) -> Optional[dict]:
+    with _lock, _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_user_by_invite_code(code: str) -> Optional[dict]:
+    """用于判断某个邀请码是否已绑定账号。"""
+    with _lock, _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE invite_code = ?", (code,)).fetchone()
+        return dict(row) if row else None
+
+
+def update_user_password(username: str, password_hash: str) -> None:
+    """修改用户密码。"""
+    with _lock, _connect() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (password_hash, username),
+        )
+
+
 # ---------- 会话 / 消息 ----------
 
 def create_conversation(conv_id: str, code: str, title: str = "新对话") -> None:
@@ -193,9 +357,12 @@ def delete_conversation(conv_id: str) -> None:
         conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
 
 
-def set_share_token(conv_id: str, token: str) -> None:
+def set_share_token(conv_id: str, token: str, avatar: int = 1) -> None:
     with _lock, _connect() as conn:
-        conn.execute("UPDATE conversations SET share_token = ? WHERE id = ?", (token, conv_id))
+        conn.execute(
+            "UPDATE conversations SET share_token = ?, avatar = ? WHERE id = ?",
+            (token, avatar, conv_id),
+        )
 
 
 def get_conv_by_share(token: str) -> Optional[dict]:
@@ -204,11 +371,11 @@ def get_conv_by_share(token: str) -> Optional[dict]:
         return dict(row) if row else None
 
 
-def add_message(conv_id: str, role: str, content: str) -> None:
+def add_message(conv_id: str, role: str, content: str, image: Optional[str] = None) -> None:
     with _lock, _connect() as conn:
         conn.execute(
-            "INSERT INTO messages (conv_id, role, content, created_at) VALUES (?, ?, ?, ?)",
-            (conv_id, role, content, _now()),
+            "INSERT INTO messages (conv_id, role, content, image, created_at) VALUES (?, ?, ?, ?, ?)",
+            (conv_id, role, content, image, _now()),
         )
 
 

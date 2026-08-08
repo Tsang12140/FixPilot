@@ -25,7 +25,8 @@ def _content_to_text(content, seen: set) -> str:
         if t == "text":
             parts_text.append(part.get("text", ""))
         elif t == "image_url":
-            url = (part.get("image_url") or {}).get("url", "")
+            iu = part.get("image_url")
+            url = iu.get("url", "") if isinstance(iu, dict) else (iu or "")
             if url.startswith("data:image") and url not in seen:
                 seen.add(url)
                 try:
@@ -46,7 +47,7 @@ def _content_to_text(content, seen: set) -> str:
     return "\n".join(parts_text)
 
 
-def _normalize_messages(messages: List[Dict]) -> List[Dict]:
+def normalize_messages(messages: List[Dict]) -> List[Dict]:
     """把可能含图片的消息统一转成纯文本消息，供 DeepSeek 使用。"""
     seen: set = set()
     out: List[Dict] = []
@@ -57,9 +58,20 @@ def _normalize_messages(messages: List[Dict]) -> List[Dict]:
     return out
 
 
-def chat_stream(messages: List[Dict[str, str]]) -> Iterator[str]:
-    """messages: 完整对话历史（不含 system）。可含 OpenAI 多模态图片消息。"""
-    normalized = _normalize_messages(messages)
+def chat_stream(
+    messages: List[Dict[str, str]],
+    api_key: str = "",
+    base_url: str = "",
+    model: str = "",
+    profile: Dict = None,
+    temporary_level: str = "unknown",
+    already_normalized: bool = False,
+) -> Iterator[str]:
+    """messages: 完整对话历史（不含 system）。可含 OpenAI 多模态图片消息。
+
+    可选 api_key / base_url / model 透传给 llm.stream_chat（用户自带 Key）。
+    """
+    normalized = messages if already_normalized else normalize_messages(messages)
 
     # 用最近一条用户消息作为检索关键字
     query = ""
@@ -71,9 +83,9 @@ def chat_stream(messages: List[Dict[str, str]]) -> Iterator[str]:
     hits = retriever.retrieve(query)
     context = llm._build_context([h["text"] for h in hits])
 
-    full = [{"role": "system", "content": llm.SYSTEM_PROMPT}]
+    full = llm.build_system_messages(profile, temporary_level)
     full.extend(normalized)
     # 把检索到的知识上下文插入最后一条用户消息之前，作为 system 提示
     full.insert(max(1, len(full) - 1), {"role": "system", "content": context})
 
-    yield from llm.stream_chat(full)
+    yield from llm.stream_chat(full, api_key=api_key, base_url=base_url, model=model)

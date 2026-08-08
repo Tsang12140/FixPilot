@@ -1,14 +1,16 @@
 """FixPilot 后端入口：FastAPI + 认证 + 邀请码 + 纯 RAG 聊天。"""
+import json
 import secrets
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import httpx
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, db, service
+from . import auth, db, llm, profiling, service
 from .knowledge import load_chunks
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
@@ -35,6 +37,9 @@ auth.bootstrap_admin()
 class ChatRequest(BaseModel):
     messages: List[Dict[str, Any]]
     convId: Optional[str] = None
+    apiKey: Optional[str] = None       # 用户自带 API Key（有值则用自定义 API，跳过配额）
+    apiBase: Optional[str] = None      # 自定义 API 基址（OpenAI 兼容）
+    model: Optional[str] = None        # 自定义模型名
 
 
 class TitleRequest(BaseModel):
@@ -47,13 +52,26 @@ class AdminLoginRequest(BaseModel):
     password: str
 
 
+class AccountLoginRequest(BaseModel):
+    """账号密码登录：同时接受管理员账号和用户绑定账号。"""
+    username: str
+    password: str
+
+
+class BindAccountRequest(BaseModel):
+    """邀请码用户绑定账号密码。"""
+    username: str
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    """修改用户密码。"""
+    oldPassword: str
+    newPassword: str
+
+
 class InviteLoginRequest(BaseModel):
     code: str
-
-
-class InvitePinRequest(BaseModel):
-    code: str
-    pin: str
 
 
 class InviteCreateRequest(BaseModel):
@@ -71,6 +89,12 @@ class InviteUpdateRequest(BaseModel):
 class NewConvRequest(BaseModel):
     title: str = "新对话"
 
+
+class ProfileUpdateRequest(BaseModel):
+    technicalLevel: Optional[str] = None
+    responseStyle: Optional[str] = None
+    onboardingCompleted: Optional[bool] = None
+    onboardingSeen: Optional[bool] = None
 
 # ---------- 工具函数 ----------
 
@@ -103,6 +127,15 @@ def _owner(payload: dict) -> str:
         return "admin:" + payload.get("username", "admin")
     return payload.get("code", "")
 
+def _public_profile(profile: dict) -> dict:
+    """只返回前端需要的偏好状态，不暴露内部评分细节。"""
+    keys = (
+        "technical_level", "technical_level_source", "technical_confidence", "response_style",
+        "onboarding_completed", "onboarding_seen", "onboarding_nudge_shown",
+        "level_notice_shown", "level_notice_pending", "profiling_valid_turns",
+    )
+    return {key: profile.get(key) for key in keys}
+
 
 # ---------- 健康检查 ----------
 
@@ -122,6 +155,78 @@ def admin_login(req: AdminLoginRequest):
     return {"token": token, "role": "admin", "username": admin["username"]}
 
 
+@app.post("/api/auth/account-login")
+def account_login(req: AccountLoginRequest):
+    """账号密码登录：先查管理员表，再查用户表。任一命中即返回对应 role 的 token。"""
+    username = (req.username or "").strip()
+    # 1. 管理员
+    admin = db.get_admin(username)
+    if admin and auth.verify_password(req.password, admin["password_hash"]):
+        token = auth.make_token({"role": "admin", "username": admin["username"]})
+        return {"token": token, "role": "admin", "username": admin["username"]}
+    # 2. 用户绑定账号（username 小写存储）
+    user = db.get_user_by_username(username.lower())
+    if user and auth.verify_password(req.password, user["password_hash"]):
+        token = auth.make_token({"role": "user", "username": user["username"], "code": user["invite_code"]})
+        invite = db.get_invite(user["invite_code"])
+        db.record_login(user["invite_code"])
+        return {
+            "token": token, "role": "user", "username": user["username"], "code": user["invite_code"],
+            "quota_used": invite["quota_used"] if invite else 0,
+            "quota_total": invite["quota_total"] if invite else 0,
+            "expires_at": invite["expires_at"] if invite else None,
+            "last_login_at": invite.get("last_login_at") if invite else None,
+        }
+    raise HTTPException(status_code=401, detail="账号或密码错误")
+
+
+@app.post("/api/auth/bind-account")
+def bind_account(req: BindAccountRequest, authorization: Optional[str] = Header(None)):
+    """邀请码用户绑定账号密码。要求当前以邀请码登录（role=user）。"""
+    payload = _require_auth(authorization)
+    if payload.get("role") != "user":
+        raise HTTPException(status_code=403, detail="仅邀请码用户可绑定账号")
+    code = payload.get("code", "")
+    if not code:
+        raise HTTPException(status_code=400, detail="会话无效，请重新登录")
+
+    import re
+    username = (req.username or "").strip().lower()
+    if not re.match(r"^[a-z0-9_]{3,20}$", username):
+        raise HTTPException(status_code=400, detail="账号需为 3-20 位字母/数字/下划线")
+    password = req.password or ""
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="密码至少 6 位")
+
+    # 邀请码已绑定过
+    if db.get_user_by_invite_code(code):
+        raise HTTPException(status_code=409, detail="当前邀请码已绑定账号")
+    # 用户名被占用
+    if db.get_user_by_username(username):
+        raise HTTPException(status_code=409, detail="账号名已被占用")
+
+    db.create_user(username, auth.hash_password(password), code)
+    return {"ok": True, "username": username}
+
+
+@app.post("/api/user/change-password")
+def change_password(req: ChangePasswordRequest, authorization: Optional[str] = Header(None)):
+    """修改已绑定账号的密码。"""
+    payload = _require_auth(authorization)
+    if payload.get("role") != "user":
+        raise HTTPException(status_code=403, detail="仅用户账号可修改密码")
+    code = payload.get("code", "")
+    user = db.get_user_by_invite_code(code)
+    if not user:
+        raise HTTPException(status_code=400, detail="请先绑定账号")
+    if not auth.verify_password(req.oldPassword, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="原密码错误")
+    if len(req.newPassword) < 6:
+        raise HTTPException(status_code=400, detail="新密码至少 6 位")
+    db.update_user_password(user["username"], auth.hash_password(req.newPassword))
+    return {"ok": True}
+
+
 @app.post("/api/auth/invite-login")
 def invite_login(req: InviteLoginRequest):
     code = (req.code or "").strip().upper()
@@ -129,62 +234,36 @@ def invite_login(req: InviteLoginRequest):
     if not invite:
         raise HTTPException(status_code=404, detail="邀请码不存在")
     ok, reason = auth.can_use(invite)
-    if not ok:
-        if reason == "expired":
-            raise HTTPException(status_code=403, detail="邀请码已过期")
-        raise HTTPException(status_code=403, detail="邀请码次数已用完，请联系管理员")
-    # 返回 PIN 状态：mode=set 表示首次需设置 PIN，enter 表示需输入 PIN
-    mode = "set" if not invite.get("pin_hash") else "enter"
-    return {"status": "need_pin", "mode": mode, "code": code}
-
-
-@app.post("/api/auth/invite-pin")
-def invite_pin(req: InvitePinRequest):
-    code = (req.code or "").strip().upper()
-    pin = (req.pin or "").strip()
-    if not pin.isdigit() or len(pin) != 4:
-        raise HTTPException(status_code=400, detail="PIN 码需为 4 位数字")
-    invite = db.get_invite(code)
-    if not invite:
-        raise HTTPException(status_code=404, detail="邀请码不存在")
-    ok, reason = auth.can_use(invite)
-    if not ok:
-        if reason == "expired":
-            raise HTTPException(status_code=403, detail="邀请码已过期")
-        raise HTTPException(status_code=403, detail="邀请码次数已用完，请联系管理员")
-
-    if invite.get("pin_hash"):
-        # 已有 PIN：校验
-        if not auth.verify_pin(pin, invite["pin_hash"]):
-            raise HTTPException(status_code=401, detail="PIN 码错误")
-    else:
-        # 首次：设置 PIN
-        db.set_pin(code, auth.hash_pin(pin))
-
+    # 允许登录（即使次数用完/过期），由前端根据 can_use 显示提示引导用户用自己的 API
     token = auth.make_token({"role": "user", "code": code})
     db.record_login(code)
     invite = db.get_invite(code)
     return {"token": token, "role": "user", "code": code,
             "quota_used": invite["quota_used"], "quota_total": invite["quota_total"],
-            "expires_at": invite["expires_at"], "last_login_at": invite.get("last_login_at")}
+            "expires_at": invite["expires_at"], "last_login_at": invite.get("last_login_at"),
+            "can_use": ok, "reason": reason}
 
 
 @app.get("/api/auth/me")
 def me(authorization: Optional[str] = Header(None)):
     payload = _require_auth(authorization)
     if payload.get("role") == "admin":
-        return {"role": "admin", "username": payload.get("username")}
+        return {"role": "admin", "username": payload.get("username"), "profile": _public_profile(db.get_profile(_owner(payload)))}
     code = payload.get("code", "")
     invite = db.get_invite(code)
     if not invite:
         raise HTTPException(status_code=401, detail="邀请码不存在")
     ok, reason = auth.can_use(invite)
+    # 查询当前邀请码是否已绑定账号
+    bound = db.get_user_by_invite_code(code)
     return {"role": "user", "code": code,
+            "username": payload.get("username") or (bound["username"] if bound else None),
+            "bound_username": bound["username"] if bound else None,
             "quota_used": invite["quota_used"], "quota_total": invite["quota_total"],
             "expires_at": invite["expires_at"],
             "last_login_at": invite.get("last_login_at"),
             "can_use": ok, "reason": reason,
-            "note": invite.get("note")}
+            "note": invite.get("note"), "profile": _public_profile(db.get_profile(_owner(payload)))}
 
 
 # ---------- 管理员：邀请码管理 ----------
@@ -252,6 +331,35 @@ def invite_conversations(code: str, authorization: Optional[str] = Header(None))
         result.append({"conv": c, "messages": msgs})
     return {"code": code, "conversations": result}
 
+# ---------- 回答偏好 / 技术水平画像 ----------
+
+@app.get("/api/profile")
+def get_profile(authorization: Optional[str] = Header(None)):
+    payload = _require_auth(authorization)
+    return {"profile": _public_profile(db.get_profile(_owner(payload)))}
+
+
+@app.post("/api/profile/preferences")
+def update_profile(req: ProfileUpdateRequest, authorization: Optional[str] = Header(None)):
+    payload = _require_auth(authorization)
+    if req.technicalLevel is not None and req.technicalLevel not in {"unknown", "beginner", "intermediate", "advanced"}:
+        raise HTTPException(status_code=400, detail="电脑水平参数无效")
+    if req.responseStyle is not None and req.responseStyle not in {"normal", "roast", "concise"}:
+        raise HTTPException(status_code=400, detail="说话方式参数无效")
+    profile = db.update_profile_preferences(
+        _owner(payload),
+        technical_level=req.technicalLevel,
+        response_style=req.responseStyle,
+        onboarding_completed=req.onboardingCompleted,
+        onboarding_seen=req.onboardingSeen,
+    )
+    return {"profile": _public_profile(profile)}
+
+
+@app.post("/api/profile/onboarding-nudge")
+def onboarding_nudge(authorization: Optional[str] = Header(None)):
+    payload = _require_auth(authorization)
+    return {"profile": _public_profile(db.mark_onboarding_nudge(_owner(payload)))}
 
 # ---------- 对话（需登录） ----------
 
@@ -293,7 +401,7 @@ def delete_conv(conv_id: str, authorization: Optional[str] = Header(None)):
 
 
 @app.post("/api/conversations/{conv_id}/share")
-def share_conv(conv_id: str, authorization: Optional[str] = Header(None)):
+def share_conv(conv_id: str, avatar: Optional[int] = None, authorization: Optional[str] = Header(None)):
     """为会话生成（或复用）只读分享链接。"""
     payload = _require_auth(authorization)
     conv = db.get_conversation(conv_id)
@@ -302,7 +410,7 @@ def share_conv(conv_id: str, authorization: Optional[str] = Header(None)):
     token = conv.get("share_token")
     if not token:
         token = secrets.token_urlsafe(12)
-        db.set_share_token(conv_id, token)
+        db.set_share_token(conv_id, token, avatar or 1)
     url = f"/share/{token}"
     return {"token": token, "url": url}
 
@@ -315,7 +423,7 @@ def get_shared(token: str):
         raise HTTPException(status_code=404, detail="分享链接不存在或已失效")
     msgs = db.list_messages(conv["id"])
     return {"title": conv.get("title") or "对话", "created_at": conv.get("created_at"),
-            "messages": msgs}
+            "avatar": conv.get("avatar") or 1, "messages": msgs}
 
 
 @app.post("/api/title")
@@ -330,6 +438,48 @@ def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
     return {"title": title}
 
 
+@app.post("/api/test-api")
+def test_api(req: ChatRequest, authorization: Optional[str] = Header(None)):
+    """测试用户自定义 API 是否可用（发送一条极简请求）。"""
+    _require_auth(authorization)
+    if not req.apiKey:
+        raise HTTPException(status_code=400, detail="请先填写 API Key")
+    try:
+        for chunk in llm.stream_chat(
+            messages=[{"role": "user", "content": "Hi"}],
+            api_key=req.apiKey,
+            base_url=req.apiBase or "",
+            model=req.model or "",
+        ):
+            # 只要有第一个 token 返回就说明连通
+            return {"ok": True}
+        # 没有流式数据但也没报错 -- 可能返回空，也算连通
+        return {"ok": True}
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code
+        cn = {401: "API Key 无效或已过期", 403: "API Key 无权限访问该模型",
+              404: "API 地址或模型不存在，请检查填写", 429: "请求过于频繁，请稍后重试",
+              500: "API 服务端异常，请稍后重试", 502: "API 网关错误，请稍后重试",
+              503: "API 服务暂不可用，请稍后重试"}
+        hint = cn.get(status, f"API 返回错误码 {status}")
+        raise HTTPException(status_code=400, detail=hint)
+    except httpx.ConnectError:
+        raise HTTPException(status_code=400, detail="无法连接 API 地址，请检查 URL 是否正确")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=400, detail="API 响应超时，请稍后重试")
+    except Exception as e:
+        err = str(e)[:200]
+        # 常见英文错误翻译
+        for en, zh in [("Invalid API key", "API Key 无效"),
+                       ("model not found", "模型不存在"),
+                       ("insufficient balance", "API 账户余额不足"),
+                       ("rate limit", "请求频率超限")]:
+            if en.lower() in err.lower():
+                err = zh
+                break
+        raise HTTPException(status_code=400, detail=f"API 测试失败：{err}")
+
+
 @app.post("/api/chat")
 def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     payload = _require_auth(authorization)
@@ -339,16 +489,16 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     owner = _owner(payload)
     code = payload.get("code") if role == "user" else None
 
-    # 配额检查（仅邀请码用户）
-    if role == "user":
+    use_custom_api = bool(req.apiKey)
+    if role == "user" and not use_custom_api:
         invite = db.get_invite(code)
         if not invite:
             raise HTTPException(status_code=401, detail="邀请码不存在")
         ok, reason = auth.can_use(invite)
         if not ok:
-            raise HTTPException(status_code=402, detail="邀请码次数已用完，请联系管理员")
+            detail = "使用期限已到，可在设置中填入自己的 API 继续使用" if reason == "expired" else "次数已用完，可在设置中填入自己的 API 继续使用"
+            raise HTTPException(status_code=402, detail=detail)
 
-    # 校验会话归属
     conv_id = req.convId
     if conv_id:
         conv = db.get_conversation(conv_id)
@@ -358,26 +508,61 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         conv_id = "c" + secrets.token_hex(8)
         db.create_conversation(conv_id, owner)
 
+    # 前端只提交本轮消息；这里补入已存会话，修复多轮问诊缺少上下文的问题。
+    history = [
+        {"role": item["role"], "content": item["content"]}
+        for item in db.list_messages(conv_id)[-16:]
+    ]
+    chat_messages = history + req.messages
+    normalized_messages = service.normalize_messages(chat_messages)
+    latest_user_text = next(
+        (item["content"] for item in reversed(normalized_messages) if item.get("role") == "user"), ""
+    )
+    profile_before = db.get_profile(owner)
+    signal = profiling.classify_turn(latest_user_text) if profile_before.get("technical_level_source") != "explicit" else {}
+    profile_for_reply = profiling.apply_signal(profile_before, signal) if signal else profile_before
+    temporary = profiling.temporary_level(signal) if profile_for_reply.get("technical_level") == "unknown" else "unknown"
+    notice_to_show = ""
+    if profile_before.get("level_notice_pending") and not profile_before.get("level_notice_shown"):
+        notice_to_show = profiling.profile_notice(profile_before.get("technical_level", "unknown"))
+
     def gen():
         yield "data:__start__\n\n"
         acc = []
         try:
-            for token in service.chat_stream(req.messages):
+            for token in service.chat_stream(
+                normalized_messages,
+                api_key=req.apiKey or "",
+                base_url=req.apiBase or "",
+                model=req.model or "",
+                profile=profile_for_reply,
+                temporary_level=temporary,
+                already_normalized=True,
+            ):
                 acc.append(token)
-                yield f"data: {token}\n\n"
+                yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
         except Exception as e:
             yield f"data: __error__:{e}\n\n"
             return
-        # 成功完成后：写库 + 扣配额（仅邀请码用户）
-        user_text = _content_to_text(req.messages[-1].get("content")) if req.messages else ""
-        db.add_message(conv_id, "user", user_text)
-        db.add_message(conv_id, "assistant", "".join(acc).replace("[JOKE6]", "").strip())
-        if role == "user":
+
+        user_text, user_image = _content_to_text_and_image(req.messages[-1].get("content")) if req.messages else ("", None)
+        db.add_message(conv_id, "user", user_text, user_image)
+        full = "".join(acc).strip()
+        if full.startswith("[JOKE6]"):
+            db.add_message(conv_id, "assistant", "6")
+            db.add_message(conv_id, "assistant", full.replace("[JOKE6]", "").strip())
+        else:
+            db.add_message(conv_id, "assistant", full)
+        if signal:
+            db.record_profile_signal(owner, signal)
+        if role == "user" and not use_custom_api:
             db.increment_quota_used(code)
+        if notice_to_show:
+            db.mark_level_notice_shown(owner)
+            yield f"data: __profile_notice__:{json.dumps(notice_to_show, ensure_ascii=False)}\n\n"
         yield "data:__end__\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
-
 
 def _content_to_text(content) -> str:
     if isinstance(content, str):
@@ -385,6 +570,29 @@ def _content_to_text(content) -> str:
     if isinstance(content, list):
         return "".join(p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text")
     return ""
+
+
+def _content_to_text_and_image(content):
+    """把用户消息转成纯文本 + 缩略图（若带图片）。返回 (text, image或None)。"""
+    if isinstance(content, str):
+        return content, None
+    if not isinstance(content, list):
+        return "", None
+    text = ""
+    image = None
+    for p in content:
+        if not isinstance(p, dict):
+            continue
+        t = p.get("type")
+        if t == "text":
+            text += p.get("text", "")
+        elif t == "image_url":
+            iu = p.get("image_url")
+            if isinstance(iu, dict):
+                image = iu.get("thumbnail") or iu.get("url")
+            else:
+                image = iu
+    return text, image
 
 
 # ---------- 只读分享页 ----------

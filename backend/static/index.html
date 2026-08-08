@@ -15,7 +15,7 @@
   <title>FixPilot</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
   <link rel="apple-touch-icon" href="favicon.svg?v=3" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=18" />
 </head>
 <body>
   <!-- 登录界面 -->
@@ -37,7 +37,7 @@
         </div>
         <div class="login-tabs">
           <button class="login-tab active" data-tab="invite">邀请码登录</button>
-          <button class="login-tab" data-tab="admin">管理员登录</button>
+          <button class="login-tab" data-tab="admin">账号密码登录</button>
         </div>
         <div class="login-panel" id="invitePanel">
           <div class="code-boxes" id="codeBoxes">
@@ -53,9 +53,9 @@
           <div class="login-err" id="inviteErr"></div>
         </div>
         <div class="login-panel" id="adminPanel" style="display:none">
-          <input class="login-input" id="adminUser" placeholder="管理员账号" autocomplete="username" />
+          <input class="login-input" id="adminUser" placeholder="账号" autocomplete="username" />
           <input class="login-input" id="adminPass" type="password" placeholder="密码" autocomplete="current-password" />
-          <button class="login-btn" id="adminLoginBtn">登录后台</button>
+          <button class="login-btn" id="adminLoginBtn">登录</button>
           <div class="login-err" id="adminErr"></div>
         </div>
       </div>
@@ -65,25 +65,6 @@
           <span>联系我们</span>
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- PIN 码弹窗 -->
-  <div class="pin-scrim" id="pinModal">
-    <div class="pin-card">
-      <button class="pin-close" id="pinClose" aria-label="关闭">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-      <div class="pin-title" id="pinTitle">设置 PIN 码</div>
-      <div class="pin-desc" id="pinDesc">请设置一个 4 位数字 PIN 码，下次登录时需要输入</div>
-      <div class="pin-boxes" id="pinBoxes">
-        <span class="pin-box" data-i="0"></span>
-        <span class="pin-box" data-i="1"></span>
-        <span class="pin-box" data-i="2"></span>
-        <span class="pin-box" data-i="3"></span>
-        <input class="pin-hidden-input" id="pinInput" inputmode="numeric" maxlength="4" autocomplete="off" />
-      </div>
-      <div class="login-err" id="pinErr"></div>
     </div>
   </div>
 
@@ -123,17 +104,35 @@
             <span class="quota" id="quotaBadge"></span>
             <span class="quota quota-exp" id="quotaExp"></span>
           </div>
+          <button class="logout-btn fav-btn" id="favBtn" aria-label="收藏网址" title="收藏本页">
+            <svg id="favIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </button>
           <button class="logout-btn" id="shareBtn" aria-label="分享对话" style="display:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
           </button>
-          <button class="logout-btn" id="adminBtn" aria-label="管理后台" style="display:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <button class="logout-btn" id="adminBtn" aria-label="管理后台" title="管理后台" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z" opacity="0"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
           </button>
-          <button class="logout-btn" id="logoutBtn" aria-label="退出登录">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4"/><path d="M10 17l-5-5 5-5"/><path d="M15 12H5"/></svg>
+          <button class="logout-btn" id="settingsBtn" aria-label="设置" title="设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
         </div>
       </header>
+
+      <!-- 转为长期账号提示条（首次提问后展开） -->
+      <div class="bind-banner" id="bindBanner" style="display:none">
+        <div class="bb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        </div>
+        <div class="bb-text">
+          <div class="bb-title">转为长期账号</div>
+          <div class="bb-desc">把本次邀请码的额度转到长期账号，下次用账号密码登录即可</div>
+        </div>
+        <button type="button" class="bb-action" id="bbAction">立即绑定</button>
+        <button type="button" class="bb-close" id="bbClose" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
 
       <!-- 分享菜单 -->
       <div class="share-menu" id="shareMenu">
@@ -160,22 +159,26 @@
         </div>
         <div class="composer">
           <input type="file" id="imgInput" accept="image/*" aria-label="上传图片" />
+          <button type="button" class="model-picker-btn" id="modelPickerBtn" aria-label="选择模型" style="display:none">
+            <span id="modelPickerLabel">模型</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="model-dropdown" id="modelDropdown" style="display:none"></div>
+          <textarea id="input" rows="1" placeholder="描述你的电脑问题…"></textarea>
           <button type="button" id="imgBtn" aria-label="上传图片">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
           </button>
-          <textarea id="input" rows="1" placeholder="描述你的电脑问题…"></textarea>
           <button type="button" id="send" aria-label="发送">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20 22 12 3 4v6l13 2-13 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
           </button>
         </div>
-        <div class="hint">Enter 发送 / Shift+Enter 换行</div>
       </footer>
     </div>
   </div>
 
   <div class="toast" id="toast"></div>
 
-  <!-- 邀请码管理面板（管理员齿轮打开） -->
+  <!-- 邀请码管理面板（管理员，整页弹窗） -->
   <div class="admin-modal" id="adminModal">
     <div class="admin-panel">
       <div class="admin-head">
@@ -188,6 +191,82 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- 统一设置弹窗（左右分栏） -->
+  <div class="bind-scrim" id="settingsModal">
+    <div class="settings-card">
+      <button class="pin-close" id="settingsClose" type="button" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="settings-layout">
+        <!-- 左侧标签栏 -->
+        <nav class="settings-nav">
+          <button class="settings-tab active" data-tab="account">账号</button>
+          <button class="settings-tab" data-tab="api">API</button>
+          <button class="settings-tab" data-tab="preferences">偏好</button>
+          <button class="settings-tab" data-tab="about">关于我们</button>
+          <button class="settings-tab logout-tab" id="logoutTab" title="退出登录">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4"/><path d="M10 17l-5-5 5-5"/><path d="M15 12H5"/></svg>
+          </button>
+        </nav>
+        <!-- 右侧内容区 -->
+        <div class="settings-content">
+          <!-- 账号（含头像） -->
+          <div class="settings-pane active" data-pane="account" id="accountPane"></div>
+          <!-- 回答偏好 -->
+          <div class="settings-pane" data-pane="preferences" id="preferencesPane"></div>
+          <!-- API -->
+          <div class="settings-pane" data-pane="api">
+            <div class="pane-title">自定义 API</div>
+            <div class="settings-hint">填入你自己的 API Key 后，聊天走你自己的额度，不再消耗邀请码次数</div>
+            <label class="settings-label">服务商</label>
+            <select class="settings-input api-select" id="apiProvider">
+              <option value="deepseek">DeepSeek</option>
+              <option value="openai">OpenAI 兼容</option>
+            </select>
+            <label class="settings-label">API Key</label>
+            <input class="settings-input" id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
+            <label class="settings-label">API 地址（留空用默认）</label>
+            <input class="settings-input" id="apiBaseInput" placeholder="https://api.deepseek.com" autocomplete="off" />
+            <label class="settings-label">模型</label>
+            <input class="settings-input" id="apiModelInput" placeholder="deepseek-chat" autocomplete="off" />
+            <div class="api-status" id="apiStatus"></div>
+            <div class="btn-row">
+              <button class="settings-btn" id="apiSaveBtn">保存</button>
+              <button class="settings-btn ghost" id="apiClearBtn" type="button">清除</button>
+            </div>
+          </div>
+          <!-- 关于我们 -->
+          <div class="settings-pane" data-pane="about">
+            <div class="pane-title">关于我们</div>
+            <div class="about-why">
+              <div class="about-why-title">为什么做 FixPilot</div>
+              <p>电脑出了问题，很多人第一反应是发帖求助，等半天没人理，或者被各种"重装系统"的通用答案打发。FixPilot 想做的，就是让电脑故障排查变得像聊天一样简单——它记得你一步步描述的症状，一次只问一个关键问题，帮你把问题定位到根。</p>
+              <p>它不追求做一个"什么都会"的大杂烩，而是专注把"电脑坏了怎么办"这一件事做好、做顺手。够用就好，不堆功能。</p>
+            </div>
+            <div class="about-links">
+              <a class="about-link" href="https://github.com/Tsang12140/FixPilot" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+                <span>GitHub 开源地址</span>
+              </a>
+              <a class="about-link" href="mailto:silver26719@gmail.com">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
+                <span>silver26719@gmail.com</span>
+              </a>
+            </div>
+            <div class="about-star">
+              <div class="about-star-title">如果它对你有点用</div>
+              <p>去 GitHub 顺手点个 Star，就是对我最大的鼓励。开源不易，你的每一次支持，都让这个项目有机会继续打磨下去。</p>
+              <a class="about-star-btn" href="https://github.com/Tsang12140/FixPilot" target="_blank" rel="noopener">
+                <svg class="btn-star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                去 GitHub 给星
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=19"></script>
 </body>
 </html>
