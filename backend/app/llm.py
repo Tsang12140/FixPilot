@@ -214,8 +214,12 @@ def build_responses_payload(messages: List[Dict[str, str]], model: str) -> Dict:
             instructions.append(content)
             continue
         if role == "assistant":
+            # Ark validates historic assistant turns as completed message items.
+            # Without this status, a first request works but the next turn fails
+            # with: "missing input.status parameter".
             input_items.append({
                 "role": "assistant",
+                "status": "completed",
                 "content": [{"type": "output_text", "text": content}],
             })
             continue

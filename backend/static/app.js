@@ -731,10 +731,14 @@ async function loadConversations() {
     renderList();
     if (conversations.length) {
       const requestedId = conversationIdFromHash();
-      const initialConversation = conversations.find(c => c.id === requestedId) || conversations[0];
+      const requestedConversation = conversations.find(c => c.id === requestedId);
+      const initialConversation = requestedConversation || conversations[0];
       activeConvId = initialConversation.id;
       await openConversation(activeConvId, false);
       setConversationLocation(activeConvId, true);
+      if (requestedId && !requestedConversation) {
+        toast('这个对话不属于当前账号，已打开你的最近对话');
+      }
     } else {
       await newConversation();
     }
