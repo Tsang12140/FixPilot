@@ -1558,6 +1558,7 @@ const apiKeyInput = document.getElementById('apiKeyInput');
 const apiBaseInput = document.getElementById('apiBaseInput');
 const apiModelInput = document.getElementById('apiModelInput');
 const apiStatus = document.getElementById('apiStatus');
+const apiTestBtn = document.getElementById('apiTestBtn');
 const preferencesSection = document.getElementById('preferencesPane');
 const apiProviderHint = document.getElementById('apiProviderHint');
 const API_PROVIDER_HINTS = {
@@ -1783,21 +1784,47 @@ async function savePreferences() {
 }
 
 /* ---------- API 设置（内嵌在设置弹窗中） ---------- */
-async function saveApiSettings_action() {
+function readApiSettingsForm() {
   const provider = apiProviderSel.value;
   const apiKey = apiKeyInput.value.trim();
-  if (!apiKey) { apiStatus.textContent = '请输入 API Key'; apiStatus.className = 'api-status err'; return; }
   const preset = API_PRESETS[provider] || API_PRESETS.deepseek;
-  const apiBase = apiBaseInput.value.trim() || preset.base;
-  const model = apiModelInput.value.trim() || preset.models[0];
-  /* 先测试连通性 */
-  apiStatus.textContent = '正在测试 API 连通性...';
+  return {
+    provider,
+    apiKey,
+    apiBase: apiBaseInput.value.trim() || preset.base,
+    model: apiModelInput.value.trim() || preset.models[0],
+  };
+}
+
+function saveApiSettings_action() {
+  const settings = readApiSettingsForm();
+  if (!settings.apiKey) {
+    apiStatus.textContent = '请输入 API Key';
+    apiStatus.className = 'api-status err';
+    return;
+  }
+  saveApiSettings(settings);
+  apiStatus.textContent = '已保存。点「测试连接」确认这套 API 是否可用。';
+  apiStatus.className = 'api-status ok';
+  updateModelPicker();
+  updateQuotaBadge(currentUser);
+}
+
+async function testApiSettings_action() {
+  const settings = readApiSettingsForm();
+  if (!settings.apiKey) {
+    apiStatus.textContent = '请输入 API Key';
+    apiStatus.className = 'api-status err';
+    return;
+  }
+  apiStatus.textContent = '正在测试 API 连接，请稍候...';
   apiStatus.className = 'api-status';
+  apiTestBtn.disabled = true;
   try {
     const res = await fetch('/api/test-api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
-      body: JSON.stringify({ apiKey, apiBase, model }),
+      body: JSON.stringify(settings),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -1808,18 +1835,16 @@ async function saveApiSettings_action() {
       apiStatus.className = 'api-status err';
       return;
     }
+    apiStatus.textContent = '连接成功。当前填写的配置可用。';
+    apiStatus.className = 'api-status ok';
   } catch (e) {
-    apiStatus.textContent = '测试失败：网络错误';
+    apiStatus.textContent = '测试请求没有到达 FixPilot 后端。请先启动本地服务，然后重试。';
     apiStatus.className = 'api-status err';
-    return;
+  } finally {
+    apiTestBtn.disabled = false;
   }
-  /* 测试通过，保存 */
-  saveApiSettings({ provider, apiKey, apiBase, model });
-  apiStatus.textContent = 'API 测试通过，已保存';
-  apiStatus.className = 'api-status ok';
-  updateModelPicker();
-  updateQuotaBadge(currentUser);
 }
+
 function clearApiSettings_action() {
   clearApiSettings();
   apiKeyInput.value = '';
@@ -1832,6 +1857,7 @@ function clearApiSettings_action() {
 }
 apiProviderSel.addEventListener('change', () => applyApiProviderPreset(apiProviderSel.value, true));
 document.getElementById('apiSaveBtn').addEventListener('click', saveApiSettings_action);
+apiTestBtn.addEventListener('click', testApiSettings_action);
 document.getElementById('apiClearBtn').addEventListener('click', clearApiSettings_action);
 
 /* ---------- 收藏网址（尝试真实书签，兜底下载 .url 快捷方式） ---------- */

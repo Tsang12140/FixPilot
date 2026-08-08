@@ -935,6 +935,7 @@ body.bg-5 .login-screen::after {
 }
 .settings-btn:hover { filter: brightness(1.05); }
 .settings-btn:active { transform: scale(.97); }
+.settings-btn:disabled { opacity: .55; cursor: wait; transform: none; }
 .settings-btn.ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
 .settings-btn.ghost:hover { background: #f8f9fb; color: var(--text); }
 .settings-btn.danger { background: #e53e3e; }
