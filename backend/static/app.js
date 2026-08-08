@@ -698,11 +698,18 @@ function updateQuotaBadge(me) {
     quotaBadge.textContent = '剩余 ' + Math.max(0, total - me.quota_used) + ' 次';
   }
   quotaExp.textContent = me.expires_at ? fmtExpDate(me.expires_at) + ' 到期' : '长期有效';
+  const compactStatus = quotaBadge.textContent + ' ' + String.fromCharCode(0x00B7) + ' ' + quotaExp.textContent;
+  wrap.title = compactStatus;
+  wrap.setAttribute('aria-label', compactStatus);
 }
 function fmtExpDate(exp) {
   const d = new Date(exp);
   return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
 }
+document.getElementById('quotaWrap').addEventListener('click', () => {
+  const status = document.getElementById('quotaWrap').title;
+  if (status) toast(status);
+});
 
 function showQuotaBlock() {
   if (chatEl.querySelector('.quota-block')) return;
@@ -2132,20 +2139,14 @@ const modelDropdown = document.getElementById('modelDropdown');
 const modelPickerWrap = document.getElementById('modelPickerWrap');
 let _modelList = [];
 
-/* 移动端：把模型选择器从输入框移入顶栏（按钮左侧），节省输入框空间 */
-function relocateModelPicker() {
-  const pickerWrap = modelPickerWrap.parentNode;
-  const topbarRight = document.querySelector('.topbar-right');
+/* Keep the model picker inside the composer at every viewport size. */
+function keepModelPickerInComposer() {
   const composer = document.querySelector('.composer');
-  const mobile = window.matchMedia('(max-width: 767px)').matches;
-  if (mobile && pickerWrap !== topbarRight && topbarRight && composer) {
-    topbarRight.insertBefore(modelPickerWrap, topbarRight.firstChild);
-  } else if (!mobile && pickerWrap !== composer && composer) {
+  if (composer && modelPickerWrap.parentNode !== composer) {
     composer.insertBefore(modelPickerWrap, composer.querySelector('#imgBtn'));
   }
 }
-relocateModelPicker();
-window.addEventListener('resize', relocateModelPicker);
+keepModelPickerInComposer();
 
 function configuredCustomModel(settings) {
   if (!settings || !settings.apiKey) return '';

@@ -621,6 +621,25 @@ body {
   .topbar-left { display: none; } /* 移动端顶栏省空间，只留菜单+状态 */
   .bubble { max-width: 84%; }
   .quota-exp { display: none; } /* 移动端仅显示次数，避免顶栏拥挤 */
+  /* Mobile header is intentionally limited to navigation, brand, status and actions. */
+  .topbar { gap: 8px; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
+  .topbar-left { display: flex; gap: 7px; min-width: 0; }
+  .topbar-left .logo { width: 30px; height: 30px; border-radius: 9px; }
+  .topbar-title .name { font-size: 15px; white-space: nowrap; }
+  .topbar-title .sub { display: none; }
+  .topbar-right { gap: 3px; }
+  .fav-btn { display: none !important; }
+  .quota-wrap { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 10px; }
+  .quota-wrap .quota { display: none; }
+  .quota-compact-icon { display: inline-flex; align-items: center; justify-content: center; }
+  .quota-compact-icon svg { width: 18px; height: 18px; }
+
+  .composer { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "input input input" "model img send"; gap: 8px; padding: 10px 12px; }
+  .composer textarea { min-height: 96px; max-height: 180px; padding: 0 2px; align-self: stretch; }
+  .model-picker-wrap { grid-area: model; width: 100%; }
+  .composer .model-picker-btn { min-width: 0; max-width: min(230px, 100%); }
+  #modelPickerLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .composer .model-dropdown { left: 0; right: auto; bottom: calc(100% + 8px); width: min(340px, calc(100vw - 32px)); }
 }
 
 /* ---------- 登录界面 ---------- */
@@ -1157,12 +1176,7 @@ body.bg-5 .login-screen::after {
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: 0 12px 32px rgba(15,23,42,.16);
 }
-/* Model picker moves into the top bar on narrow screens. */
 .topbar-right { position: relative; }
-.topbar-right .model-dropdown {
-  top: 100%; bottom: auto;
-  margin: 0;
-}
 .model-section + .model-section { margin-top: 7px; padding-top: 8px; border-top: 1px solid var(--border); }
 .model-section-title { padding: 2px 8px 6px; color: var(--text-2); font-size: 12px; font-weight: 600; }
 .model-dropdown .model-opt {
@@ -1214,7 +1228,12 @@ body.bg-5 .login-screen::after {
 
 /* 顶栏配额徽标 */
 .topbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
-.quota-wrap { display: inline-flex; align-items: center; gap: 6px; }
+.quota-wrap {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0; padding: 0; border: 0; background: transparent; color: inherit;
+  font: inherit; cursor: pointer;
+}
+.quota-compact-icon { display: none; }
 .quota {
   display: inline-flex; align-items: center;
   font-size: 12px; color: var(--accent-text);
@@ -1256,6 +1275,12 @@ body.bg-5 .login-screen::after {
   .topbar { padding: 12px 14px; padding-top: calc(12px + env(safe-area-inset-top)); }
   .topbar-right { gap: 6px; }
   .quota { padding: 4px 9px; }
+  .topbar { padding: 10px 10px; padding-top: calc(10px + env(safe-area-inset-top)); }
+  .topbar-right { gap: 2px; }
+  .logout-btn, .quota-wrap { width: 32px; height: 32px; }
+  .topbar-left .logo { width: 28px; height: 28px; }
+  .topbar-title .name { font-size: 14px; }
+  .composer-wrap { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
 }
 @media (max-height: 600px) {
   .login-card { overflow-y: auto; }

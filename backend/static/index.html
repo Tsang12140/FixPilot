@@ -15,7 +15,7 @@
   <title>FixPilot</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
   <link rel="apple-touch-icon" href="favicon.svg?v=3" />
-  <link rel="stylesheet" href="style.css?v=30" />
+  <link rel="stylesheet" href="style.css?v=31" />
 </head>
 <body>
   <!-- 登录界面 -->
@@ -113,10 +113,13 @@
           </div>
         </div>
         <div class="topbar-right">
-          <div class="quota-wrap" id="quotaWrap" style="display:none">
+          <button type="button" class="quota-wrap" id="quotaWrap" style="display:none" aria-label="&#x4F7F;&#x7528;&#x72B6;&#x6001;" title="">
+            <span class="quota-compact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l2.5 1.5"></path></svg>
+            </span>
             <span class="quota" id="quotaBadge"></span>
             <span class="quota quota-exp" id="quotaExp"></span>
-          </div>
+          </button>
           <button class="logout-btn fav-btn" id="favBtn" aria-label="收藏网址" title="收藏本页">
             <svg id="favIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
           </button>
@@ -294,6 +297,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
 </body>
 </html>
