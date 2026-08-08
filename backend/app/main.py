@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, db, llm, memes, profiling, service
+from . import api_diagnostics, auth, db, llm, memes, profiling, service
 from .knowledge import load_chunks
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
@@ -448,44 +448,23 @@ def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
 
 @app.post("/api/test-api")
 def test_api(req: ApiTestRequest, authorization: Optional[str] = Header(None)):
-    """测试用户自定义 API 是否可用（发送一条极简请求）。"""
+    """Test a user-supplied API with a minimal compatible request."""
     _require_auth(authorization)
-    if not req.apiKey:
-        raise HTTPException(status_code=400, detail="请先填写 API Key")
+    attempt_id = api_diagnostics.start("test", req.apiBase or "", req.model or "")
     try:
-        for chunk in llm.stream_chat(
+        for _chunk in llm.stream_chat(
             messages=[{"role": "user", "content": "Hi"}],
             api_key=req.apiKey,
             base_url=req.apiBase or "",
             model=req.model or "",
         ):
-            # 只要有第一个 token 返回就说明连通
+            api_diagnostics.success(attempt_id)
             return {"ok": True}
-        # 没有流式数据但也没报错 -- 可能返回空，也算连通
+        api_diagnostics.success(attempt_id)
         return {"ok": True}
-    except httpx.HTTPStatusError as e:
-        status = e.response.status_code
-        cn = {401: "API Key 无效或已过期", 403: "API Key 无权限访问该模型",
-              404: "API 地址或模型不存在，请检查填写", 429: "请求过于频繁，请稍后重试",
-              500: "API 服务端异常，请稍后重试", 502: "API 网关错误，请稍后重试",
-              503: "API 服务暂不可用，请稍后重试"}
-        hint = cn.get(status, f"API 返回错误码 {status}")
-        raise HTTPException(status_code=400, detail=hint)
-    except httpx.ConnectError:
-        raise HTTPException(status_code=400, detail="无法连接 API 地址，请检查 URL 是否正确")
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=400, detail="API 响应超时，请稍后重试")
-    except Exception as e:
-        err = str(e)[:200]
-        # 常见英文错误翻译
-        for en, zh in [("Invalid API key", "API Key 无效"),
-                       ("model not found", "模型不存在"),
-                       ("insufficient balance", "API 账户余额不足"),
-                       ("rate limit", "请求频率超限")]:
-            if en.lower() in err.lower():
-                err = zh
-                break
-        raise HTTPException(status_code=400, detail=f"API 测试失败：{err}")
+    except Exception as exc:
+        api_diagnostics.failure(attempt_id, exc)
+        raise HTTPException(status_code=400, detail=api_diagnostics.public_message(exc, attempt_id))
 
 
 @app.post("/api/chat")
@@ -536,6 +515,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
 
     def gen():
         yield "data:__start__\n\n"
+        attempt_id = api_diagnostics.start("chat", req.apiBase or "", req.model or "") if use_custom_api else ""
         acc = []
         prefix = []
         effect = None
@@ -568,9 +548,16 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                     token = prefix_text
                 acc.append(token)
                 yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
-        except Exception as e:
-            yield f"data: __error__:{e}\n\n"
+        except Exception as exc:
+            message = "服务出错，请稍后重试"
+            if attempt_id:
+                api_diagnostics.failure(attempt_id, exc)
+                message = api_diagnostics.public_message(exc, attempt_id)
+            yield f"data: __error__:{message}\n\n"
             return
+
+        if attempt_id:
+            api_diagnostics.success(attempt_id)
 
         user_text, user_image = _content_to_text_and_image(req.messages[-1].get("content")) if req.messages else ("", None)
         db.add_message(conv_id, "user", user_text, user_image)
