@@ -923,6 +923,7 @@ body.bg-5 .login-screen::after {
 }
 .settings-input:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(59,108,246,.1); }
 .settings-input::placeholder { color: #b0b6c2; font-size: 12px; }
+.settings-input.preference-select { width: min(360px, 100%); }
 /* 头像选择 */
 .avatar-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .avatar-opt {

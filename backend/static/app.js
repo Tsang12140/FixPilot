@@ -1770,27 +1770,44 @@ async function submitChangePassword() {
 }
 /* ---------- 回答偏好设置 ---------- */
 function profileLevelLabel(level) {
-  return { beginner: '不太懂', intermediate: '会折腾一点', advanced: '比较熟', unknown: '让 FixPilot 自动判断' }[level] || '让 FixPilot 自动判断';
+  return {
+    beginner: '\u4e0d\u592a\u61c2', intermediate: '\u4f1a\u6298\u817e\u4e00\u70b9', advanced: '\u6bd4\u8f83\u719f',
+    unknown: '\u8ba9 FixPilot \u81ea\u52a8\u5224\u65ad'
+  }[level] || '\u8ba9 FixPilot \u81ea\u52a8\u5224\u65ad';
+}
+function responseStyleDescription(style) {
+  return {
+    normal: '\u6b63\u5e38\u8bf4\u8bdd\uff0c\u89e3\u91ca\u6e05\u695a\uff0c\u8be5\u63d0\u9192\u7684\u4f1a\u63d0\u9192\u3002',
+    roast: '\u7535\u8111\u6211\u8ba4\u771f\u4fee\uff0c\u5634\u4e0a\u53ef\u80fd\u4e0d\u9976\u4f60\u3002',
+    concise: '\u4e0d\u8981\u94fa\u57ab\uff0c\u4e0d\u5f00\u73a9\u7b11\uff0c\u76f4\u63a5\u544a\u8bc9\u6211\u600e\u4e48\u505a\u3002'
+  }[style] || '\u6b63\u5e38\u8bf4\u8bdd\uff0c\u89e3\u91ca\u6e05\u695a\uff0c\u8be5\u63d0\u9192\u7684\u4f1a\u63d0\u9192\u3002';
 }
 function renderPreferencesSection() {
   if (!preferencesSection) return;
   const p = currentProfile || defaultProfile();
   const explicitLevel = p.technical_level_source === 'explicit' ? p.technical_level : 'unknown';
-  const inferred = p.technical_level_source === 'inferred' ? '目前自动适配为「' + profileLevelLabel(p.technical_level) + '」，你随时可以改成手动。' : '不确定时，FixPilot 会根据有效对话逐步适配。';
+  const inferred = p.technical_level_source === 'inferred'
+    ? '\u76ee\u524d\u81ea\u52a8\u9002\u914d\u4e3a\u300c' + profileLevelLabel(p.technical_level) + '\u300d\uff0c\u4f60\u968f\u65f6\u53ef\u4ee5\u6539\u6210\u624b\u52a8\u3002'
+    : '\u4e0d\u786e\u5b9a\u65f6\uff0cFixPilot \u4f1a\u6839\u636e\u6709\u6548\u5bf9\u8bdd\u9010\u6b65\u9002\u914d\u3002';
   preferencesSection.innerHTML =
-    '<div class="pane-title">回答偏好</div>' +
-    '<label class="settings-label">电脑水平</label>' +
-    '<select class="settings-input" id="technicalLevelSelect">' +
-      '<option value="unknown">让 FixPilot 自动判断</option>' +
-      '<option value="beginner">不太懂</option><option value="intermediate">会折腾一点</option><option value="advanced">比较熟</option>' +
+    '<div class="pane-title">\u56de\u7b54\u504f\u597d</div>' +
+    '<label class="settings-label">\u7535\u8111\u6c34\u5e73</label>' +
+    '<select class="settings-input preference-select" id="technicalLevelSelect">' +
+      '<option value="unknown">\u8ba9 FixPilot \u81ea\u52a8\u5224\u65ad</option>' +
+      '<option value="beginner">\u4e0d\u592a\u61c2</option><option value="intermediate">\u4f1a\u6298\u817e\u4e00\u70b9</option><option value="advanced">\u6bd4\u8f83\u719f</option>' +
     '</select><div class="settings-hint">' + inferred + '</div>' +
-    '<label class="settings-label">说话方式</label>' +
-    '<select class="settings-input" id="responseStyleSelect">' +
-      '<option value="normal">正常点</option><option value="roast">嘴毒点</option><option value="concise">少废话</option>' +
-    '</select><div class="settings-hint">嘴毒只会在事实已确认的低级乌龙时出现，不会影响排障和安全提醒。</div>' +
-    '<div class="login-err" id="preferencesErr"></div><div class="btn-row"><button class="settings-btn" id="savePreferencesBtn">保存</button></div>';
+    '<label class="settings-label">\u8bf4\u8bdd\u65b9\u5f0f</label>' +
+    '<select class="settings-input preference-select" id="responseStyleSelect">' +
+      '<option value="normal">\u6b63\u5e38\u6a21\u5f0f</option><option value="roast">\u6bd2\u820c\u6a21\u5f0f</option><option value="concise">\u6781\u7b80\u6a21\u5f0f</option>' +
+    '</select><div class="settings-hint" id="responseStyleHint"></div>' +
+    '<div class="login-err" id="preferencesErr"></div><div class="btn-row"><button class="settings-btn" id="savePreferencesBtn">\u4fdd\u5b58</button></div>';
   document.getElementById('technicalLevelSelect').value = explicitLevel;
-  document.getElementById('responseStyleSelect').value = p.response_style || 'normal';
+  const styleSelect = document.getElementById('responseStyleSelect');
+  const styleHint = document.getElementById('responseStyleHint');
+  styleSelect.value = p.response_style || 'normal';
+  const updateStyleHint = () => { styleHint.textContent = responseStyleDescription(styleSelect.value); };
+  styleSelect.addEventListener('change', updateStyleHint);
+  updateStyleHint();
   document.getElementById('savePreferencesBtn').addEventListener('click', savePreferences);
 }
 async function savePreferences() {
@@ -1804,11 +1821,11 @@ async function savePreferences() {
       onboardingSeen: true,
     });
     renderPreferencesSection();
-    toast('回答偏好已更新');
-  } catch (e) { err.textContent = e.message || '保存失败，请重试'; }
+    toast('\u56de\u7b54\u504f\u597d\u5df2\u66f4\u65b0');
+  } catch (e) { err.textContent = e.message || '\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5'; }
 }
 
-/* ---------- API 设置（内嵌在设置弹窗中） ---------- */
+/* ---------- API settings ---------- */
 function readApiSettingsForm() {
   const provider = apiProviderSel.value;
   const apiKey = apiKeyInput.value.trim();
