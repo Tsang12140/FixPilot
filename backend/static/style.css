@@ -591,6 +591,23 @@ body {
 
 /* ---------- 桌面端增强 ---------- */
 @media (min-width: 768px) {
+  .sidebar-account {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 45px;
+    width: auto;
+  }
+
+  .sidebar-foot {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 17px;
+    padding: 0;
+    line-height: 15px;
+  }
+
   .menu-btn { display: none; }
   .scrim { display: none; }
   .sidebar { position: relative; left: auto; top: auto; bottom: auto; width: 264px; transition: width .22s ease, padding .22s ease, opacity .16s ease, border-width .22s ease; overflow: hidden; }
@@ -603,7 +620,7 @@ body {
   .bubble { max-width: 72%; }
   .composer-wrap { padding: 14px 24px 16px; }
   .sidebar-toggle-btn {
-    position: absolute; left: 20px; bottom: 28px; z-index: 4;
+    position: absolute; left: 20px; bottom: 50px; z-index: 4;
     background: rgba(255,255,255,.76); border: 1px solid rgba(226,232,240,.9);
     box-shadow: 0 4px 14px rgba(31,52,110,.10);
   }

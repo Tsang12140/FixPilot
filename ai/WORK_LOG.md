@@ -296,6 +296,33 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   creation time but not a message excerpt. Add a privacy-reviewed snippet only
   if users need to know which exact message caused a match.
 
+### 2026-08-09 - align desktop sidebar footer with composer controls
+
+- Request / symptom: align the sidebar account row and collapse control with the
+  composer send row; align the contact link with the disclaimer; remove the
+  outdated sidebar text "fault diagnosis ? independent window per turn".
+- Finding / root cause: the sidebar footer and account button were normal flex
+  children, so their position was determined by sidebar content rather than the
+  composer footer controls. The sidebar toggle used a separate, lower offset.
+- Changed:
+  - `backend/static/index.html` - removed the obsolete diagnosis text, retained
+    the contact link, and bumped the stylesheet cache version.
+  - `backend/static/style.css` - on desktop only, anchored the account row and
+    collapse control to the send-control centre line and the contact link to
+    the disclaimer line. Mobile keeps the normal drawer flow.
+- Verified:
+  - `git diff --check` and `node --check backend/static/app.js` passed;
+  - local server restarted and `GET /` returned HTTP 200;
+  - headless browser at 2048x1215 measured account/toggle centres at 1132px
+    versus send at 1133.16px, and contact at 1175.5px versus disclaimer at
+    1176.58px; the obsolete diagnosis text was absent;
+  - headless browser at 390x844 confirmed sidebar account/contact remain
+    `position: static` in the mobile drawer.
+- Commit: pending (entry written before commit; see git history for final hash).
+- Follow-up / risk: desktop offsets intentionally follow the composer baseline.
+  If the composer footer height changes, rerun the same geometry check rather
+  than manually nudging only one sidebar element.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.
