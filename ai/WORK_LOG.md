@@ -667,7 +667,7 @@ Copy this section for every new task; append it above this template.
   - Python assertions: invalid client `system`/`assistant` roles and malformed message lists are rejected; history role filtering works; missing admin environment credentials create no admin; login failure throttling engages and resets correctly.
   - Direct live-route assertion: `/api/chat` rejects forged `system` and `assistant` roles with HTTP 400 before creating a conversation or invoking a provider.
   - `python -m py_compile backend\app\auth.py backend\app\config.py backend\app\llm.py backend\app\main.py backend\app\service.py`, `git diff --check`, and restarted local `/api/health` all passed. Served `app.js` and `style.css` contain the renderer fix.
-- Commit: pending.
+- Commit: `70441ec fix: preserve reply text and harden admin boundary`.
 - Follow-up / risk:
   - Existing stored model text is not rewritten because reconstructing it could alter evidence; refresh the affected conversations to see the layout correction, then resend if a historical response itself was already malformed.
   - Browser-plugin initialization failed before page inspection in this environment, so a final manual visual refresh is still needed for the two supplied URLs.

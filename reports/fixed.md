@@ -140,7 +140,7 @@ Append-only. One entry per verified fix.
 - Files changed: `backend/static/style.css`; `backend/static/app.js`.
 - Verification: Node assertions confirm ordinary numbered steps stay untouched, only explicit `选项：` blocks create cards, and an unmatched fence does not hide the tail. Served local static assets contain the new code.
 - Final status: fixed; historical answer text was intentionally not rewritten.
-- Commit: pending.
+- Commit: `70441ec fix: preserve reply text and harden admin boundary`.
 
 ### 2026-08-09 Asia/Shanghai - blue-screen screenshot was incorrectly refused
 
@@ -150,7 +150,7 @@ Append-only. One entry per verified fix.
 - Files changed: `backend/app/llm.py`.
 - Verification: the policy now explicitly treats STOP codes, error dialogs, Device Manager and Task Manager screenshots as OCR-supported and prohibits the "cannot see images" refusal for them; Python compilation passed.
 - Final status: fixed in the runtime policy; new replies follow the rule, while the old stored answer remains historical evidence.
-- Commit: pending.
+- Commit: `70441ec fix: preserve reply text and harden admin boundary`.
 
 ### 2026-08-09 Asia/Shanghai - client could attempt model-role injection and default admin credentials existed
 
@@ -160,4 +160,4 @@ Append-only. One entry per verified fix.
 - Files changed: `backend/app/service.py`; `backend/app/main.py`; `backend/app/llm.py`; `backend/app/auth.py`; `backend/app/config.py`; `backend/.env.example`.
 - Verification: direct live-route tests reject forged `system` and `assistant` messages with HTTP 400 before provider access. Unit assertions verify role filtering, no default admin creation without explicit environment credentials, and a five-failure administrator-login throttle. Backend compilation and local health check passed.
 - Final status: fixed for this single-process deployment; the in-memory throttle resets when the server restarts, so an internet-facing multi-process deployment should move this control to a shared proxy/store.
-- Commit: pending.
+- Commit: `70441ec fix: preserve reply text and harden admin boundary`.
