@@ -1686,6 +1686,20 @@ function showReplyFailure(bubble, message, retryState) {
 }
 
 /* ---------- 发送 ---------- */
+function autoResize() {
+  const el = input;
+  const maxH = 240; // 与 .composer textarea 的 max-height 一致
+  el.style.height = 'auto';
+  const h = el.scrollHeight;
+  if (h > maxH) {
+    el.style.height = maxH + 'px';
+    el.style.overflowY = 'auto';
+  } else {
+    el.style.height = h + 'px';
+    el.style.overflowY = 'hidden';
+  }
+}
+
 async function send(retryState = null) {
   const isRetry = Boolean(retryState && typeof retryState.convId === 'string' && retryState.convId);
   const typedText = (input.value || '').trim();
