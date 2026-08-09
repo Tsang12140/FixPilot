@@ -700,5 +700,5 @@ Copy this section for every new task; append it above this template.
   - static assertions confirmed no retired alias remains in the direct preset, the new placeholder and cache version are present.
   - an offline Python assertion confirmed `https://api.deepseek.com/responses` is translated to a valid `deepseek-v4-flash` Responses request with `instructions` and typed `input_text` content.
   - `git diff --check` passed.
-- Commit: pending.
+- Commit: 4d88cd3 (`fix: use official DeepSeek V4 Flash preset`).
 - Follow-up / risk: Chat Completions remains the recommended default because it retains visible streaming. Users may still configure `https://api.deepseek.com/responses` manually; FixPilot currently retrieves that upstream result non-streaming for stability, so it does not expose the provider's native token-by-token events.

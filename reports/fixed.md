@@ -170,4 +170,4 @@ Append-only. One entry per verified fix.
 - Files changed: `backend/static/app.js`; `backend/static/index.html`.
 - Verification: JavaScript syntax and static preset assertions passed; an offline Responses payload assertion passed; `git diff --check` passed.
 - Final status: fixed. Existing saved custom API settings remain unchanged.
-- Commit: pending.
+- Commit: 4d88cd3 (`fix: use official DeepSeek V4 Flash preset`).
