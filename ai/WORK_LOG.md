@@ -915,5 +915,5 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Finding / root cause: `build_lookup_policy([])` returned an empty string. The global official-reference rule still existed, but the model did not receive the explicit unlisted-request boundary that says to broaden only to a direct manufacturer, operating-system, or hardware-vendor official page.
 - Changed: `backend/app/official_sources.py` now emits that explicit fallback policy whenever no curated route matches. `tools/web_search_test.py` asserts the policy is present for an unlisted model-plus-documentation request.
 - Verified: `python -m py_compile backend/app/official_sources.py tools/web_search_test.py` PASS; `python tools/run_all.py --suites websearch,sources` PASS (websearch 9, sources 7); `git diff --check` PASS.
-- Implementation commit: pending (this entry is staged with the implementation).
+- Implementation commit: `c95a900` (`fix: retain official fallback policy`).
 - Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.
