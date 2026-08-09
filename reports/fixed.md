@@ -275,4 +275,4 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Fix: registry matches are now preferred first. A concrete model-plus-documentation request can broaden when no registry route exists. Preferred links display `??????`; unlisted URLs display `?????????????` and a verification warning. Generic symptoms still do not unlock lookup; unlisted sources cannot by themselves justify high-risk actions.
 - Verification: `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (24 checks); Python compilation and `git diff --check` PASS.
 - Status: fixed and ready to commit.
-- Commit: pending (record staged with implementation).
+- Commit: `8d472be` (`fix: prioritize official source registry`).
