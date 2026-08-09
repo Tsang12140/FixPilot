@@ -774,7 +774,7 @@ The work item immediately above was implemented and verified in `a2b4b16` (`fix:
   - The in-app browser control could not initialize because its local kernel
     assets path is unavailable, so visual desktop/mobile clicking remains a
     manual follow-up despite static and regression checks passing.
-- Commit: pending final feature amend; the final hash is recorded in the immediate log-only follow-up commit.
+- Implementation commit: 5cb461163b0290aa12f8948a8d8f131ff1966062 (`feat: add official DeepSeek web search`).
 - Follow-up / risk: this is intentionally a narrow v1. Do not add web search
   to Fire/Volcengine/custom endpoints without provider-specific evidence,
   source parsing tests, and a separate product decision. Recheck desktop and
