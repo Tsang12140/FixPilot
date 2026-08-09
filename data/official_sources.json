@@ -1,0 +1,1324 @@
+{
+  "_meta": {
+    "purpose": "FixPilot 电脑故障排查 AI 的官方资料来源候选清单（第一批）。",
+    "generated_at": "2026-08-09",
+    "generated_by": "官方资料来源调研员（两轮合并）",
+    "total_official": 40,
+    "verified_count": 23,
+    "pending_review_count": 17,
+    "usage_rule": "检索/引用时校验来源域名是否命中 enabled=true 且 review_status=已验证 的条目；待核验来源默认不启用。非官方来源（officiality != 官方）仅作找回失效资料的线索，回复中必须标注『非官方，仅供参考』。",
+    "risk_levels": {
+      "低": "普通说明、驱动版本确认",
+      "中": "卸载驱动、恢复、BIOS 设置",
+      "高": "刷 BIOS、刷固件、分区、BitLocker、拆机、电源操作"
+    },
+    "schema_version": 1,
+    "runtime_gate": "enabled + review_status=verified + source_tier=official_verified; local knowledge base remains first.",
+    "last_live_audit_at": "2026-08-09",
+    "last_live_audit_scope": "HTTP GET of configured search_url; status alone does not validate document content.",
+    "vendor_aliases": {
+      "Microsoft": [
+        "windows",
+        "win10",
+        "win11",
+        "bitlocker",
+        "diskpart",
+        "sfc",
+        "dism",
+        "bcdboot"
+      ],
+      "Intel": [
+        "intel",
+        "英特尔",
+        "arc"
+      ],
+      "AMD": [
+        "amd",
+        "radeon",
+        "锐龙"
+      ],
+      "NVIDIA": [
+        "nvidia",
+        "geforce",
+        "rtx",
+        "gtx",
+        "英伟达"
+      ],
+      "Realtek": [
+        "realtek",
+        "rtl",
+        "瑞昱"
+      ],
+      "ASUS": [
+        "asus",
+        "rog",
+        "tuf",
+        "华硕"
+      ],
+      "MSI": [
+        "msi",
+        "微星"
+      ],
+      "GIGABYTE": [
+        "gigabyte",
+        "aorus",
+        "技嘉"
+      ],
+      "ASRock": [
+        "asrock",
+        "华擎"
+      ],
+      "MAXSUN 铭瑞": [
+        "maxsun",
+        "铭瑞"
+      ],
+      "COLORFUL 七彩虹": [
+        "colorful",
+        "igame",
+        "七彩虹"
+      ],
+      "ONDA 昂达": [
+        "onda",
+        "昂达"
+      ],
+      "Lenovo": [
+        "lenovo",
+        "thinkpad",
+        "联想"
+      ],
+      "Dell": [
+        "dell",
+        "戴尔"
+      ],
+      "HP": [
+        "hp",
+        "惠普"
+      ],
+      "Acer": [
+        "acer",
+        "宏碁"
+      ],
+      "Huawei": [
+        "huawei",
+        "matebook",
+        "华为"
+      ],
+      "Honor": [
+        "honor",
+        "荣耀"
+      ],
+      "Xiaomi": [
+        "xiaomi",
+        "redmibook",
+        "小米"
+      ],
+      "Great Wall 长城": [
+        "great wall",
+        "长城"
+      ],
+      "ZOTAC 索泰": [
+        "zotac",
+        "索泰"
+      ],
+      "GALAX 影驰": [
+        "galax",
+        "影驰"
+      ],
+      "Samsung": [
+        "samsung",
+        "980 pro",
+        "990 pro",
+        "三星"
+      ],
+      "Western Digital": [
+        "western digital",
+        "wd",
+        "sandisk",
+        "西数"
+      ],
+      "Kingston": [
+        "kingston",
+        "金士顿"
+      ],
+      "Crucial / Micron": [
+        "crucial",
+        "micron",
+        "英睿达",
+        "美光"
+      ],
+      "Seagate": [
+        "seagate",
+        "希捷"
+      ],
+      "Huntkey 航嘉": [
+        "huntkey",
+        "航嘉"
+      ],
+      "Thermaltake 曜越": [
+        "thermaltake",
+        "曜越"
+      ],
+      "TP-Link": [
+        "tp-link",
+        "tplink",
+        "普联"
+      ]
+    }
+  },
+  "official_sources": [
+    {
+      "id": "microsoft_windows_help",
+      "name": "Windows 帮助与学习",
+      "vendor": "Microsoft",
+      "officiality": "官方",
+      "domains": [
+        "support.microsoft.com"
+      ],
+      "search_url": "https://support.microsoft.com/zh-cn/windows",
+      "document_url_pattern": null,
+      "coverage": "Windows 安装/更新/激活、驱动与设备、网络、存储、安全、疑难解答",
+      "when_to_use": "蓝屏、系统卡死、驱动/设备问题的通用排查入口",
+      "risk_notes": "中；涉及系统设置与恢复操作时需谨慎",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": false,
+      "required_identifiers": [
+        "os_version",
+        "error_code_or_feature"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "microsoft_windows_recovery",
+      "name": "Windows 恢复选项（官方文档）",
+      "vendor": "Microsoft",
+      "officiality": "官方",
+      "domains": [
+        "learn.microsoft.com"
+      ],
+      "search_url": "https://learn.microsoft.com/zh-cn/windows-hardware/manufacture/desktop/windows-recovery-environment--windows-re--technical-reference?view=windows-11",
+      "document_url_pattern": null,
+      "coverage": "系统还原、启动修复、重置、Windows 恢复环境",
+      "when_to_use": "已知无法开机、需要官方恢复手册时",
+      "risk_notes": "高；涉及系统重置与恢复，操作前需确认数据备份",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "os_version",
+        "feature"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "microsoft_bitlocker",
+      "name": "BitLocker 官方文档",
+      "vendor": "Microsoft",
+      "officiality": "官方",
+      "domains": [
+        "learn.microsoft.com"
+      ],
+      "search_url": "https://learn.microsoft.com/zh-cn/windows/security/operating-system-security/data-protection/bitlocker/",
+      "document_url_pattern": null,
+      "coverage": "BitLocker 概念、启用、恢复密钥、疑难解答",
+      "when_to_use": "已知 BitLocker 被锁、需恢复密钥或加密设置时",
+      "risk_notes": "高；恢复密钥丢失可能导致数据永久不可访问",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": false,
+      "required_identifiers": [
+        "feature"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "microsoft_windows_commands",
+      "name": "Windows 命令文档（diskpart 等）",
+      "vendor": "Microsoft",
+      "officiality": "官方",
+      "domains": [
+        "learn.microsoft.com"
+      ],
+      "search_url": "https://learn.microsoft.com/zh-cn/windows-server/administration/windows-commands/windows-commands",
+      "document_url_pattern": "https://learn.microsoft.com/zh-cn/windows-server/administration/windows-commands/{command}",
+      "coverage": "diskpart 等系统命令的语法与用法",
+      "when_to_use": "进行磁盘/分区操作前，需查询官方命令用法",
+      "risk_notes": "高；diskpart 等命令操作不可逆，需精确确认参数",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": false,
+      "required_identifiers": [
+        "command"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "microsoft_windows_update_known_issues",
+      "name": "Windows 更新已知问题",
+      "vendor": "Microsoft",
+      "officiality": "官方",
+      "domains": [
+        "learn.microsoft.com",
+        "support.microsoft.com"
+      ],
+      "search_url": "https://learn.microsoft.com/zh-cn/windows/release-health/",
+      "document_url_pattern": null,
+      "coverage": "各累积更新的已知问题与缓解措施",
+      "when_to_use": "系统更新后出现新故障，需确认是否为微软已知问题",
+      "risk_notes": "中；多为已知问题说明，按官方缓解措施操作",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": false,
+      "required_identifiers": [
+        "os_version",
+        "kb_or_error_code"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "intel_support_home",
+      "name": "英特尔支持主页",
+      "vendor": "Intel",
+      "officiality": "官方",
+      "domains": [
+        "intel.com",
+        "intel.cn"
+      ],
+      "search_url": "https://www.intel.cn/content/www/cn/zh/support.html",
+      "document_url_pattern": null,
+      "coverage": "CPU/显卡/无线/以太网/固件/兼容性",
+      "when_to_use": "确认 CPU 型号规格、兼容性、技术开关",
+      "risk_notes": "低；规格与兼容性说明",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "low",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "intel_download_center",
+      "name": "英特尔下载中心",
+      "vendor": "Intel",
+      "officiality": "官方",
+      "domains": [
+        "intel.com",
+        "downloadcenter.intel.com"
+      ],
+      "search_url": "https://www.intel.com/content/www/us/en/download-center/home.html",
+      "document_url_pattern": "https://downloadcenter.intel.com/download/{id}",
+      "coverage": "驱动、BIOS、固件、芯片组 INF、诊断工具",
+      "when_to_use": "已知精确型号和系统版本，需确认或下载官方驱动/诊断工具",
+      "risk_notes": "中；安装驱动中等风险，刷 BIOS/固件为高风险需备份",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "intel_ark_specs",
+      "name": "英特尔产品规格（ARK）",
+      "vendor": "Intel",
+      "officiality": "官方",
+      "domains": [
+        "ark.intel.com",
+        "intel.com"
+      ],
+      "search_url": "https://www.intel.com/content/www/us/en/ark.html",
+      "document_url_pattern": null,
+      "coverage": "处理器/主板规格参数",
+      "when_to_use": "确认 CPU 对应插槽/内存/核显规格",
+      "risk_notes": "低；纯规格查询",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "low",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "intel_compatibility_tool",
+      "name": "英特尔产品兼容性工具",
+      "vendor": "Intel",
+      "officiality": "官方",
+      "domains": [
+        "compatibleproducts.intel.com"
+      ],
+      "search_url": "https://compatibleproducts.intel.com/?Lang=zh-cn",
+      "document_url_pattern": null,
+      "coverage": "CPU/内存/主板兼容性",
+      "when_to_use": "选购或确认配件兼容性时",
+      "risk_notes": "低；兼容性查询",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "low",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "amd_support",
+      "name": "AMD 支持与驱动下载",
+      "vendor": "AMD",
+      "officiality": "官方",
+      "domains": [
+        "amd.com"
+      ],
+      "search_url": "https://www.amd.com/zh-hans/support.html",
+      "document_url_pattern": null,
+      "coverage": "CPU/GPU 驱动、芯片组驱动、说明",
+      "when_to_use": "确认 AMD 显卡/芯片组驱动或相关说明",
+      "risk_notes": "中；装驱动中等风险",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "nvidia_driver",
+      "name": "NVIDIA 驱动下载（GeForce/Studio）",
+      "vendor": "NVIDIA",
+      "officiality": "官方",
+      "domains": [
+        "nvidia.cn",
+        "nvidia.com"
+      ],
+      "search_url": "https://www.nvidia.cn/drivers/",
+      "document_url_pattern": null,
+      "coverage": "显卡驱动、NVIDIA App、RTX 驱动",
+      "when_to_use": "已知显卡型号和系统版本，需要官方驱动",
+      "risk_notes": "中；装驱动中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "nvidia_gpu_firmware",
+      "name": "NVIDIA GPU 固件更新工具",
+      "vendor": "NVIDIA",
+      "officiality": "官方",
+      "domains": [
+        "nvidia.cn",
+        "nvidia.com"
+      ],
+      "search_url": "https://www.nvidia.cn/drivers/gpu-firmware-update/",
+      "document_url_pattern": null,
+      "coverage": "GPU 固件安全更新",
+      "when_to_use": "已知 GPU 固件版本，需确认官方固件更新",
+      "risk_notes": "高；刷 GPU 固件需谨慎",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "realtek_download",
+      "name": "Realtek 驱动下载中心",
+      "vendor": "Realtek",
+      "officiality": "官方",
+      "domains": [
+        "realtek.com"
+      ],
+      "search_url": "https://www.realtek.com/Download/List",
+      "document_url_pattern": null,
+      "coverage": "网卡/声卡/蓝牙等驱动",
+      "when_to_use": "已知具体芯片型号（如 RTL8125），需下载官方网卡驱动",
+      "risk_notes": "中；装驱动中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "asus_support",
+      "name": "华硕中国支持中心",
+      "vendor": "ASUS",
+      "officiality": "官方",
+      "domains": [
+        "asus.com.cn",
+        "asus.com"
+      ],
+      "search_url": "https://www.asus.com/cn/support/",
+      "document_url_pattern": null,
+      "coverage": "驱动/BIOS/手册/FAQ/下载中心",
+      "when_to_use": "已知主板精确型号，需确认 BIOS 设置名称或下载 BIOS/手册",
+      "risk_notes": "高；涉及 BIOS 下载与设置",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "msi_support",
+      "name": "微星服务与支持",
+      "vendor": "MSI",
+      "officiality": "官方",
+      "domains": [
+        "msi.com"
+      ],
+      "search_url": "https://www.msi.com/support",
+      "document_url_pattern": null,
+      "coverage": "主板/显卡/笔记本/电源驱动与 BIOS",
+      "when_to_use": "已知微星主板型号，需下载 BIOS/手册",
+      "risk_notes": "高；涉及 BIOS 下载",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "gigabyte_support",
+      "name": "技嘉支持",
+      "vendor": "GIGABYTE",
+      "officiality": "官方",
+      "domains": [
+        "gigabyte.com"
+      ],
+      "search_url": "https://www.gigabyte.com/Support",
+      "document_url_pattern": null,
+      "coverage": "主板/显卡驱动、BIOS、手册",
+      "when_to_use": "已知技嘉主板型号，需确认或下载 BIOS",
+      "risk_notes": "高；涉及 BIOS；且页面为 JS 强渲染，抓取困难",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "asrock_support",
+      "name": "华擎支持与服务",
+      "vendor": "ASRock",
+      "officiality": "官方",
+      "domains": [
+        "asrock.com"
+      ],
+      "search_url": "https://www.asrock.com/support/index.tw.asp",
+      "document_url_pattern": null,
+      "coverage": "BIOS 查找、CPU 支持列表、Debug 灯对照表、FAQ",
+      "when_to_use": "已知华擎主板型号，确认 BIOS 或 CPU 兼容性",
+      "risk_notes": "高；涉及 BIOS 与 CPU 兼容确认",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "maxsun_official",
+      "name": "铭瑄（MAXSUN）官网",
+      "vendor": "MAXSUN 铭瑄",
+      "officiality": "官方",
+      "domains": [
+        "maxsun.com.cn"
+      ],
+      "search_url": "https://www.maxsun.com.cn/support/",
+      "document_url_pattern": null,
+      "coverage": "主板/显卡产品与驱动下载",
+      "when_to_use": "已知铭瑄主板型号，查驱动/BIOS",
+      "risk_notes": "高；涉及 BIOS",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "colorful_official",
+      "name": "七彩虹（COLORFUL）官网",
+      "vendor": "COLORFUL 七彩虹",
+      "officiality": "官方",
+      "domains": [
+        "colorful.cn"
+      ],
+      "search_url": "https://www.colorful.cn/",
+      "document_url_pattern": null,
+      "coverage": "主板/显卡/iGame 产品与驱动下载",
+      "when_to_use": "已知七彩虹/iGame 型号，查驱动/BIOS",
+      "risk_notes": "高；涉及 BIOS",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "onda_official",
+      "name": "昂达（ONDA）服务",
+      "vendor": "ONDA 昂达",
+      "officiality": "官方",
+      "domains": [
+        "onda.cn"
+      ],
+      "search_url": "https://www.onda.cn/Service",
+      "document_url_pattern": null,
+      "coverage": "主板/显卡驱动、BIOS",
+      "when_to_use": "已知昂达型号，查驱动/BIOS",
+      "risk_notes": "高；涉及 BIOS",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "lenovo_service",
+      "name": "联想服务支持网",
+      "vendor": "Lenovo",
+      "officiality": "官方",
+      "domains": [
+        "lenovo.com.cn",
+        "newsupport.lenovo.com.cn",
+        "newthink.lenovo.com.cn"
+      ],
+      "search_url": "https://newsupport.lenovo.com.cn/",
+      "document_url_pattern": null,
+      "coverage": "联想笔记本/台式机驱动、手册、恢复",
+      "when_to_use": "已知联想笔记本型号，需官方驱动或恢复手册",
+      "risk_notes": "中；装驱动/恢复为中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "dell_support",
+      "name": "戴尔支持（中国）",
+      "vendor": "Dell",
+      "officiality": "官方",
+      "domains": [
+        "dell.com"
+      ],
+      "search_url": "https://www.dell.com/support/home/zh-cn",
+      "document_url_pattern": null,
+      "coverage": "驱动/诊断/手册/保修",
+      "when_to_use": "已知戴尔型号，查驱动/恢复手册",
+      "risk_notes": "中；装驱动/恢复为中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "hp_support",
+      "name": "惠普客户支持（中国）",
+      "vendor": "HP",
+      "officiality": "官方",
+      "domains": [
+        "hp.com",
+        "support.hp.com"
+      ],
+      "search_url": "https://support.hp.com/cn-zh",
+      "document_url_pattern": null,
+      "coverage": "驱动/计算机/打印机/诊断",
+      "when_to_use": "已知惠普型号，查驱动/恢复",
+      "risk_notes": "中；装驱动/恢复为中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "acer_support",
+      "name": "宏碁服务支持",
+      "vendor": "Acer",
+      "officiality": "官方",
+      "domains": [
+        "acer.com",
+        "acer.com.cn"
+      ],
+      "search_url": "https://www.acer.com/ac/zh/CN/content/support",
+      "document_url_pattern": null,
+      "coverage": "驱动/手册/BIOS/保修",
+      "when_to_use": "已知宏碁型号，查驱动/恢复",
+      "risk_notes": "中；装驱动/恢复为中等风险",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "huawei_pc_support",
+      "name": "华为消费者服务（电脑及打印机）",
+      "vendor": "Huawei",
+      "officiality": "官方",
+      "domains": [
+        "huawei.com",
+        "consumer.huawei.com"
+      ],
+      "search_url": "https://consumer.huawei.com/cn/support/pcs/",
+      "document_url_pattern": null,
+      "coverage": "MateBook 驱动/手册/问题排查",
+      "when_to_use": "已知华为笔记本型号，查驱动/恢复",
+      "risk_notes": "中；装驱动/恢复为中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "honor_laptop_support",
+      "name": "荣耀支持（笔记本）",
+      "vendor": "Honor",
+      "officiality": "官方",
+      "domains": [
+        "hihonor.com",
+        "honor.com"
+      ],
+      "search_url": "https://www.hihonor.com/cn/support/products/laptops/",
+      "document_url_pattern": null,
+      "coverage": "荣耀笔记本驱动/手册",
+      "when_to_use": "已知荣耀笔记本型号，查驱动",
+      "risk_notes": "中；装驱动为中等风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "xiaomi_service",
+      "name": "小米服务中心（笔记本/路由器）",
+      "vendor": "Xiaomi",
+      "officiality": "官方",
+      "domains": [
+        "mi.com",
+        "xiaomi.com"
+      ],
+      "search_url": "https://www.mi.com/service/notebook",
+      "document_url_pattern": null,
+      "coverage": "小米笔记本/路由器支持、固件、驱动",
+      "when_to_use": "已知小米笔记本/路由器型号，查固件/驱动",
+      "risk_notes": "中；路由器刷固件为高风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "greatwall_service",
+      "name": "长城（Great Wall）资料下载",
+      "vendor": "Great Wall 长城",
+      "officiality": "官方",
+      "domains": [
+        "greatwall.com.cn"
+      ],
+      "search_url": "https://www.greatwall.com.cn/service/",
+      "document_url_pattern": null,
+      "coverage": "整机/服务器固件、白皮书、手册",
+      "when_to_use": "查长城整机/服务器手册与固件",
+      "risk_notes": "高；涉及固件，需谨慎",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "zotac_support",
+      "name": "索泰（ZOTAC）技术支持",
+      "vendor": "ZOTAC 索泰",
+      "officiality": "官方",
+      "domains": [
+        "zotac.com"
+      ],
+      "search_url": "https://www.zotac.com/cn/support",
+      "document_url_pattern": null,
+      "coverage": "显卡 FAQ/驱动/保修",
+      "when_to_use": "查索泰显卡 FAQ 或驱动",
+      "risk_notes": "中；装驱动为中等风险",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "galaxy_support",
+      "name": "影驰（GALAX）支持",
+      "vendor": "GALAX 影驰",
+      "officiality": "官方",
+      "domains": [
+        "galaxy.com.cn"
+      ],
+      "search_url": "https://www.galaxy.com.cn/support",
+      "document_url_pattern": null,
+      "coverage": "显卡驱动/FAQ",
+      "when_to_use": "查影驰显卡驱动",
+      "risk_notes": "中；装驱动为中等风险",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "samsung_support",
+      "name": "三星中国售后",
+      "vendor": "Samsung",
+      "officiality": "官方",
+      "domains": [
+        "samsung.com.cn",
+        "samsung.com"
+      ],
+      "search_url": "https://www.samsung.com/cn/support/",
+      "document_url_pattern": null,
+      "coverage": "存储/SSD/显示器产品支持",
+      "when_to_use": "已知三星 SSD/内存/显示器型号，查固件/手册",
+      "risk_notes": "中；SSD 固件更新为高风险",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "wd_support",
+      "name": "西部数据（WD）支持",
+      "vendor": "Western Digital",
+      "officiality": "官方",
+      "domains": [
+        "westerndigital.com",
+        "support-cn.wd.com"
+      ],
+      "search_url": "https://www.westerndigital.com/zh-cn/support",
+      "document_url_pattern": null,
+      "coverage": "硬盘/SSD 软件、固件、质保",
+      "when_to_use": "已知 WD 型号，查固件/诊断软件",
+      "risk_notes": "中；固件更新为高风险；注意 WD 与闪迪已拆分，SSD/闪存类路由到闪迪支持",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "kingston_support",
+      "name": "金士顿支持",
+      "vendor": "Kingston",
+      "officiality": "官方",
+      "domains": [
+        "kingston.com"
+      ],
+      "search_url": "https://www.kingston.com/cn/support",
+      "document_url_pattern": null,
+      "coverage": "内存/SSD FAQ、安装指南、固件类别",
+      "when_to_use": "内存 XMP/EXPO、容量显示、SSD 故障排查",
+      "risk_notes": "中；内存超频设置与 SSD 相关操作需谨慎",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "crucial_support",
+      "name": "英睿达（Crucial）产品支持",
+      "vendor": "Crucial / Micron",
+      "officiality": "官方",
+      "domains": [
+        "crucial.com",
+        "micron.com"
+      ],
+      "search_url": "https://www.crucial.com/support",
+      "document_url_pattern": null,
+      "coverage": "内存/SSD 安装指南、固件更新、FAQ",
+      "when_to_use": "内存/SSD 安装、固件版本确认",
+      "risk_notes": "中；SSD 固件更新为高风险；注意美光消费业务收缩公告，售后口径可能变化",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "seagate_support",
+      "name": "希捷（Seagate）支持",
+      "vendor": "Seagate",
+      "officiality": "官方",
+      "domains": [
+        "seagate.com"
+      ],
+      "search_url": "https://www.seagate.com/cn/zh/support",
+      "document_url_pattern": null,
+      "coverage": "HDD/SSD 手册、软件、固件、数据救援",
+      "when_to_use": "已知希捷型号，查固件/诊断工具",
+      "risk_notes": "中；固件更新为高风险；数据救援相关需谨慎",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "asus_monitor_psu",
+      "name": "华硕显示器/电源支持子入口",
+      "vendor": "ASUS",
+      "officiality": "官方",
+      "domains": [
+        "asus.com.cn",
+        "asus.com"
+      ],
+      "search_url": "https://www.asus.com/cn/support/",
+      "document_url_pattern": null,
+      "coverage": "显示器、电源、显卡驱动",
+      "when_to_use": "已知华硕显示器/电源型号，查手册/驱动",
+      "risk_notes": "中",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "msi_monitor_psu",
+      "name": "微星显示器/电源支持子入口",
+      "vendor": "MSI",
+      "officiality": "官方",
+      "domains": [
+        "msi.com"
+      ],
+      "search_url": "https://www.msi.com/support/monitor",
+      "document_url_pattern": null,
+      "coverage": "显示器、电源支持",
+      "when_to_use": "已知微星显示器/电源型号，查手册",
+      "risk_notes": "中",
+      "enabled": true,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_verified",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "huntkey_service",
+      "name": "航嘉（Huntkey）服务",
+      "vendor": "Huntkey 航嘉",
+      "officiality": "官方",
+      "domains": [
+        "huntkey.com"
+      ],
+      "search_url": "https://www.huntkey.com/service.html",
+      "document_url_pattern": null,
+      "coverage": "电源产品服务",
+      "when_to_use": "查航嘉电源产品支持",
+      "risk_notes": "中",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "thermaltake_support",
+      "name": "曜越（Thermaltake）台湾",
+      "vendor": "Thermaltake 曜越",
+      "officiality": "官方",
+      "domains": [
+        "thermaltake.com"
+      ],
+      "search_url": "https://tw.thermaltake.com/",
+      "document_url_pattern": null,
+      "coverage": "电源/散热/机箱产品",
+      "when_to_use": "查曜越电源/散热产品资料",
+      "risk_notes": "中",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "medium",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": false,
+      "requires_target_confirmation": false
+    },
+    {
+      "id": "tplink_support",
+      "name": "TP-LINK 中国支持",
+      "vendor": "TP-Link",
+      "officiality": "官方",
+      "domains": [
+        "tp-link.com.cn",
+        "tp-link.com"
+      ],
+      "search_url": "https://www.tp-link.com/cn/support/",
+      "document_url_pattern": null,
+      "coverage": "路由器/网卡支持",
+      "when_to_use": "查 TP-Link 路由器/网卡固件与支持",
+      "risk_notes": "中；路由器刷固件为高风险",
+      "enabled": false,
+      "review_status": "待核验",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "official_candidate",
+      "lookup_mode": "official_site_only",
+      "risk_level": "high",
+      "requires_exact_model": true,
+      "required_identifiers": [
+        "model"
+      ],
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    }
+  ],
+  "citation_only_sources": [
+    {
+      "id": "manualslib",
+      "name": "Manuals（manualslib 等说明书聚合站）",
+      "vendor": "多个",
+      "officiality": "非官方公共归档",
+      "domains": [
+        "manualslib.com"
+      ],
+      "search_url": null,
+      "document_url_pattern": null,
+      "coverage": "厂商说明书/手册的公开归档",
+      "when_to_use": "仅当官网已下架/失效时，用于找回旧手册；必须标注『非官方，仅供参考』",
+      "risk_notes": "中；多为用户上传扫描件，版本/页数不可靠，无厂商背书",
+      "enabled": false,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "nonofficial_reference_only",
+      "lookup_mode": "disabled_by_default",
+      "requires_exact_model": true,
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "wayback_machine",
+      "name": "Wayback Machine（web.archive.org）",
+      "vendor": "Internet Archive",
+      "officiality": "非官方公共归档",
+      "domains": [
+        "web.archive.org"
+      ],
+      "search_url": "https://web.archive.org/",
+      "document_url_pattern": "https://web.archive.org/web/{timestamp}/{url}",
+      "coverage": "官方页面的历史快照",
+      "when_to_use": "仅用于找回已下架/失效的官方页面做验证比对；快照非实时",
+      "risk_notes": "中；快照非实时，仅作验证",
+      "enabled": false,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "nonofficial_reference_only",
+      "lookup_mode": "disabled_by_default",
+      "requires_exact_model": true,
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    },
+    {
+      "id": "generic_driver_download_sites",
+      "name": "各类驱动下载站（第三方聚合）",
+      "vendor": "多个",
+      "officiality": "第三方聚合",
+      "domains": [],
+      "search_url": null,
+      "document_url_pattern": null,
+      "coverage": "驱动下载聚合",
+      "when_to_use": "不建议使用；如确需仅作线索，且必须标注非官方",
+      "risk_notes": "高；常捆绑安装器/夹带插件，文件名与版本号可信度低，有安全风险",
+      "enabled": false,
+      "review_status": "已验证",
+      "last_verified_at": "2026-08-09",
+      "source_tier": "nonofficial_reference_only",
+      "lookup_mode": "disabled_by_default",
+      "requires_exact_model": true,
+      "high_risk_confirmation_required": true,
+      "requires_target_confirmation": true
+    }
+  ],
+  "excluded_source_types": [
+    {
+      "type": "论坛（含厂商官方论坛）",
+      "reason": "用户经验混杂、无官方口径，型号/版本易错、易过时"
+    },
+    {
+      "type": "贴吧 / 知乎 / B 站",
+      "reason": "内容非结构化、易过时、含营销与错误操作，不能作为操作依据"
+    },
+    {
+      "type": "商业软文 / 装机自媒体教程",
+      "reason": "SEO 引流，步骤可能不严谨甚至危险（如乱刷 BIOS）"
+    },
+    {
+      "type": "聚合下载站 / 驱动精灵类工具",
+      "reason": "捆绑软件、假驱动、版本混乱，属于高危来源"
+    },
+    {
+      "type": "随机技术博客",
+      "reason": "无审核、无来源、易过时，无法核验"
+    },
+    {
+      "type": "付费资料 / 绕过登录 / 破解资源",
+      "reason": "触碰版权与安全红线，直接排除"
+    }
+  ]
+}

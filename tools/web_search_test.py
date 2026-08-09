@@ -7,7 +7,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "backend"))
-from app import llm, service
+from app import llm, official_sources, service
 
 
 class FakeResponse:
@@ -121,7 +121,7 @@ def test_non_official_provider_fails_before_network_when_lookup_is_requested_int
     assert_true(not called, "unsupported provider attempted a request")
 
 
-def test_service_automatically_exposes_lookup_only_to_the_supported_model():
+def test_service_requires_supported_provider_and_registry_match():
     original_retrieve = service.retriever.retrieve
     original_context = service.llm._build_context
     original_stream = service.llm.stream_chat
@@ -136,11 +136,15 @@ def test_service_automatically_exposes_lookup_only_to_the_supported_model():
         service.llm._build_context = lambda _items: ""
         service.llm.stream_chat = fake_stream
         list(service.chat_stream(
-            [{"role": "user", "content": "Need a manual"}],
+            [{"role": "user", "content": "asus B650M-PLUS BIOS manual"}],
             api_key="test-key", base_url="https://api.deepseek.com", model="deepseek-v4-flash",
         ))
         list(service.chat_stream(
-            [{"role": "user", "content": "Normal symptom"}],
+            [{"role": "user", "content": "computer blue screen"}],
+            api_key="test-key", base_url="https://api.deepseek.com", model="deepseek-v4-flash",
+        ))
+        list(service.chat_stream(
+            [{"role": "user", "content": "asus B650M-PLUS BIOS manual"}],
             api_key="test-key", base_url="https://example.test/v1", model="anything",
         ))
     finally:
@@ -149,11 +153,29 @@ def test_service_automatically_exposes_lookup_only_to_the_supported_model():
         service.llm.stream_chat = original_stream
 
     official_messages, official_kwargs = captures[0]
-    other_messages, other_kwargs = captures[1]
-    assert_true(official_kwargs.get("official_lookup_available") is True, "supported model was not granted internal lookup")
-    assert_true(other_kwargs.get("official_lookup_available") is False, "unsupported model was granted internal lookup")
+    generic_messages, generic_kwargs = captures[1]
+    other_messages, other_kwargs = captures[2]
+    assert_true(official_kwargs.get("official_lookup_available") is True, "matched official source was not granted internal lookup")
+    assert_true(official_kwargs.get("allowed_source_domains") == {"asus.com", "asus.com.cn"}, "registry domains were not passed to transport")
+    assert_true(generic_kwargs.get("official_lookup_available") is False, "generic symptom incorrectly enabled lookup")
+    assert_true(other_kwargs.get("official_lookup_available") is False, "unsupported provider was granted internal lookup")
     assert_true(any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in official_messages), "official rule was not injected")
+    assert_true(any("Registry-constrained official lookup" in message.get("content", "") for message in official_messages), "registry rule was not injected")
+    assert_true(not any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in generic_messages), "official rule leaked to a generic symptom")
     assert_true(not any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in other_messages), "official rule leaked to an unsupported provider")
+
+
+def test_registry_rejects_unapproved_provider_urls():
+    body = {
+        "output": [
+            {"type": "web_search_call", "status": "completed", "url": "https://forum.example.test/thread"},
+            {"type": "message", "content": [{"type": "output_text", "text": "unsafe external conclusion"}]},
+        ]
+    }
+    reply = llm.append_web_search_sources("unsafe external conclusion", body, {"asus.com"})
+    assert_true("forum.example.test" not in reply, "unapproved provider result was exposed as a source")
+    assert_true("unsafe external conclusion" not in reply, "unapproved external conclusion was kept")
+    assert_true("\u53ef\u6838\u9a8c\u7684\u5b98\u65b9\u8d44\u6599" in reply, "rejection was not explained")
 
 
 def test_lookup_is_server_decided_and_has_no_user_control():
@@ -181,8 +203,9 @@ TESTS = [
     ("W03", "actual lookup uses official Responses and preserves sources", test_actual_lookup_uses_official_responses_and_discloses_sources),
     ("W04", "ordinary answer has no lookup banner", test_normal_answer_has_no_lookup_disclosure_when_model_did_not_search),
     ("W05", "non-official provider is rejected before network access", test_non_official_provider_fails_before_network_when_lookup_is_requested_internally),
-    ("W06", "service grants lookup only to the supported model", test_service_automatically_exposes_lookup_only_to_the_supported_model),
+    ("W06", "lookup requires both supported provider and source-registry match", test_service_requires_supported_provider_and_registry_match),
     ("W07", "lookup is server-decided and the composer has no user switch", test_lookup_is_server_decided_and_has_no_user_control),
+    ("W08", "unapproved provider URLs cannot become FixPilot sources", test_registry_rejects_unapproved_provider_urls),
 ]
 
 

@@ -57,3 +57,15 @@ python tools/run_all.py --suites renderer,transport,websearch
 `tools/web_search_test.py` is credential-free. It checks the official host/model allowlist,
 server-decided tool availability without `tool_choice`, removal of the user control, source
 disclosure only after an actual lookup, and rejection of other providers before any network request.
+
+
+## Official source registry
+
+The curated source catalogue has both a deterministic integrity test and a separate live, read-only URL audit. Run these after changing `data/official_sources.json`:
+
+```powershell
+python tools/official_sources_test.py
+python tools/official_sources_audit.py --enabled-only
+```
+
+The first command must pass before a commit. The second may report `review_needed` for vendor bot protection or network failures; do not auto-enable a candidate based only on a search result.

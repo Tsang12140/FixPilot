@@ -248,3 +248,15 @@ The optional external-lookup behavior and sidebar boundary fix above were implem
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 Implemented and verified in commit `0879ba7` (`feat: make official lookup automatic`).
+
+
+## 2026-08-09 Asia/Shanghai - candidate official sources could bypass the intended evidence boundary
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the source catalogue was not connected to lookup runtime; its counters were stale, a pending source was enabled, and several broken/unreachable entries could have been treated as verified references. The existing provider web-search path had no catalogue-based hostname filtering.
+- Root cause: research output was treated as data rather than as a candidate registry with executable review gates. The external provider tool supplies general web results and does not provide a documented domain-filter field in this integration.
+- Files changed: `data/official_sources.json`; `backend/app/official_sources.py`; `backend/app/service.py`; `backend/app/llm.py`; `tools/official_sources_test.py`; `tools/official_sources_audit.py`; `tools/run_all.py`; `tools/web_search_test.py`; the related policy, test, and audit documents.
+- Fix: added verified/enabled/source-tier gating, identifier-based vendor routing, high-risk metadata, canonical link corrections, live URL review, per-turn allowlisted-domain policy, and final source URL filtering. Generic symptoms no longer unlock external search; nonofficial and review-needed records cannot be automatically used.
+- Verification: full local targeted suite PASS (renderer 5, transport 3, websearch 8, sources 6) plus enabled-only live registry audit PASS (23 reachable, 0 review).
+- Final status: fixed in the working tree; a paid live provider acceptance test with a known exact model/manual is still a release follow-up.
+- Commit: pending.

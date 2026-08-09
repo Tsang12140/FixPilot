@@ -40,3 +40,10 @@ FixPilot 的护城河是知识库、问诊链和安全规则，不是通用联�
 - 无凭据回归：`python tools/run_all.py --suites renderer,transport,websearch`。
 - `tools/web_search_test.py` 必须验证：官方域名/模型白名单、服务端自行决定工具可用、工具不强制、前端不存在开关、非官方端点在联网前被拒绝、只有实际联网才标记来源。
 - 改动此能力后，还需人工检查桌面和 390px 移动端的布局：删除用户开关后，模型、上传和发送不会互相挤压。
+
+
+## Source registry amendment - 2026-08-09
+
+`data/official_sources.json` now decides whether an official-reference lookup is even available. A supported DeepSeek provider by itself is insufficient: the current conversation must match an enabled, verified, official registry source and its required identifier. The normal knowledge-base route remains the default.
+
+The registry is a source-routing catalogue, not a manual mirror. It permits only manufacturer-owned domains selected for the turn. Nonofficial archives and manual aggregators remain disabled. Provider-returned links are filtered against the selected hostname allowlist before they can be displayed as sources; failure to obtain a matching official link must not become a web-derived diagnostic conclusion.

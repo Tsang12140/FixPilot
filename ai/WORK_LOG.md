@@ -874,3 +874,18 @@ The optional external-lookup behavior and sidebar boundary fix above were implem
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 The automatic, official-reference-only lookup policy above was implemented and verified in commit `0879ba7` (`feat: make official lookup automatic`).
+
+
+### 2026-08-09 - audit and enforce the official-source registry
+
+- Request / goal: take over the new `data/official_sources.json` catalogue, audit it instead of trusting a cheap-agent research result blindly, and make external lookup conservative: local knowledge base first, official material only when the current turn actually needs it.
+- Finding / root cause: the file was a useful candidate list but was not used at runtime. Its metadata was inconsistent with the records; one pending Colorful entry was enabled; several configured URLs had moved, redirected to unregistered official hosts, returned 404, or were not stably reachable. The provider web-search integration does not expose a documented server-side domain-filter option, so an instruction alone could not enforce the intended source boundary.
+- Changed:
+  - `data/official_sources.json` - normalized the v1 runtime schema; corrected metadata; refreshed Microsoft, Intel, Honor, and TP-Link entry points/hosts; added identifier, risk, target-confirmation, source-tier, and vendor-alias metadata; retained only 23 reachable verified official records as enabled. The other 17 records, including all nonofficial archives, are preserved but disabled for review.
+  - `backend/app/official_sources.py` - added conservative registry selection: no vendor plus identifiable model/identifier means no external tool. It also provides strict hostname allowlist matching and a per-turn source policy.
+  - `backend/app/service.py` and `backend/app/llm.py` - require both the official DeepSeek V4 Flash provider and a registry match before enabling `web_search`; pass only matching manufacturer domains to the response filter; refuse to display an unapproved provider URL or its external conclusion as FixPilot evidence.
+  - `tools/official_sources_test.py`, `tools/official_sources_audit.py`, `tools/run_all.py`, and `tools/web_search_test.py` - added deterministic registry regression coverage, a separate live read-only audit, runner integration, and transport tests for generic-symptom denial, vendor-scoped routing, and lookalike-domain rejection.
+  - `ai/FixPilot_Official_Source_Registry_v1.0.md`, `ai/FixPilot_????????_v1.0.md`, `ai/Testing/README.md`, and `reports/official-source-audit-20260809.md` - documented the runtime contract, maintenance procedure, provider limitation, and live audit evidence.
+- Verified: `python -m py_compile backend/app/official_sources.py backend/app/llm.py backend/app/service.py tools/official_sources_test.py tools/official_sources_audit.py tools/web_search_test.py` PASS; `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (renderer 5, transport 3, websearch 8, sources 6); `python tools/official_sources_audit.py --enabled-only` PASS (23 reachable, 0 review); `git diff --check` PASS. No paid/live model request was made.
+- Commit: pending.
+- Follow-up / risk: the provider's tool cannot yet be hard-restricted by a documented domain parameter. The registry therefore uses provider gating, per-turn source policy, and URL output filtering; a future direct official-site fetcher would make the transport boundary stronger. Disabled candidates must be manually rechecked before enabling.

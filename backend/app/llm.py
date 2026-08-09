@@ -1,12 +1,12 @@
 """DeepSeek 大模型客户端（OpenAI 兼容 /chat/completions，流式返回）。"""
 import json
 import time
-from typing import Iterator, List, Dict
+from typing import Dict, Iterable, Iterator, List
 from urllib.parse import urlparse
 
 import httpx
 
-from . import config
+from . import config, official_sources
 
 
 OFFICIAL_DEEPSEEK_HOST = "api.deepseek.com"
@@ -206,14 +206,29 @@ def responses_used_web_search(body: Dict) -> bool:
     return False
 
 
-def append_web_search_sources(text: str, body: Dict) -> str:
-    """Add external-source disclosure only when a lookup actually occurred."""
+def append_web_search_sources(
+    text: str, body: Dict, allowed_source_domains: Iterable[str] = None
+) -> str:
+    """Disclose only registry-approved official sources after a real lookup.
+
+    A provider-side tool call is not proof that a returned page is a permitted
+    FixPilot reference.  If no result belongs to this turn's source registry,
+    do not surface an external conclusion as trusted evidence.
+    """
     if not responses_used_web_search(body):
         return text
     label = "\u672c\u8f6e\u67e5\u9605\u4e86\u5916\u90e8\u8d44\u6599\u3002"
     urls = extract_responses_source_urls(body)
+    domains = set(allowed_source_domains or [])
+    if domains:
+        urls = [url for url in urls if official_sources.is_allowed_url(url, domains)]
     if not urls:
-        return f"{label}\n\n{text}"
+        return (
+            "\u672c\u8f6e\u6ca1有拿到可核验的官方资料，"
+            "\u6240以不把外部网页结论当作排障依据。"
+            "\u8bf7补充完整型号或官方支持链接，"
+            "\u6211会继续按已确认的线索排查。"
+        )
     links = "\n".join(f"{index}. {url}" for index, url in enumerate(urls, start=1))
     return f"{label}\n\n{text}\n\n\u8d44\u6599\u6765\u6e90\uff1a\n{links}"
 
@@ -381,6 +396,7 @@ def stream_chat(
     base_url: str = "",
     model: str = "",
     official_lookup_available: bool = False,
+    allowed_source_domains: Iterable[str] = None,
 ) -> Iterator[str]:
     """Stream a displayable answer from a compatible provider.
 
@@ -413,7 +429,11 @@ def stream_chat(
         text = extract_responses_output_text(body)
         if not text:
             raise RuntimeError("Responses API returned no displayable output text")
-        yield append_web_search_sources(text, body) if official_lookup_available else text
+        yield (
+            append_web_search_sources(text, body, allowed_source_domains)
+            if official_lookup_available
+            else text
+        )
         return
 
     # A provider can accept a request but close the stream after reasoning-only

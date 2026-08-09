@@ -16,7 +16,7 @@ from persona_test import load_tutor_config, run_persona_tests
 from safety_test import run_tests as run_safety_tests
 from testkit import login_as_admin, login_with_code
 
-ALL_SUITES = ("renderer", "transport", "websearch", "injection", "safety", "persona")
+ALL_SUITES = ("renderer", "transport", "websearch", "sources", "injection", "safety", "persona")
 
 
 def summarize_status(items):
@@ -96,6 +96,10 @@ def run_websearch_tests():
     """Run no-network official DeepSeek web-search boundary checks."""
     return run_local_json_suite("web_search_test.py", "websearch", sys.executable)
 
+def run_sources_tests():
+    """Run no-network official-source registry integrity checks."""
+    return run_local_json_suite("official_sources_test.py", "sources", sys.executable)
+
 def main():
     parser = argparse.ArgumentParser(description="FixPilot 模块化产品回归测试")
     parser.add_argument("--base", default="http://127.0.0.1:8000", help="FixPilot 服务地址")
@@ -123,7 +127,7 @@ def main():
         suites = set(parse_suites(args.suites))
     except ValueError as exc:
         parser.error(str(exc))
-    for suite, skip in (("renderer", args.skip_renderer), ("transport", args.skip_transport), ("websearch", args.skip_websearch), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
+    for suite, skip in (("renderer", args.skip_renderer), ("transport", args.skip_transport), ("websearch", args.skip_websearch), ("sources", False), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
         if skip:
             suites.discard(suite)
     if not suites:
@@ -159,6 +163,9 @@ def main():
     if "websearch" in suites:
         print("\n# websearch: official DeepSeek V4 Flash boundary")
         all_results["results"]["websearch"] = run_websearch_tests()
+    if "sources" in suites:
+        print("\n# sources: official-reference registry integrity")
+        all_results["results"]["sources"] = run_sources_tests()
     if "injection" in suites:
         print("\n# injection：提示词注入边界")
         all_results["results"]["injection"] = run_injection_tests(args.base, token)

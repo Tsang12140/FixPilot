@@ -2,7 +2,7 @@
 from typing import Dict, Iterator, List
 import re
 
-from . import config, llm, retriever
+from . import config, llm, official_sources, retriever
 from . import ocr
 
 
@@ -110,16 +110,26 @@ def chat_stream(
     hits = retriever.retrieve(query)
     context = llm._build_context([h["text"] for h in hits])
 
-    official_lookup_available = llm.is_official_deepseek_web_search(
+    registry_query = "\n".join(
+        str(message.get("content", ""))
+        for message in normalized[-8:]
+        if message.get("role") == "user"
+    )
+    lookup_sources = official_sources.select_official_sources(registry_query)
+    official_lookup_available = bool(lookup_sources) and llm.is_official_deepseek_web_search(
         base_url, model or config.DEEPSEEK_MODEL
     )
+    allowed_source_domains = official_sources.allowed_domains(lookup_sources)
     full = llm.build_system_messages(profile, temporary_level)
     if official_lookup_available:
         full.append({"role": "system", "content": llm.OFFICIAL_LOOKUP_POLICY})
+        full.append({"role": "system", "content": official_sources.build_lookup_policy(lookup_sources)})
     full.extend(normalized)
     # 把检索到的知识上下文插入最后一条用户消息之前，作为 system 提示
     full.insert(max(1, len(full) - 1), {"role": "system", "content": context})
 
     yield from llm.stream_chat(
-        full, api_key=api_key, base_url=base_url, model=model, official_lookup_available=official_lookup_available
+        full, api_key=api_key, base_url=base_url, model=model,
+        official_lookup_available=official_lookup_available,
+        allowed_source_domains=allowed_source_domains,
     )
