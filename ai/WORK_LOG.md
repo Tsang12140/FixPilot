@@ -850,3 +850,8 @@ The work item immediately above was implemented and verified in `a2b4b16` (`fix:
 - Verified: `python -m py_compile backend/app/llm.py tools/web_search_test.py` PASS; `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport,websearch` PASS (renderer 5, transport 3, websearch 6); `git diff --check` PASS.
 - Commit: pending.
 - Follow-up / risk: automated browser visual control is unavailable in this environment, so confirm the desktop sidebar at a long-history account and 390px mobile manually after the server restart. The model still decides whether a permitted lookup is necessary; the regression tests cover request construction and transparent labelling, not a paid live provider call.
+
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+The optional external-lookup behavior and sidebar boundary fix above were implemented and verified in commit `3a37a8b` (`fix: keep lookup optional and reserve sidebar footer`).

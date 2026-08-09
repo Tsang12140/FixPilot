@@ -227,3 +227,8 @@ The three fixes immediately above were implemented and verified in commit `a2b4b
 - Verification: static inspection plus `python tools/run_all.py --suites renderer,transport,websearch` PASS and `git diff --check` PASS.
 - Status: fixed in the working tree; manual visual confirmation remains after server restart.
 - Commit: pending.
+
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+The optional external-lookup behavior and sidebar boundary fix above were implemented and verified in commit `3a37a8b` (`fix: keep lookup optional and reserve sidebar footer`).
