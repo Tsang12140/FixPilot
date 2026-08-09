@@ -161,3 +161,13 @@ Append-only. One entry per verified fix.
 - Verification: direct live-route tests reject forged `system` and `assistant` messages with HTTP 400 before provider access. Unit assertions verify role filtering, no default admin creation without explicit environment credentials, and a five-failure administrator-login throttle. Backend compilation and local health check passed.
 - Final status: fixed for this single-process deployment; the in-memory throttle resets when the server restarts, so an internet-facing multi-process deployment should move this control to a shared proxy/store.
 - Commit: `70441ec fix: preserve reply text and harden admin boundary`.
+
+### 2026-08-09 Asia/Shanghai - direct DeepSeek settings referenced retired model aliases
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the API settings page suggested `deepseek-chat` even though the official V4 Flash release requires `deepseek-v4-flash` for the current model.
+- Confirmed root cause: frontend API presets and the visible model placeholder were not updated when the backend default changed.
+- Files changed: `backend/static/app.js`; `backend/static/index.html`.
+- Verification: JavaScript syntax and static preset assertions passed; an offline Responses payload assertion passed; `git diff --check` passed.
+- Final status: fixed. Existing saved custom API settings remain unchanged.
+- Commit: pending.

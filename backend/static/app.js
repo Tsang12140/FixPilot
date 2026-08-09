@@ -91,7 +91,7 @@ const API_SETTINGS_KEY = 'fixpilot_api_settings';
 const API_PRESETS = {
   deepseek: {
     base: 'https://api.deepseek.com',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    models: ['deepseek-v4-flash'],
   },
   volcengine: {
     base: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',

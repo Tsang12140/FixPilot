@@ -687,3 +687,18 @@ Copy this section for every new task; append it above this template.
   - `python tools/run_all.py --help` exposes `renderer` and `--skip-renderer`; `git diff --check` passed.
 - Commit: 4707da5 (`test: automate answer renderer regressions`).
 - Follow-up / risk: this suite protects parser/layout invariants but is not a replacement for browser checks at desktop and mobile breakpoints. If the browser automation runtime is available, pair relevant UI changes with responsive visual checks.
+### 2026-08-09 - update direct DeepSeek settings for official V4 Flash
+
+- Request / symptom: the user asked whether the newly released official DeepSeek V4 Flash required a new integration path. The direct DeepSeek API settings still suggested the retired `deepseek-chat` model alias.
+- Finding / root cause: the runtime default was already `deepseek-v4-flash`, and the backend already supports both Chat Completions and an explicit `/responses` endpoint. Only the frontend direct-DeepSeek preset and its visible model placeholder were stale.
+- Changed:
+  - `backend/static/app.js` - changed the direct DeepSeek preset model to `deepseek-v4-flash`.
+  - `backend/static/index.html` - changed the model placeholder and bumped the app JavaScript cache version from 43 to 44.
+  - `reports/fixed.md` - added the required individual bug-fix ledger entry.
+- Verified:
+  - `node --check backend/static/app.js` passed.
+  - static assertions confirmed no retired alias remains in the direct preset, the new placeholder and cache version are present.
+  - an offline Python assertion confirmed `https://api.deepseek.com/responses` is translated to a valid `deepseek-v4-flash` Responses request with `instructions` and typed `input_text` content.
+  - `git diff --check` passed.
+- Commit: pending.
+- Follow-up / risk: Chat Completions remains the recommended default because it retains visible streaming. Users may still configure `https://api.deepseek.com/responses` manually; FixPilot currently retrieves that upstream result non-streaming for stability, so it does not expose the provider's native token-by-token events.
