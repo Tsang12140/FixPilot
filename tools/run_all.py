@@ -16,7 +16,7 @@ from persona_test import load_tutor_config, run_persona_tests
 from safety_test import run_tests as run_safety_tests
 from testkit import login_as_admin, login_with_code
 
-ALL_SUITES = ("renderer", "transport", "websearch", "sources", "injection", "safety", "persona")
+ALL_SUITES = ("renderer", "memes", "transport", "websearch", "sources", "injection", "safety", "persona")
 
 
 def summarize_status(items):
@@ -88,6 +88,11 @@ def run_renderer_tests():
     return run_local_json_suite("renderer_test.js", "renderer", "node")
 
 
+def run_memes_tests():
+    """Run no-network roast-mode reaction and deduplication checks."""
+    return run_local_json_suite("memes_test.py", "memes", sys.executable)
+
+
 def run_transport_tests():
     """Run no-network retry and safety-preflight guardrail checks."""
     return run_local_json_suite("transport_test.py", "transport", sys.executable)
@@ -108,6 +113,7 @@ def main():
     parser.add_argument("--admin-pass", help="管理员密码")
     parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：renderer,transport,websearch,injection,safety,persona")
     parser.add_argument("--skip-renderer", action="store_true", help="跳过 renderer")
+    parser.add_argument("--skip-memes", action="store_true", help="skip memes")
     parser.add_argument("--skip-transport", action="store_true", help="跳过 transport")
     parser.add_argument("--skip-websearch", action="store_true", help="skip websearch")
     parser.add_argument("--skip-injection", action="store_true", help="兼容旧命令：跳过 injection")
@@ -127,7 +133,7 @@ def main():
         suites = set(parse_suites(args.suites))
     except ValueError as exc:
         parser.error(str(exc))
-    for suite, skip in (("renderer", args.skip_renderer), ("transport", args.skip_transport), ("websearch", args.skip_websearch), ("sources", False), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
+    for suite, skip in (("renderer", args.skip_renderer), ("memes", args.skip_memes), ("transport", args.skip_transport), ("websearch", args.skip_websearch), ("sources", False), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
         if skip:
             suites.discard(suite)
     if not suites:
@@ -157,6 +163,9 @@ def main():
     if "renderer" in suites:
         print("\n# renderer: answer rendering integrity")
         all_results["results"]["renderer"] = run_renderer_tests()
+    if "memes" in suites:
+        print("\n# memes: restrained roast-mode reactions")
+        all_results["results"]["memes"] = run_memes_tests()
     if "transport" in suites:
         print("\n# transport: retry and safety guardrails")
         all_results["results"]["transport"] = run_transport_tests()

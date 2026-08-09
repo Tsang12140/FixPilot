@@ -288,3 +288,14 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: `python tools/run_all.py --suites websearch,sources` PASS (16 checks); compilation and `git diff --check` PASS.
 - Status: fixed and committed.
 - Commit: `c95a900` (`fix: retain official fallback policy`).
+
+## 2026-08-10 Asia/Shanghai - roast reactions could repeat and a raw 6 stretched in shared transcripts
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: a conversation could show multiple reaction-only 6 messages; an otherwise sensible diagnosis or a thanks/review could still receive one. In share links and generated long images, raw 6 was rendered as ordinary assistant text and stretched into a full-width bubble.
+- Root cause: choose_joke_effect returned six without conversation history, cooldown, acknowledgement detection, or a once-per-conversation rule. The database persisted a raw 6, while renderers only had special handling for MEME markers; the share page flex body expanded it like normal text.
+- Files changed: backend/app/memes.py, backend/app/main.py, backend/app/service.py, backend/app/llm.py, backend/static/app.js, backend/static/share.html, backend/static/style.css, tools/memes_test.py, tools/renderer_test.js, tools/run_all.py, and linked AI policy documents.
+- Fix: introduced semantic REACTION:six / REACTION:chichi records while retaining legacy raw-6 rendering; added acknowledgement blocking, a three-ordinary-assistant-message cooldown, one-six-per-conversation enforcement, safe meme preference after six, compact reaction cards across chat/admin/share/link/image, and no-context filtering. Removed the rejected meme from the active selection pool. No fixed productized roast lines were added.
+- Verification: python tools/run_all.py --suites renderer,memes PASS (renderer 7, memes 7); python -m py_compile backend/app/memes.py backend/app/main.py backend/app/service.py backend/app/llm.py PASS; node --check backend/static/app.js PASS; git diff --check PASS. No live provider or paid API request was made.
+- Status: fixed in the working tree; visual browser automation could not initialize because this Codex runtime lacks its local browser-kernel assets, so one manual cache-refresh check remains before release.
+- Commit: pending.

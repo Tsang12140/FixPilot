@@ -68,6 +68,14 @@
       border-radius: 14px; box-shadow: 0 5px 16px rgba(32,47,76,.11);
       line-height: 0;
     }
+    .msg.bot .bubble.reaction-card {
+      width: fit-content; min-width: 0; max-width: none;
+      padding: 7px 14px; line-height: 1.15; text-align: left;
+      font-size: 18px; font-weight: 650; letter-spacing: .04em;
+    }
+    .msg.bot .bubble.reaction-chichi { letter-spacing: .16em; }
+    .msg.bot.reaction-msg .msg-body { flex: 0 1 auto; }
+    .msg.bot.reaction-msg .msg-time { margin-top: 2px; padding: 0; }
     .msg.bot .bubble.meme-card .meme-img {
       display: block; width: 100%; height: auto; object-fit: contain;
     }
@@ -128,10 +136,20 @@
     const wrap = document.querySelector('.wrap');
 
     const MEME_ASSETS = {
-      you_ok: '\u4f60\u6ca1\u4e8b\u5427.png', sick: '\u4f60\u75c5\u5f97\u4e0d\u8f7b.png', head_hold: '\u62b1\u5934\u65e0\u5948.png',
+      you_ok: '\u4f60\u6ca1\u4e8b\u5427.png', head_hold: '\u62b1\u5934\u65e0\u5948.png',
       face_cover: '\u6342\u8138\u65e0\u5948.png', awkward_laugh: '\u5c2c\u7b11\u65e0\u5948.png', sweat: '\u6d41\u6c57\u65e0\u5948.png',
       sweat_2: '\u6d41\u6c57\u65e0\u59482.png', cool_gun: '\u51b7\u9177\u6301\u67aa\u6307\u7740\u5bf9\u65b9.png', stop_bothering: '\u80fd\u522b\u6574\u6211\u4e86\u4e0d\uff1f.png'
     };
+    const REACTION_LABELS = {
+      six: '6',
+      chichi: String.fromCharCode(0x5f73, 0x4e8d, 0x3002)
+    };
+    function reactionIdFromMessage(content) {
+      const value = typeof content === 'string' ? content.trim() : '';
+      if (value === '6') return 'six';
+      const match = value.match(/^\[REACTION:(six|chichi)\]$/);
+      return match ? match[1] : null;
+    }
     function memeIdFromMessage(content) {
       const match = typeof content === 'string' && content.trim().match(/^\[MEME:([a-z_]+)\]$/);
       return match && Object.prototype.hasOwnProperty.call(MEME_ASSETS, match[1]) ? match[1] : null;
@@ -196,6 +214,11 @@
             const d = new Date(m.created_at);
             return (isNaN(d.getTime()) ? m.created_at : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2));
           })() : '';
+          const reactionId = role === 'bot' ? reactionIdFromMessage(content) : null;
+          if (reactionId) {
+            html += '<div class="msg bot reaction-msg"><div class="avatar"><img src="logo.svg?v=2" alt="" /></div><div class="msg-body"><div class="bubble reaction-card reaction-' + reactionId + '">' + esc(REACTION_LABELS[reactionId]) + '</div>' + (ts ? '<div class="msg-time">' + ts + '</div>' : '') + '</div></div>';
+            continue;
+          }
           const memeId = role === 'bot' ? memeIdFromMessage(content) : null;
           if (memeId) {
             html += '<div class="msg bot meme-msg"><div class="avatar"><img src="logo.svg?v=2" alt="" /></div><div class="msg-body"><div class="bubble meme-card"><img class="meme-img" src="' + memeSrc(memeId) + '" alt="FixPilot meme" /></div>' + (ts ? '<div class="msg-time">' + ts + '</div>' : '') + '</div></div>';

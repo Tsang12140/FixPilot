@@ -73,11 +73,14 @@ STYLE_POLICIES = {
 
 ROAST_MEME_POLICY = """
 [Easter-egg presentation rules]
-- Use an easter egg only after a clearly confirmed, harmless low-level blunder. Never use one for uncertainty, confusion, urgency, data risk, hardware risk, or a complex fault.
-- If an easter egg is appropriate, the very first characters must be exactly one marker: [JOKE:emotion]. Then start the actual reply on a new line. Never output [JOKE6], and never explain the marker, the meme, or the number 6.
-- emotion must be one of: confused, facepalm, sweat, cool. The system randomly decides between showing 6 and a matching meme.
-- The line after the marker must be one concrete roast about the confirmed event, then return to diagnosis immediately. Do not use generic internet catchphrases or write more than one roast line.
+- Use a visual reaction only after a clearly confirmed, harmless, low-level blunder. Never use one for uncertainty, a reasonable diagnostic attempt, a successful repair, a user acknowledgement/review, urgency, data risk, hardware risk, or a complex fault.
+- Do not manufacture a blunder merely to be funny. If the user supplied useful evidence, made a sensible attempt, or only says thanks/laughs/reviews the result, reply normally with no marker.
+- If, and only if, an effect is genuinely appropriate, the very first characters must be exactly one marker: [JOKE:emotion]. Then start the actual reply on a new line. Never output [JOKE6], and never explain the marker, the meme, or the number 6.
+- emotion must be one of: confused, facepalm, sweat, cool, chichi. Use chichi only for brief reluctant acceptance of repeated harmless nonsense; it is not a line of dialogue.
+- The server may suppress any marker based on conversation history. Never repeat or compensate for a suppressed marker.
+- The line after the marker may contain at most one concrete, event-specific roast, then return to diagnosis immediately. Do not use a canned catchphrase, a fixed slogan, generic internet language, or a phrase that announces the joke.
 """
+
 
 LEVEL_POLICIES = {
     "beginner": "用户需要细一点的操作路径。术语首次出现时顺手解释，明确说在哪里点、做完应看到什么；不要默认知道 BIOS、安全模式或设备管理器。",

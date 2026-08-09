@@ -420,6 +420,11 @@ function buildShareNode(msgs, title) {
   for (const m of msgs) {
     const isBot = m.role !== 'user';
     const text = msgText(m.content);
+    const reactionId = isBot ? reactionIdFromMessage(text) : null;
+    if (reactionId) {
+      html += '<div class="msg bot reaction-msg"><div class="avatar bot-avatar">' + inlineLogoSvg(38) + '</div><div class="bubble reaction-card reaction-' + reactionId + '">' + escapeHtml(REACTION_LABELS[reactionId]) + '</div><span class="msg-time">' + fmtMsgTime(m.created_at) + '</span></div>';
+      continue;
+    }
     const memeId = isBot ? memeIdFromMessage(text) : null;
     if (memeId) {
       html += '<div class="msg bot meme-msg"><div class="avatar bot-avatar">' + inlineLogoSvg(38) + '</div><div class="bubble meme-card"><img class="meme-img" src="' + memeSrc(memeId) + '" alt="FixPilot meme" /></div><span class="msg-time">' + fmtMsgTime(m.created_at) + '</span></div>';
@@ -683,17 +688,22 @@ function makeAdminTranscriptMessage(message, avatarIdx) {
   row.appendChild(bubble);
 
   if (isBot) {
-    const memeId = memeIdFromMessage(content);
-    if (memeId) {
-      row.classList.add('meme-msg');
-      bubble.classList.add('meme-card');
-      const meme = document.createElement('img');
-      meme.className = 'meme-img';
-      meme.src = memeSrc(memeId);
-      meme.alt = 'FixPilot meme';
-      bubble.appendChild(meme);
+    const reactionId = reactionIdFromMessage(content);
+    if (reactionId) {
+      renderReactionMsg(row, reactionId);
     } else {
-      renderBotMsg(row, content);
+      const memeId = memeIdFromMessage(content);
+      if (memeId) {
+        row.classList.add('meme-msg');
+        bubble.classList.add('meme-card');
+        const meme = document.createElement('img');
+        meme.className = 'meme-img';
+        meme.src = memeSrc(memeId);
+        meme.alt = 'FixPilot meme';
+        bubble.appendChild(meme);
+      } else {
+        renderBotMsg(row, content);
+      }
     }
   } else {
     renderUserMsg(row, message.content, message.image || null);
@@ -943,6 +953,8 @@ async function openConversation(id, syncLocation = true) {
         addLegacyEmptyReplyMessage(m.created_at);
         return;
       }
+      const reactionId = isBot ? reactionIdFromMessage(m.content) : null;
+      if (reactionId) { addReactionMsg(reactionId, m.created_at); return; }
       const memeId = isBot ? memeIdFromMessage(m.content) : null;
       if (memeId) { addMemeMsg(memeId, m.created_at); return; }
       maybeDivider(m.created_at);
@@ -1478,22 +1490,53 @@ function showJoke6(bubble) {
   }, 2000);
 }
 const MEME_ASSETS = Object.freeze({
-  you_ok: '\u4f60\u6ca1\u4e8b\u5427.png',
-  sick: '\u4f60\u75c5\u5f97\u4e0d\u8f7b.png',
-  head_hold: '\u62b1\u5934\u65e0\u5948.png',
-  face_cover: '\u6342\u8138\u65e0\u5948.png',
-  awkward_laugh: '\u5c2c\u7b11\u65e0\u5948.png',
-  sweat: '\u6d41\u6c57\u65e0\u5948.png',
-  sweat_2: '\u6d41\u6c57\u65e0\u59482.png',
-  cool_gun: '\u51b7\u9177\u6301\u67aa\u6307\u7740\u5bf9\u65b9.png',
-  stop_bothering: '\u80fd\u522b\u6574\u6211\u4e86\u4e0d\uff1f.png'
+  you_ok: "\u4f60\u6ca1\u4e8b\u5427.png",
+  head_hold: "\u62b1\u5934\u65e0\u5948.png",
+  face_cover: "\u6342\u8138\u65e0\u5948.png",
+  awkward_laugh: "\u5c2c\u7b11\u65e0\u5948.png",
+  sweat: "\u6d41\u6c57\u65e0\u5948.png",
+  sweat_2: "\u6d41\u6c57\u65e0\u59482.png",
+  cool_gun: "\u51b7\u9177\u6301\u67aa\u6307\u7740\u5bf9\u65b9.png",
+  stop_bothering: "\u80fd\u522b\u6574\u6211\u4e86\u4e0d\uff1f.png"
 });
+const REACTION_LABELS = Object.freeze({
+  six: '6',
+  chichi: String.fromCharCode(0x5f73, 0x4e8d, 0x3002)
+});
+function reactionIdFromMessage(content) {
+  const value = typeof content === 'string' ? content.trim() : '';
+  if (value === '6') return 'six'; // legacy persisted replies
+  const match = value.match(/^\[REACTION:(six|chichi)\]$/);
+  return match ? match[1] : null;
+}
 function memeIdFromMessage(content) {
   const match = typeof content === 'string' && content.trim().match(/^\[MEME:([a-z_]+)\]$/);
   return match && Object.prototype.hasOwnProperty.call(MEME_ASSETS, match[1]) ? match[1] : null;
 }
 function memeSrc(memeId) {
   return 'memes/' + memeId + '.png';
+}
+function renderReactionMsg(div, reactionId) {
+  if (!REACTION_LABELS[reactionId]) return false;
+  const bubble = div.querySelector('.bubble');
+  div.classList.add('reaction-msg');
+  bubble.className = 'bubble reaction-card reaction-' + reactionId;
+  bubble.textContent = REACTION_LABELS[reactionId];
+  return true;
+}
+function addReactionMsg(reactionId, iso) {
+  maybeDivider(iso);
+  const div = document.createElement('div');
+  div.className = 'msg bot reaction-msg';
+  div.appendChild(botAvatar());
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  div.appendChild(bubble);
+  if (!renderReactionMsg(div, reactionId)) return null;
+  addMsgTime(div, iso);
+  chatEl.appendChild(div);
+  scrollDown();
+  return div;
 }
 function renderMemeMsg(div, memeId) {
   const filename = MEME_ASSETS[memeId];
@@ -1528,61 +1571,20 @@ function showJokeEffect(msgEl, effect) {
   if (effect && effect.kind === 'meme' && renderMemeMsg(msgEl, effect.meme)) {
     addMsgTime(msgEl);
     scrollDown();
-    return;
+    return true;
   }
-  showJoke6(msgEl.querySelector('.bubble'));
+  if (effect && effect.kind === 'reaction' && renderReactionMsg(msgEl, effect.reaction)) {
+    addMsgTime(msgEl);
+    if (effect.reaction === 'six') showJoke6(msgEl.querySelector('.bubble'));
+    scrollDown();
+    return true;
+  }
+  return false;
 }
 function jokeEffectDelay(effect) {
-  return effect && effect.kind === 'meme' ? 1150 : 3500;
-}
-
-/* 时间戳：气泡右下角弱化小字（今天只显示时分，跨天带日期） */
-function fmtMsgTime(iso) {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  if (d.toDateString() === new Date().toDateString()) return hh + ':' + mm;
-  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hh + ':' + mm;
-}
-function addMsgTime(container, iso) {
-  if (!container || container.querySelector('.msg-time')) return;
-  const t = document.createElement('span');
-  t.className = 'msg-time';
-  t.textContent = fmtMsgTime(iso) || fmtMsgTime(new Date().toISOString());
-  container.appendChild(t);
-}
-
-/* 时间分隔条：间隔超过阈值时，在消息前插入居中的淡色时间条 */
-const DIVIDER_MS = 5 * 60 * 1000;
-let lastMsgTime = null;
-function fmtDividerTime(d) {
-  const pad = n => String(n).padStart(2, '0');
-  const hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
-  const now = new Date();
-  if (d.toDateString() === now.toDateString()) return hm;
-  const y = new Date(now);
-  y.setDate(now.getDate() - 1);
-  if (d.toDateString() === y.toDateString()) return '\u6628\u5929 ' + hm;
-  return (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5 ' + hm;
-}
-function maybeDivider(iso) {
-  const t = new Date(iso || Date.now());
-  if (lastMsgTime && (t - lastMsgTime) >= DIVIDER_MS) {
-    const d = document.createElement('div');
-    d.className = 'time-divider';
-    d.textContent = fmtDividerTime(t);
-    chatEl.appendChild(d);
-  }
-  lastMsgTime = t;
-}
-function scrollDown(anim = true) { chatEl.scrollTop = chatEl.scrollHeight; }
-function autoResize() {
-  input.style.height = 'auto';
-  const maxHeight = window.matchMedia('(max-width: 767px)').matches ? 96 : 240;
-  const nextHeight = Math.min(input.scrollHeight, maxHeight);
-  input.style.height = nextHeight + 'px';
-  input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  if (!effect) return 0;
+  if (effect.kind === 'meme') return 1150;
+  return effect.reaction === 'six' ? 3500 : 900;
 }
 
 /* ---------- 图片上传 ---------- */
@@ -1779,11 +1781,12 @@ async function send(retryState = null) {
           continue;
         }
         if (data.startsWith('__joke__:')) {
-          try { jokeEffect = JSON.parse(data.slice(9)); } catch (e) { jokeEffect = { kind: 'six' }; }
-          if (!jokeEffect || (jokeEffect.kind === 'meme' && !MEME_ASSETS[jokeEffect.meme])) jokeEffect = { kind: 'six' };
-          jokeLocked = true;
-          jokeStartTime = Date.now();
-          showJokeEffect(msgEl, jokeEffect);
+          try { jokeEffect = JSON.parse(data.slice(9)); } catch (e) { jokeEffect = null; }
+          const validMeme = jokeEffect && jokeEffect.kind === 'meme' && MEME_ASSETS[jokeEffect.meme];
+          const validReaction = jokeEffect && jokeEffect.kind === 'reaction' && REACTION_LABELS[jokeEffect.reaction];
+          if (!validMeme && !validReaction) { jokeEffect = null; continue; }
+          jokeLocked = showJokeEffect(msgEl, jokeEffect);
+          if (jokeLocked) jokeStartTime = Date.now();
           continue;
         }
         let token;
@@ -1795,10 +1798,6 @@ async function send(retryState = null) {
             const clean = full.replace('[JOKE6]', '').trim();
             acc.length = 0;
             acc.push(clean);
-            jokeLocked = true;
-            jokeStartTime = Date.now();
-            showJokeEffect(msgEl, { kind: 'six' });
-            continue;
           }
           renderBotMsg(msgEl, full, riskNotice);
           scrollDown();

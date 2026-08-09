@@ -1,8 +1,7 @@
 """编排层：检索相关知识块 -> 组装提示词 -> 流式调用 DeepSeek。"""
 from typing import Dict, Iterator, List
-import re
 
-from . import config, llm, official_sources, retriever
+from . import config, llm, memes, official_sources, retriever
 from . import ocr
 
 
@@ -78,8 +77,8 @@ def normalize_messages(messages: List[Dict]) -> List[Dict]:
         if role not in {"user", "assistant"}:
             continue
         content = _content_to_text(m.get("content"), seen)
-        # UI-only easter-egg messages must not become model conversation context.
-        if role == "assistant" and (content == "6" or re.fullmatch(r"\[MEME:[a-z_]+\]", content)):
+        # UI-only meme/reaction rows must never become model conversation context.
+        if role == "assistant" and memes.is_ui_effect_message(content):
             continue
         out.append({"role": role, "content": content})
     return out

@@ -10,8 +10,10 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const appPath = path.join(root, 'backend', 'static', 'app.js');
 const cssPath = path.join(root, 'backend', 'static', 'style.css');
+const sharePath = path.join(root, 'backend', 'static', 'share.html');
 const source = fs.readFileSync(appPath, 'utf8');
 const css = fs.readFileSync(cssPath, 'utf8');
+const share = fs.readFileSync(sharePath, 'utf8');
 
 function fail(message) {
   throw new Error(message);
@@ -69,6 +71,19 @@ check('R05', 'bot and share bubbles are left aligned', () => {
   const share = css.match(/\.share-node \.msg\.bot \.bubble\s*\{([^}]*)\}/);
   assert(bot && /text-align:\s*left/.test(bot[1]), 'main bot bubble is not left aligned');
   assert(share && /text-align:\s*left/.test(share[1]), 'shared bot bubble is not left aligned');
+});
+
+check('R06', 'semantic reactions render compactly in chat and shares', () => {
+  assert(source.includes('function reactionIdFromMessage'), 'chat reaction parser is missing');
+  assert(source.includes('reaction-card'), 'chat reaction card is missing');
+  assert(css.includes('.msg.bot .bubble.reaction-card'), 'chat compact reaction CSS is missing');
+  assert(share.includes('function reactionIdFromMessage'), 'share reaction parser is missing');
+  assert(share.includes('.msg.bot .bubble.reaction-card'), 'share compact reaction CSS is missing');
+});
+
+check('R07', 'rejected meme is absent from active browser allowlists', () => {
+  assert(!/\bsick\s*:/.test(source), 'chat still exposes rejected meme');
+  assert(!/\bsick\s*:/.test(share), 'share still exposes rejected meme');
 });
 
 const output = { suite: 'renderer', results };

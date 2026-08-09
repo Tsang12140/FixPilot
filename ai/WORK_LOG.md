@@ -917,3 +917,18 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: `python -m py_compile backend/app/official_sources.py tools/web_search_test.py` PASS; `python tools/run_all.py --suites websearch,sources` PASS (websearch 9, sources 7); `git diff --check` PASS.
 - Implementation commit: `c95a900` (`fix: retain official fallback policy`).
 - Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.
+
+### 2026-08-10 - restrain roast-mode reactions and make shares render them compactly
+
+- Request / problem: the user rejected every canned productized roast line, asked to keep only the harmless approved memes, stop repetitive 6 reactions, add a compact chichi reaction, and fix a shared-link/long-image bug where a 6 bubble expanded like a full answer.
+- Finding / root cause: the old server selected a raw 6 without reading conversation history. It had no acknowledgement/review guard, no cooldown, and no once-per-conversation limit. Raw 6 was not a semantic UI record, so share renderers treated it as generic assistant text; flex layout then stretched the bubble. The previous prompt also allowed generic one-line roast interpretation too easily.
+- Changed:
+  - backend/app/memes.py - added semantic reaction parsing/persistence, legacy raw-6 compatibility, acknowledgement detection, three-reply cooldown, one-six limit, last-meme avoidance, and removed the rejected sick asset from active pools.
+  - backend/app/main.py, backend/app/service.py, backend/app/llm.py - pass stored history to effect selection, persist UI-only markers, exclude them from LLM context, and constrain prompt markers to genuinely confirmed harmless blunders without canned text.
+  - backend/static/app.js, backend/static/share.html, backend/static/style.css - render compact reaction cards in main chat, admin transcript, share link, and long image; retain old raw 6; remove rejected browser asset.
+  - tools/memes_test.py, tools/renderer_test.js, tools/run_all.py - added deterministic no-network reaction and renderer coverage.
+  - ai/FixPilot_毒舌项目_v2.0.md, ai/FixPilot_AI人格与毒舌模式_v1.1.md - recorded v2 rule: no fixed roast library; reactions are sparse, context-free UI effects.
+  - reports/fixed.md, reports/report20260810_001.md - recorded incident-level and batch-repair evidence.
+- Verified: python tools/run_all.py --suites renderer,memes PASS (renderer 7, memes 7); python -m py_compile backend/app/memes.py backend/app/main.py backend/app/service.py backend/app/llm.py PASS; node --check backend/static/app.js PASS; git diff --check PASS. No live/paid model request was made.
+- Commit: pending.
+- Follow-up / risk: browser automation cannot initialize in this Codex runtime because its local kernel assets path is missing. Manually check a hard-refresh of one legacy raw-6 conversation and one new reaction in main chat, a share link, and a long image after restarting the local server.

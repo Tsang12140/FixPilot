@@ -579,9 +579,10 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         db.create_conversation(conv_id, owner)
 
     # 前端只提交本轮消息；这里补入已存会话，修复多轮问诊缺少上下文的问题。
+    stored_history = db.list_messages(conv_id)
     history = [
         {"role": item["role"], "content": item["content"]}
-        for item in db.list_messages(conv_id)[-16:]
+        for item in stored_history[-16:]
         if item.get("role") in {"user", "assistant"}
     ]
     chat_messages = history + client_messages
@@ -589,6 +590,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     latest_user_text = next(
         (item["content"] for item in reversed(normalized_messages) if item.get("role") == "user"), ""
     )
+    reaction_allowed = memes.can_emit_reaction(stored_history, latest_user_text)
     profile_before = db.get_profile(owner)
     signal = profiling.classify_turn(latest_user_text) if profile_before.get("technical_level_source") != "explicit" else {}
     profile_for_reply = profiling.apply_signal(profile_before, signal) if signal else profile_before
@@ -646,12 +648,15 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                     else:
                         tone, remainder = memes.parse_joke_directive(prefix_text)
                         if tone is not None:
-                            effect = memes.choose_joke_effect(tone)
+                            effect = memes.choose_joke_effect(
+                                tone, stored_history, allowed=reaction_allowed
+                            )
                             awaiting_directive = False
                             if remainder and remainder.strip():
                                 acc.append(remainder)
-                                yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
-                                effect_sent = True
+                                if effect:
+                                    yield f"data: __joke__:{json.dumps(effect, ensure_ascii=False)}\n\n"
+                                    effect_sent = True
                                 yield f"data: {json.dumps(remainder, ensure_ascii=False)}\n\n"
                             continue
                         if memes.might_be_joke_directive(prefix_text):
@@ -686,15 +691,11 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         user_text, user_image = _content_to_text_and_image(client_messages[0]["content"])
         db.add_message(conv_id, "user", user_text, user_image)
         if effect:
-            if effect["kind"] == "six":
-                db.add_message(conv_id, "assistant", "6")
-            else:
+            if effect["kind"] == "reaction":
+                db.add_message(conv_id, "assistant", memes.reaction_message(effect["reaction"]))
+            elif effect["kind"] == "meme":
                 db.add_message(conv_id, "assistant", memes.meme_message(effect["meme"]))
-        if not effect and full.startswith("[JOKE6]"):
-            db.add_message(conv_id, "assistant", "6")
-            db.add_message(conv_id, "assistant", full.replace("[JOKE6]", "").strip())
-        else:
-            db.add_message(conv_id, "assistant", full)
+        db.add_message(conv_id, "assistant", full)
         if signal:
             db.record_profile_signal(owner, signal)
         if role == "user" and not use_custom_api:
