@@ -201,3 +201,7 @@ Append-only. One entry per verified fix.
 - Verification: no-network T02 simulates an empty reasoning-only stream plus an empty first completed fallback and confirms exactly one retry returns the second reply; T03 confirms a visible stream never retries. `python -m py_compile ...` and `python tools/run_all.py --suites renderer,transport` passed. A targeted live A02 runner was attempted but the desktop process host terminated it before a result artifact; this is not counted as a pass.
 - Final status: fixed with one bounded retry only before any user-visible text. A provider can still fail twice; the existing visible error remains the honest fallback.
 - Commit: pending.
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+The three fixes immediately above were implemented and verified in commit `a2b4b16` (`fix: harden risk notices and empty replies`).

@@ -729,3 +729,7 @@ Copy this section for every new task; append it above this template.
 - Follow-up / risk:
   - The preflight is intentionally conservative and only recognizes direct named operations; model markers are still needed for risks that appear later in a reply rather than in the user's request.
   - A provider that returns empty text twice will still show the existing error state; silently fabricating an answer would be worse.
+
+#### Commit reference - 2026-08-09
+
+The work item immediately above was implemented and verified in `a2b4b16` (`fix: harden risk notices and empty replies`).
