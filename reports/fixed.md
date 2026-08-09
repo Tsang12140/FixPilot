@@ -260,3 +260,7 @@ Implemented and verified in commit `0879ba7` (`feat: make official lookup automa
 - Verification: full local targeted suite PASS (renderer 5, transport 3, websearch 8, sources 6) plus enabled-only live registry audit PASS (23 reachable, 0 review).
 - Final status: fixed in the working tree; a paid live provider acceptance test with a known exact model/manual is still a release follow-up.
 - Commit: pending.
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+Implemented and verified in commit `cc47baf` (`feat: gate lookup with official source registry`).

@@ -889,3 +889,7 @@ The automatic, official-reference-only lookup policy above was implemented and v
 - Verified: `python -m py_compile backend/app/official_sources.py backend/app/llm.py backend/app/service.py tools/official_sources_test.py tools/official_sources_audit.py tools/web_search_test.py` PASS; `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (renderer 5, transport 3, websearch 8, sources 6); `python tools/official_sources_audit.py --enabled-only` PASS (23 reachable, 0 review); `git diff --check` PASS. No paid/live model request was made.
 - Commit: pending.
 - Follow-up / risk: the provider's tool cannot yet be hard-restricted by a documented domain parameter. The registry therefore uses provider gating, per-turn source policy, and URL output filtering; a future direct official-site fetcher would make the transport boundary stronger. Disabled candidates must be manually rechecked before enabling.
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+The official-source registry audit and runtime lookup gate above were implemented and verified in commit `cc47baf` (`feat: gate lookup with official source registry`).
