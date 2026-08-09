@@ -973,3 +973,16 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: reviewed `f2ce670`, `01fdb37` record, `reports/fixed.md`, `backend/static/index.html`, and current backend health route. No production connection or command was run by this agent.
 - Commit: pending at handoff time.
 - Follow-up / risk: the reverse-proxy configuration is still not documented as a verified fact, so the runbook deliberately does not prescribe its management. If the process supervisor/path/port changes, update this runbook in the same deployment change.
+
+### 2026-08-10 - make the first preference choice more visible without blocking chat
+
+- Request / symptom: remove the two explanatory onboarding lines — “这样我知道该讲多细。” and the nudge “选一下，我能少说很多你不需要听的东西。” The cards could be skimmed past and the visually dominant composer invited users to type before noticing the preference choice.
+- Finding / design decision: explanatory copy made the screen feel like a setup form and competed with the intended action. The strongest non-blocking nudge is to make the card choice itself describe the immediate benefit, keep the direct-question route subdued, and make cards visibly actionable.
+- Changed:
+  - `backend/static/app.js` - removed both explanatory strings and the text nudge; changed the first title to “选一下你的电脑熟悉度”; rewrote the three card descriptions as the resulting answer style.
+  - `backend/static/style.css` - added a restrained arrow affordance to the title of each selectable card.
+  - `backend/static/index.html` - bumped `style.css` cache version 39→40 and `app.js` 49→50.
+  - `ai/FixPilot_首次引导与偏好机制_v1.0.md` - appended the v1.1 implementation amendment so future agents preserve the current wording and hierarchy.
+- Verified: onboarding static contract PASS (removed copy/text node and old text CSS; expected new copy, arrow affordance, and cache versions present); `node --check backend/static/app.js` PASS; `node tools/renderer_test.js` PASS (R01-R07); `git diff --check` PASS. No live model request or production deployment was performed.
+- Commit: pending at handoff time.
+- Follow-up / risk: visual browser verification remains needed on desktop and narrow mobile after the next local run; direct entry intentionally remains available and must never be blocked.

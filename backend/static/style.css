@@ -214,13 +214,14 @@ body {
 }
 .onboarding-card:disabled { cursor: wait; opacity: .68; transform: none; }
 .onboarding-card strong { display: block; font-size: 15px; margin-bottom: 7px; }
+.onboarding-card strong::after { content: '→'; float: right; color: rgba(59,108,246,.58); font-size: 17px; font-weight: 500; line-height: 15px; transition: transform .16s ease, color .16s ease; }
+.onboarding-card:hover strong::after, .onboarding-card:focus-visible strong::after { color: var(--accent-text); transform: translateX(2px); }
 .onboarding-card span { display: block; font-size: 12px; line-height: 1.55; color: var(--text-2); }
 .onboarding-direct {
   align-self: center; margin: 2px auto 0; padding: 5px 8px; border: 0; background: transparent;
   color: var(--text-2); font-size: 12px; cursor: pointer;
 }
 .onboarding-direct:hover, .onboarding-direct:focus-visible { color: var(--accent-text); outline: none; }
-.onboarding-nudge { min-height: 18px; text-align: center; color: var(--accent-text); font-size: 12px; line-height: 18px; }
 .onboarding-guide.nudging { animation: onboarding-nudge 1.6s ease both; }
 @keyframes onboarding-breathe {
   0%,100% { box-shadow: 0 0 0 rgba(76,110,245,0); }

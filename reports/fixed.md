@@ -335,3 +335,15 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: reconciled against the recorded production incident `f2ce670`, its implementation commit `01fdb37`, the current `index.html` cache tag, and the `/api/health` route. No live server command was run.
 - Final status: fixed in the working tree; the runbook now names the actual project path, backend virtual environment, port 8135, `pkill`/`nohup` lifecycle, cache workflow, and known incident.
 - Commit: pending.
+
+---
+
+## 2026-08-10 Asia/Shanghai - first-run preference cards could be skipped too easily
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the first-run screen spent visual attention on explanatory copy and an input-triggered sentence, while the user could overlook the three selectable preference cards and type immediately.
+- Confirmed root cause: the copy explained why FixPilot wanted a choice instead of making the choice itself clear and beneficial; card clickability was also visually understated.
+- Files changed: `backend/static/app.js`, `backend/static/style.css`, `backend/static/index.html`, `ai/FixPilot_首次引导与偏好机制_v1.0.md`, `ai/WORK_LOG.md`.
+- Verification: onboarding static contract PASS; `node --check backend/static/app.js` PASS; renderer R01-R07 PASS; `git diff --check` PASS. Visual desktop/mobile verification remains pending. No live model or production deployment was performed.
+- Final status: fixed in the working tree. The two requested lines are removed; cards now state the resulting response style and show a light click affordance. Direct input remains unblocked.
+- Commit: pending.

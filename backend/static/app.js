@@ -1248,13 +1248,13 @@ function onboardingStep() {
 function levelGuideHtml() {
   return '<div class="welcome onboarding-guide onboarding-first" data-step="level">' +
     '<div class="hero"><img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />' +
-    '<div class="hero-title">先让我了解一下你。</div><div class="hero-sub">这样我知道该讲多细。</div></div>' +
+    '<div class="hero-title">选一下你的电脑熟悉度</div></div>' +
     '<div class="onboarding-cards">' +
-      '<button class="onboarding-card" data-level="beginner"><strong>不太懂</strong><span>出问题一般靠教程</span></button>' +
-      '<button class="onboarding-card" data-level="intermediate"><strong>会折腾一点</strong><span>重装、驱动这些能自己搞</span></button>' +
-      '<button class="onboarding-card" data-level="advanced"><strong>比较熟</strong><span>BIOS、硬件排查也接触过</span></button>' +
+      '<button class="onboarding-card" data-level="beginner"><strong>不太懂</strong><span>一步一步带你做</span></button>' +
+      '<button class="onboarding-card" data-level="intermediate"><strong>会折腾一点</strong><span>讲重点，关键步骤写清楚</span></button>' +
+      '<button class="onboarding-card" data-level="advanced"><strong>比较熟</strong><span>直接给判断和排查</span></button>' +
     '</div><button class="onboarding-direct" type="button">直接问我也可以 →</button>' +
-    '<div class="onboarding-nudge" aria-live="polite"></div></div>';
+    '</div>';
 }
 function styleGuideHtml() {
   return '<div class="welcome onboarding-guide" data-step="style">' +
@@ -1299,8 +1299,6 @@ async function showOnboardingNudge() {
   const p = currentProfile || defaultProfile();
   if (!guide || p.onboarding_nudge_shown) return;
   guide.classList.add('nudging');
-  const note = guide.querySelector('.onboarding-nudge');
-  if (note) note.textContent = '选一下，我能少说很多你不需要听的东西。';
   try {
     const r = await fetch('api/profile/onboarding-nudge', { method: 'POST', headers: authHeaders() });
     const d = await r.json();
