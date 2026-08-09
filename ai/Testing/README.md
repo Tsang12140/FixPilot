@@ -45,3 +45,15 @@ python tools/run_all.py --suites renderer,transport
 checks that direct BIOS changes and driver removal/reinstallation receive the
 right preflight risk level, that an empty stream plus empty fallback retries
 exactly once, and that visible streamed text never triggers a duplicate retry.
+
+## Web-search boundary check
+
+For the one-turn official DeepSeek V4 Flash “查资料” feature, run:
+
+```bash
+python tools/run_all.py --suites renderer,transport,websearch
+```
+
+`tools/web_search_test.py` is credential-free. It checks the official-host and
+model allowlist, the exact Responses API tool payload, provider-returned source
+labelling, and rejection of other providers before any network request.

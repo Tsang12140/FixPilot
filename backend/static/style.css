@@ -470,10 +470,10 @@ body {
 .composer {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   grid-template-areas:
-    "input input input input"
-    "model . img send";
+    "input input input input input"
+    "model web . img send";
   align-items: end;
   gap: 6px;
   background: var(--panel);
@@ -525,6 +525,28 @@ body {
 .composer button:active { transform: scale(.9); box-shadow: 0 2px 6px rgba(59,108,246,.3); }
 .composer button:disabled { background: #d3d8e0; cursor: not-allowed; box-shadow: none; }
 
+/* 本轮联网资料：显式触发，只有官方 DeepSeek V4 Flash 可用。 */
+#webSearchBtn {
+  grid-area: web;
+  width: auto;
+  min-width: 62px;
+  height: 36px;
+  padding: 0 10px;
+  gap: 5px;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #53627a;
+  box-shadow: 0 2px 8px rgba(15,23,42,.06);
+  font-size: 12px;
+  font-weight: 600;
+}
+#webSearchBtn svg { width: 15px; height: 15px; }
+#webSearchBtn:hover,
+#webSearchBtn:active { transform: none; background: #edf2ff; color: #245be7; box-shadow: 0 2px 8px rgba(59,108,246,.14); }
+#webSearchBtn:hover svg { transform: none; }
+#webSearchBtn.is-active { border-color: #7da2ff; background: #eaf0ff; color: #245be7; box-shadow: 0 0 0 3px rgba(59,108,246,.12); }
+#webSearchBtn:disabled { background: #f4f6f9; color: #a6afbd; border-color: #e7ebf0; cursor: not-allowed; box-shadow: none; }
 /* 图片上传按钮（区别于发送按钮，位于发送按钮左侧） */
 #imgBtn {
   grid-area: img;
@@ -658,7 +680,9 @@ body {
   .quota-compact-icon { display: inline-flex; align-items: center; justify-content: center; }
   .quota-compact-icon svg { width: 18px; height: 18px; }
 
-  .composer { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "input img send"; gap: 8px; padding: 8px 10px; }
+  .composer { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "web input img send"; gap: 8px; padding: 8px 10px; }
+  #webSearchBtn { min-width: 54px; height: 34px; padding: 0 7px; font-size: 11px; }
+  #webSearchBtn svg { width: 14px; height: 14px; }
   .composer textarea { min-height: 34px; max-height: 96px; padding: 5px 2px; align-self: center; }
   .bubble { padding: 8px 12px; line-height: 1.6; }
   .bubble p { margin-bottom: 7px; }

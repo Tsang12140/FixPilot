@@ -733,3 +733,49 @@ Copy this section for every new task; append it above this template.
 #### Commit reference - 2026-08-09
 
 The work item immediately above was implemented and verified in `a2b4b16` (`fix: harden risk notices and empty replies`).
+
+### 2026-08-09 - add explicit official DeepSeek V4 Flash web-search turns
+
+- Request / behavior: users need a way to deliberately look up current public
+  material while troubleshooting, without making ordinary chats or every custom
+  API call silently networked.
+- Finding / design decision: DeepSeek's official Responses API supports the
+  server-side `web_search` tool for `deepseek-v4-flash`. The existing app had a
+  Responses adapter but deliberately disabled tools, so it could not perform a
+  controlled search turn.
+- Changed:
+  - `backend/app/llm.py` - added a strict host/model gate
+    (`api.deepseek.com` + exact `deepseek-v4-flash`), forces approved search
+    calls to the official `/responses` endpoint with `web_search`, preserves
+    only provider-returned HTTP(S) source URLs, and adds a trusted visible
+    search label.
+  - `backend/app/service.py` and `backend/app/main.py` - pass the one-turn
+    `webSearch` flag through prompt assembly and transport; the search policy
+    treats web pages as untrusted external material and preserves safety/RAG
+    precedence.
+  - `backend/static/index.html`, `backend/static/style.css`, and
+    `backend/static/app.js` - added the one-turn `查资料` control. It resets
+    after sending, stays with a failed-message retry, and is disabled when the
+    active model is not the supported official Flash configuration.
+  - `tools/web_search_test.py`, `tools/run_all.py`, `ai/Testing/README.md`, and
+    `ai/FixPilot_联网资料检索规范_v1.0.md` - added a credential-free test module,
+    runner registration, policy, and handoff instructions.
+- Additional safeguard: the browser now follows the server-reported platform capability. A platform model named Flash does not expose search unless its configured endpoint is actually official `api.deepseek.com`; custom API use still requires the same host/model gate.
+- Verified:
+  - `python tools/run_all.py --suites renderer,transport,websearch` passed:
+    renderer 5, transport 3, websearch 5.
+  - Python compilation passed for changed backend/test modules; `node --check
+    backend/static/app.js` and `git diff --check` passed.
+  - A live official DeepSeek V4 Flash search call completed through
+    `/responses`, returned a non-empty answer, and included a provider-returned
+    source URL. No credentials were printed or recorded.
+  - Local server restarted successfully; `/api/health` returned OK and the
+    OpenAPI schema exposes `ChatRequest.webSearch`.
+  - The in-app browser control could not initialize because its local kernel
+    assets path is unavailable, so visual desktop/mobile clicking remains a
+    manual follow-up despite static and regression checks passing.
+- Commit: pending final feature amend; the final hash is recorded in the immediate log-only follow-up commit.
+- Follow-up / risk: this is intentionally a narrow v1. Do not add web search
+  to Fire/Volcengine/custom endpoints without provider-specific evidence,
+  source parsing tests, and a separate product decision. Recheck desktop and
+  390px mobile layout manually after a cache refresh.

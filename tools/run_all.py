@@ -16,7 +16,7 @@ from persona_test import load_tutor_config, run_persona_tests
 from safety_test import run_tests as run_safety_tests
 from testkit import login_as_admin, login_with_code
 
-ALL_SUITES = ("renderer", "transport", "injection", "safety", "persona")
+ALL_SUITES = ("renderer", "transport", "websearch", "injection", "safety", "persona")
 
 
 def summarize_status(items):
@@ -92,15 +92,20 @@ def run_transport_tests():
     """Run no-network retry and safety-preflight guardrail checks."""
     return run_local_json_suite("transport_test.py", "transport", sys.executable)
 
+def run_websearch_tests():
+    """Run no-network official DeepSeek web-search boundary checks."""
+    return run_local_json_suite("web_search_test.py", "websearch", sys.executable)
+
 def main():
     parser = argparse.ArgumentParser(description="FixPilot 模块化产品回归测试")
     parser.add_argument("--base", default="http://127.0.0.1:8000", help="FixPilot 服务地址")
     parser.add_argument("--code", help="邀请码登录")
     parser.add_argument("--admin-user", help="管理员用户名")
     parser.add_argument("--admin-pass", help="管理员密码")
-    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：renderer,transport,injection,safety,persona")
+    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：renderer,transport,websearch,injection,safety,persona")
     parser.add_argument("--skip-renderer", action="store_true", help="跳过 renderer")
     parser.add_argument("--skip-transport", action="store_true", help="跳过 transport")
+    parser.add_argument("--skip-websearch", action="store_true", help="skip websearch")
     parser.add_argument("--skip-injection", action="store_true", help="兼容旧命令：跳过 injection")
     parser.add_argument("--skip-safety", action="store_true", help="跳过 safety")
     parser.add_argument("--skip-persona", action="store_true", help="兼容旧命令：跳过 persona")
@@ -118,7 +123,7 @@ def main():
         suites = set(parse_suites(args.suites))
     except ValueError as exc:
         parser.error(str(exc))
-    for suite, skip in (("renderer", args.skip_renderer), ("transport", args.skip_transport), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
+    for suite, skip in (("renderer", args.skip_renderer), ("transport", args.skip_transport), ("websearch", args.skip_websearch), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
         if skip:
             suites.discard(suite)
     if not suites:
@@ -151,6 +156,9 @@ def main():
     if "transport" in suites:
         print("\n# transport: retry and safety guardrails")
         all_results["results"]["transport"] = run_transport_tests()
+    if "websearch" in suites:
+        print("\n# websearch: official DeepSeek V4 Flash boundary")
+        all_results["results"]["websearch"] = run_websearch_tests()
     if "injection" in suites:
         print("\n# injection：提示词注入边界")
         all_results["results"]["injection"] = run_injection_tests(args.base, token)
