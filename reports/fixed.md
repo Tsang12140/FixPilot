@@ -205,3 +205,13 @@ Append-only. One entry per verified fix.
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 The three fixes immediately above were implemented and verified in commit `a2b4b16` (`fix: harden risk notices and empty replies`).
+
+## 2026-08-09 Asia/Shanghai - saving custom API settings deadlocked and hung
+
+- Fixing agent/model: DeepSeek-V4-Flash.
+- Symptom: while adding server-side per-account API settings, `POST /api/api-settings` never returned (request timed out), so the save could not complete.
+- Confirmed root cause: `save_api_settings` in `backend/app/db.py` called `get_api_settings` while holding the module-global non-reentrant `_lock`; `get_api_settings` then tried to acquire the same lock, deadlocking every save. Reads were unaffected.
+- Files changed: `backend/app/db.py` (`save_api_settings` now returns a constructed dict instead of calling `get_api_settings` inside the lock).
+- Verification: live HTTP flow confirmed save, re-read, clear, and re-read all return promptly with correct values; `py_compile` and `node --check` passed.
+- Final status: fixed and live-route verified.
+- Commit: pending.

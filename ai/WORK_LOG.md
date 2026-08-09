@@ -734,6 +734,62 @@ Copy this section for every new task; append it above this template.
 
 The work item immediately above was implemented and verified in `a2b4b16` (`fix: harden risk notices and empty replies`).
 
+### 2026-08-09 - store per-account custom API settings on the server
+
+- Request / symptom: the user's custom API configuration (key/base/model) was
+  saved only in the browser `localStorage`, so it did not follow the account
+  and could not be shared across devices. The user asked to store it on our
+  server, keyed per account, where an invite-code-only user and the same
+  invite's bound username share one configuration. Also, the admin
+  invite-management panel should show the bound username next to the invite
+  code, separated by a `|`.
+- Finding / root cause:
+  - API settings lived under `fixpilot_api_settings` in `localStorage`
+    (`app.js`). There was no server-side persistence and no per-user key.
+  - Invite codes and users are already bound one-to-one via
+    `users.invite_code`, and profiles are already stored per `owner_key`
+    (invite code for users, `admin:<username>` for admins). The same
+    `owner_key` granularity is the correct key for API settings, so an invite
+    user and its bound account share one configuration as requested.
+- Changed:
+  - `backend/app/db.py` - added `user_api_settings` table keyed by
+    `owner_key`; added `get_api_settings` / `save_api_settings` (upsert) /
+    `clear_api_settings`; changed `list_invites` to LEFT JOIN `users` and
+    return `bound_username`.
+  - `backend/app/main.py` - added `GET /api/api-settings`,
+    `POST /api/api-settings`, and `POST /api/api-settings/clear`, all
+    authenticated and scoped to `_owner(payload)`.
+  - `backend/static/app.js` - replaced the localStorage-backed API settings
+    with an in-memory cache loaded from the server on login
+    (`loadApiSettingsFromServer` called in `enterApp`); `saveApiSettings` /
+    `clearApiSettings` now persist to the server in the background while
+    updating the cache synchronously; removed the now-unused
+    `API_SETTINGS_KEY`; the admin invite table now renders
+    `CODE | username` when a bound username exists.
+- Verified:
+  - `python -m py_compile backend/app/db.py backend/app/main.py` PASS.
+  - `node --check backend/static/app.js` PASS.
+  - Live HTTP flow (admin token): `GET /api/api-settings` returns default
+    `platform`/empty key; `POST /api/api-settings` returns `ok`; re-GET returns
+    the saved custom config; `POST /api/api-settings/clear` then re-GET returns
+    the default again. `GET /api/admin/invites` returns `bound_username` for
+    the bound code (e.g. `4CDB97` -> `test123`) and `None` for unbounded ones.
+  - Browser smoke (admin login): login succeeds, no console errors
+    (including api-settings/fetch/localStorage).
+  - A deadlock was found and fixed during verification: `save_api_settings`
+    called `get_api_settings` while holding the non-reentrant DB `_lock`,
+    hanging every save. It now returns a constructed dict instead. This is
+    recorded in `reports/fixed.md`.
+- Additional verification before commit: isolated temporary SQLite database test confirmed default values, save/reload, and clear/reset behavior without using a real API key.
+- Commit: pending implementation commit; final hash will be recorded in a follow-up log-only commit.
+- Follow-up / risk:
+  - The backend must be restarted to load the new schema and endpoints.
+  - Accepting the API key in an authenticated `GET /api/api-settings`
+    response is intentional (the frontend needs it to issue chat requests);
+    it is transmitted only over the authenticated channel and never logged.
+  - Existing custom API settings stored in the browser before this change are
+    not migrated; the user re-enters them once after login.
+
 ### 2026-08-09 - add explicit official DeepSeek V4 Flash web-search turns
 
 - Request / behavior: users need a way to deliberately look up current public

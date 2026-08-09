@@ -44,7 +44,12 @@ def parse_chunks(text: str) -> List[Dict[str, str]]:
 
 
 def load_chunks() -> List[Dict[str, str]]:
-    return parse_chunks(_read_transcript())
+    try:
+        return parse_chunks(_read_transcript())
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
 
 
 if __name__ == "__main__":

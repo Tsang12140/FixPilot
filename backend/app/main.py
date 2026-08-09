@@ -51,6 +51,15 @@ class ApiTestRequest(BaseModel):
     model: Optional[str] = None
 
 
+class ApiSettingsRequest(BaseModel):
+    """保存用户自定义 API 配置（跟随账号/邀请码）。"""
+    apiKey: str = ""
+    apiBase: str = ""
+    model: str = ""
+    provider: str = "deepseek"
+    activeSource: str = "platform"
+
+
 class TitleRequest(BaseModel):
     question: str
     convId: Optional[str] = None
@@ -468,6 +477,49 @@ def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
             raise HTTPException(status_code=404, detail="会话不存在")
         db.update_conversation_title(req.convId, title)
     return {"title": title}
+
+
+@app.get("/api/api-settings")
+def get_api_settings(authorization: Optional[str] = Header(None)):
+    """读取当前账号（邀请码/管理员）的自定义 API 配置。"""
+    payload = _require_auth(authorization)
+    if payload.get("role") not in ("user", "admin"):
+        raise HTTPException(status_code=403, detail="无权限")
+    settings = db.get_api_settings(_owner(payload))
+    return {
+        "apiKey": settings["api_key"],
+        "apiBase": settings["api_base"],
+        "model": settings["model"],
+        "provider": settings["provider"],
+        "activeSource": settings["active_source"],
+    }
+
+
+@app.post("/api/api-settings")
+def save_api_settings(req: ApiSettingsRequest, authorization: Optional[str] = Header(None)):
+    """保存当前账号（邀请码/管理员）的自定义 API 配置。"""
+    payload = _require_auth(authorization)
+    if payload.get("role") not in ("user", "admin"):
+        raise HTTPException(status_code=403, detail="无权限")
+    db.save_api_settings(
+        _owner(payload),
+        api_key=(req.apiKey or "").strip(),
+        api_base=(req.apiBase or "").strip(),
+        model=(req.model or "").strip(),
+        provider=(req.provider or "deepseek").strip() or "deepseek",
+        active_source=(req.activeSource or "platform").strip() or "platform",
+    )
+    return {"ok": True}
+
+
+@app.post("/api/api-settings/clear")
+def clear_api_settings(authorization: Optional[str] = Header(None)):
+    """清空当前账号（邀请码/管理员）的自定义 API 配置。"""
+    payload = _require_auth(authorization)
+    if payload.get("role") not in ("user", "admin"):
+        raise HTTPException(status_code=403, detail="无权限")
+    db.clear_api_settings(_owner(payload))
+    return {"ok": True}
 
 
 @app.post("/api/test-api")

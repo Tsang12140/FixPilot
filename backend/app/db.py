@@ -15,6 +15,7 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -65,6 +66,16 @@ def init_db():
                 image TEXT,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (conv_id) REFERENCES conversations(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS user_api_settings (
+                owner_key TEXT PRIMARY KEY,
+                api_key TEXT NOT NULL DEFAULT '',
+                api_base TEXT NOT NULL DEFAULT '',
+                model TEXT NOT NULL DEFAULT '',
+                provider TEXT NOT NULL DEFAULT 'deepseek',
+                active_source TEXT NOT NULL DEFAULT 'platform',
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS user_profiles (
@@ -246,7 +257,12 @@ def get_invite(code: str) -> Optional[dict]:
 
 def list_invites() -> List[dict]:
     with _lock, _connect() as conn:
-        rows = conn.execute("SELECT * FROM invite_codes ORDER BY created_at DESC").fetchall()
+        rows = conn.execute(
+            """SELECT iv.*, u.username AS bound_username
+               FROM invite_codes AS iv
+               LEFT JOIN users AS u ON u.invite_code = iv.code
+               ORDER BY iv.created_at DESC"""
+        ).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -320,6 +336,59 @@ def update_user_password(username: str, password_hash: str) -> None:
             "UPDATE users SET password_hash = ? WHERE username = ?",
             (password_hash, username),
         )
+
+
+# ---------- 用户自定义 API 配置（按账号/邀请码粒度，跟随 owner_key） ----------
+
+def get_api_settings(owner_key: str) -> dict:
+    """读取某账号的 API 配置，无记录时返回默认空配置。"""
+    with _lock, _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM user_api_settings WHERE owner_key = ?", (owner_key,)
+        ).fetchone()
+        if row:
+            data = dict(row)
+        else:
+            data = {
+                "owner_key": owner_key, "api_key": "", "api_base": "",
+                "model": "", "provider": "deepseek", "active_source": "platform",
+                "updated_at": _now(),
+            }
+        return data
+
+
+def save_api_settings(owner_key: str, api_key: str = "", api_base: str = "",
+                      model: str = "", provider: str = "deepseek",
+                      active_source: str = "platform") -> dict:
+    """保存某账号的 API 配置（upsert）。"""
+    with _lock, _connect() as conn:
+        conn.execute(
+            """INSERT INTO user_api_settings
+               (owner_key, api_key, api_base, model, provider, active_source, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(owner_key) DO UPDATE SET
+               api_key = excluded.api_key,
+               api_base = excluded.api_base,
+               model = excluded.model,
+               provider = excluded.provider,
+               active_source = excluded.active_source,
+               updated_at = excluded.updated_at""",
+            (owner_key, api_key, api_base, model, provider, active_source, _now()),
+        )
+    return {
+        "owner_key": owner_key, "api_key": api_key, "api_base": api_base,
+        "model": model, "provider": provider, "active_source": active_source,
+    }
+
+
+def clear_api_settings(owner_key: str) -> dict:
+    """清空某账号的 API 配置（删除记录，回到平台 API）。"""
+    with _lock, _connect() as conn:
+        conn.execute("DELETE FROM user_api_settings WHERE owner_key = ?", (owner_key,))
+    return {
+        "owner_key": owner_key, "api_key": "", "api_base": "", "model": "",
+        "provider": "deepseek", "active_source": "platform",
+    }
 
 
 # ---------- 会话 / 消息 ----------

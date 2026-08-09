@@ -89,7 +89,6 @@ function getAvatarIdx() {
 function avatarUrl() { return 'avatars/' + getAvatarIdx() + '.webp'; }
 
 /* ---------- 自定义 API（用户自带 Key） ---------- */
-const API_SETTINGS_KEY = 'fixpilot_api_settings';
 /* 各服务商默认地址与常用模型列表 */
 const API_PRESETS = {
   deepseek: {
@@ -118,11 +117,40 @@ const API_PRESETS = {
     keyPlaceholder: 'provider API Key',
   },
 };
-function getApiSettings() {
-  try { return JSON.parse(localStorage.getItem(API_SETTINGS_KEY) || 'null'); } catch (e) { return null; }
+/* 自定义 API 配置改为服务器端存储（跟随账号/邀请码）。本地仅作内存缓存。 */
+let _apiSettingsCache = null;
+function getApiSettings() { return _apiSettingsCache; }
+/** 登录后从服务器拉取当前账号的 API 配置到内存缓存 */
+async function loadApiSettingsFromServer() {
+  try {
+    const r = await fetch('api/api-settings', { headers: authHeaders() });
+    if (!r.ok) return null;
+    const d = await r.json();
+    _apiSettingsCache = {
+      provider: d.provider || 'deepseek',
+      apiKey: d.apiKey || '',
+      apiBase: d.apiBase || '',
+      model: d.model || '',
+      activeSource: d.activeSource || 'platform',
+    };
+  } catch (e) { _apiSettingsCache = null; }
+  return _apiSettingsCache;
 }
-function saveApiSettings(s) { localStorage.setItem(API_SETTINGS_KEY, JSON.stringify(s)); }
-function clearApiSettings() { localStorage.removeItem(API_SETTINGS_KEY); }
+async function saveApiSettings(s) {
+  _apiSettingsCache = s;
+  try {
+    await fetch('api/api-settings', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({
+        apiKey: s.apiKey || '', apiBase: s.apiBase || '', model: s.model || '',
+        provider: s.provider || 'deepseek', activeSource: s.activeSource || 'platform',
+      })
+    });
+  } catch (e) {}
+}
+async function clearApiSettings() {
+  _apiSettingsCache = null;
+  try { await fetch('api/api-settings/clear', { method: 'POST', headers: authHeaders() }); } catch (e) {}
+}
 /** 返回当前应随 chat 请求发送的自定义 API 参数，无则返回 null */
 function chatApiParams() {
   const s = getApiSettings();
@@ -162,7 +190,6 @@ function setWebSearchRequested(next, notify = false) {
   webSearchRequested = Boolean(next);
   refreshWebSearchControl();
 }
-
 
 /* ---------- 认证 ---------- */
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
@@ -576,8 +603,11 @@ function renderUnused(list) {
   if (!list.length) { box.innerHTML = '<div class="aempty">暂无未使用的邀请码</div>'; return; }
   let html = '<table class="atable"><thead><tr><th>邀请码</th><th>次数</th><th>有效期</th><th>备注</th><th>操作</th></tr></thead><tbody>';
   for (const iv of list) {
+    const codeCell = iv.bound_username
+      ? iv.code + ' | ' + escapeHtml(iv.bound_username)
+      : iv.code;
     html += '<tr>' +
-      '<td class="acode">' + iv.code + '</td>' +
+      '<td class="acode">' + codeCell + '</td>' +
       '<td>' + quotaText(iv) + '</td>' +
       '<td>' + fmtExp(iv.expires_at) + '</td>' +
       '<td>' + (iv.note ? escapeHtml(iv.note) : '') + '</td>' +
@@ -593,8 +623,11 @@ function renderUsed(list) {
   if (!list.length) { box.innerHTML = '<div class="aempty">暂无已使用的邀请码</div>'; return; }
   let html = '<table class="atable"><thead><tr><th>邀请码</th><th>次数</th><th>有效期</th><th>最近登录</th><th>状态</th><th>操作</th></tr></thead><tbody>';
   for (const iv of list) {
+    const codeCell = iv.bound_username
+      ? iv.code + ' | ' + escapeHtml(iv.bound_username)
+      : iv.code;
     html += '<tr>' +
-      '<td class="acode">' + iv.code + '</td>' +
+      '<td class="acode">' + codeCell + '</td>' +
       '<td>' + quotaText(iv) + '</td>' +
       '<td>' + fmtExp(iv.expires_at) + '</td>' +
       '<td>' + fmtLogin(iv.last_login_at) + '</td>' +
@@ -818,6 +851,7 @@ async function enterApp() {
     if (me.role === 'admin') {
       document.getElementById('adminBtn').style.display = 'inline-flex';
       document.getElementById('quotaWrap').style.display = 'none';
+      await loadApiSettingsFromServer();
       await loadConversations();
       showApp();
       updateModelPicker();
@@ -826,6 +860,7 @@ async function enterApp() {
     document.getElementById('adminBtn').style.display = 'none';
     canUse = me.role === 'admin' ? true : me.can_use;
     currentUser = me;
+    await loadApiSettingsFromServer();
     updateQuotaBadge(me);
     await loadConversations();
     showApp();
