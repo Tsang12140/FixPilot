@@ -214,4 +214,4 @@ The three fixes immediately above were implemented and verified in commit `a2b4b
 - Files changed: `backend/app/db.py` (`save_api_settings` now returns a constructed dict instead of calling `get_api_settings` inside the lock).
 - Verification: live HTTP flow confirmed save, re-read, clear, and re-read all return promptly with correct values; `py_compile` and `node --check` passed.
 - Final status: fixed and live-route verified.
-- Commit: pending.
+- Implementation commit: ad6c48f3eea7a988935ff88041ebc98cf33df478 (`feat: persist custom API settings and testing records`).

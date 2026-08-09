@@ -781,7 +781,7 @@ The work item immediately above was implemented and verified in `a2b4b16` (`fix:
     hanging every save. It now returns a constructed dict instead. This is
     recorded in `reports/fixed.md`.
 - Additional verification before commit: isolated temporary SQLite database test confirmed default values, save/reload, and clear/reset behavior without using a real API key.
-- Commit: pending implementation commit; final hash will be recorded in a follow-up log-only commit.
+- Implementation commit: ad6c48f3eea7a988935ff88041ebc98cf33df478 (`feat: persist custom API settings and testing records`).
 - Follow-up / risk:
   - The backend must be restarted to load the new schema and endpoints.
   - Accepting the API key in an authenticated `GET /api/api-settings`
