@@ -553,7 +553,10 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         effect = None
         effect_sent = False
         awaiting_directive = True
-        risk_seen = False
+        preflight_risk_level = safety.infer_risk_level(latest_user_text)
+        risk_seen = preflight_risk_level is not None
+        if preflight_risk_level:
+            yield f"data: __risk__:{json.dumps(safety.risk_notice(preflight_risk_level), ensure_ascii=False)}\n\n"
         try:
             for token in service.chat_stream(
                 normalized_messages,
@@ -569,7 +572,8 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                     prefix_text = "".join(prefix)
                     risk_level, risk_remainder = safety.parse_risk_directive(prefix_text)
                     if risk_level is not None:
-                        yield f"data: __risk__:{json.dumps(safety.risk_notice(risk_level), ensure_ascii=False)}\n\n"
+                        if not risk_seen:
+                            yield f"data: __risk__:{json.dumps(safety.risk_notice(risk_level), ensure_ascii=False)}\n\n"
                         risk_seen = True
                         prefix = [risk_remainder] if risk_remainder else []
                         prefix_text = risk_remainder

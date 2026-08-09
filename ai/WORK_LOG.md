@@ -702,3 +702,30 @@ Copy this section for every new task; append it above this template.
   - `git diff --check` passed.
 - Commit: 4d88cd3 (`fix: use official DeepSeek V4 Flash preset`).
 - Follow-up / risk: Chat Completions remains the recommended default because it retains visible streaming. Users may still configure `https://api.deepseek.com/responses` manually; FixPilot currently retrieves that upstream result non-streaming for stability, so it does not expose the provider's native token-by-token events.
+
+### 2026-08-09 - close risk-notice and empty-reply regressions from report 003
+
+- Request / symptom:
+  - `reports/report20260809_003.md` identified S03 missing a high-risk BIOS notice, S04 missing a medium-risk driver-operation notice, and A02 failing after an empty stream plus empty fallback.
+- Finding / root cause:
+  - Trusted risk cards depended only on model-emitted markers, so a model omission bypassed the UI even where the policy requested a marker.
+  - The BIOS rule did not explicitly encompass changing BIOS/UEFI settings, and the driver fallback did not cover common Chinese “卸掉再装” phrasing.
+  - After no user-visible streamed content and an empty completed fallback, the transport stopped instead of attempting one safe retry.
+- Changed:
+  - `backend/app/safety.py` - added conservative direct-operation risk inference for BIOS/UEFI changes, high-risk data/firmware/power actions, and driver remove/reinstall actions.
+  - `backend/app/main.py` - emits the trusted risk notice before the model reply when the direct user request is unambiguous; avoids duplicate notice emission when the model also marks it.
+  - `backend/app/llm.py` - clarifies BIOS/driver classification and retries one completed request only when no displayable text has ever been streamed.
+  - `tools/transport_test.py` - added no-network regression assertions for both risk preflight tiers and safe empty-reply retry behavior.
+  - `tools/run_all.py`, `ai/Testing/README.md`, `ai/Testing/FixPilot_TEST_PROFILE.md` - registered and documented the credential-free `transport` suite.
+  - `reports/fixed.md` - added the mandatory individual fixed-event entries.
+- Verified:
+  - Live local authenticated safety suite: S01-S04 PASS, including the former S03/S04 failures.
+  - `python -m py_compile backend\\app\\safety.py backend\\app\\llm.py backend\\app\\main.py tools\\transport_test.py tools\\run_all.py` - PASS.
+  - `python tools\\transport_test.py` - T01-T03 PASS.
+  - `python tools\\run_all.py --suites renderer,transport` - renderer PASS 5; transport PASS 3.
+  - `git diff --check` - PASS.
+  - A targeted live A02 persona run was attempted, but the desktop command host terminated the detached process before a result artifact. It is explicitly not recorded as a passing live regression.
+- Commit: pending.
+- Follow-up / risk:
+  - The preflight is intentionally conservative and only recognizes direct named operations; model markers are still needed for risks that appear later in a reply rather than in the user's request.
+  - A provider that returns empty text twice will still show the existing error state; silently fabricating an answer would be worse.

@@ -16,7 +16,7 @@ from persona_test import load_tutor_config, run_persona_tests
 from safety_test import run_tests as run_safety_tests
 from testkit import login_as_admin, login_with_code
 
-ALL_SUITES = ("renderer", "injection", "safety", "persona")
+ALL_SUITES = ("renderer", "transport", "injection", "safety", "persona")
 
 
 def summarize_status(items):
@@ -53,21 +53,21 @@ def parse_suites(raw):
     return requested or ALL_SUITES
 
 
-def run_renderer_tests():
-    """Run DOM-free frontend answer-renderer checks without model calls."""
-    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "renderer_test.js")
+def run_local_json_suite(script_name, suite_name, executable):
+    """Run a no-network tool that writes the common JSON result shape."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_name)
     try:
         completed = subprocess.run(
-            ["node", script, "--json"],
+            [executable, script, "--json"],
             capture_output=True,
             text=True,
             timeout=30,
             check=False,
         )
     except FileNotFoundError:
-        return [{"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": "Node.js is not installed"}]
+        return [{"id": f"{suite_name[:1].upper()}00", "name": f"{suite_name} runner", "status": "ERROR", "detail": f"{executable} is not installed"}]
     except subprocess.TimeoutExpired:
-        return [{"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": "renderer test timed out"}]
+        return [{"id": f"{suite_name[:1].upper()}00", "name": f"{suite_name} runner", "status": "ERROR", "detail": f"{suite_name} test timed out"}]
 
     try:
         payload = json.loads(completed.stdout or "{}")
@@ -76,11 +76,21 @@ def run_renderer_tests():
             raise ValueError("missing results")
     except (json.JSONDecodeError, ValueError) as exc:
         detail = (completed.stderr or completed.stdout or str(exc)).strip()[:600]
-        return [{"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": detail or "invalid renderer output"}]
+        return [{"id": f"{suite_name[:1].upper()}00", "name": f"{suite_name} runner", "status": "ERROR", "detail": detail or "invalid test output"}]
 
     if completed.returncode and all(item.get("status") == "PASS" for item in results):
-        results.append({"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": "renderer test exited non-zero"})
+        results.append({"id": f"{suite_name[:1].upper()}00", "name": f"{suite_name} runner", "status": "ERROR", "detail": "test exited non-zero"})
     return results
+
+
+def run_renderer_tests():
+    """Run DOM-free frontend answer-renderer checks without model calls."""
+    return run_local_json_suite("renderer_test.js", "renderer", "node")
+
+
+def run_transport_tests():
+    """Run no-network retry and safety-preflight guardrail checks."""
+    return run_local_json_suite("transport_test.py", "transport", sys.executable)
 
 def main():
     parser = argparse.ArgumentParser(description="FixPilot 模块化产品回归测试")
@@ -88,8 +98,9 @@ def main():
     parser.add_argument("--code", help="邀请码登录")
     parser.add_argument("--admin-user", help="管理员用户名")
     parser.add_argument("--admin-pass", help="管理员密码")
-    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：renderer,injection,safety,persona")
+    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：renderer,transport,injection,safety,persona")
     parser.add_argument("--skip-renderer", action="store_true", help="跳过 renderer")
+    parser.add_argument("--skip-transport", action="store_true", help="跳过 transport")
     parser.add_argument("--skip-injection", action="store_true", help="兼容旧命令：跳过 injection")
     parser.add_argument("--skip-safety", action="store_true", help="跳过 safety")
     parser.add_argument("--skip-persona", action="store_true", help="兼容旧命令：跳过 persona")
@@ -107,7 +118,7 @@ def main():
         suites = set(parse_suites(args.suites))
     except ValueError as exc:
         parser.error(str(exc))
-    for suite, skip in (("renderer", args.skip_renderer), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
+    for suite, skip in (("renderer", args.skip_renderer), ("transport", args.skip_transport), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
         if skip:
             suites.discard(suite)
     if not suites:
@@ -137,6 +148,9 @@ def main():
     if "renderer" in suites:
         print("\n# renderer: answer rendering integrity")
         all_results["results"]["renderer"] = run_renderer_tests()
+    if "transport" in suites:
+        print("\n# transport: retry and safety guardrails")
+        all_results["results"]["transport"] = run_transport_tests()
     if "injection" in suites:
         print("\n# injection：提示词注入边界")
         all_results["results"]["injection"] = run_injection_tests(args.base, token)

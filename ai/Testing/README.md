@@ -31,3 +31,17 @@
 ## Automated renderer check
 
 For response-layout regressions, run `python tools/run_all.py --suites renderer`. This invokes `tools/renderer_test.js`; it is credential-free and does not call a model.
+
+## Transport and risk-guardrail check
+
+For changes to streamed replies, empty-reply handling, retry behavior, or the
+trusted risk-notice fallback, run:
+
+```bash
+python tools/run_all.py --suites renderer,transport
+```
+
+`tools/transport_test.py` is credential-free and never calls a provider. It
+checks that direct BIOS changes and driver removal/reinstallation receive the
+right preflight risk level, that an empty stream plus empty fallback retries
+exactly once, and that visible streamed text never triggers a duplicate retry.

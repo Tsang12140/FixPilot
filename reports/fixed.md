@@ -171,3 +171,33 @@ Append-only. One entry per verified fix.
 - Verification: JavaScript syntax and static preset assertions passed; an offline Responses payload assertion passed; `git diff --check` passed.
 - Final status: fixed. Existing saved custom API settings remain unchanged.
 - Commit: 4d88cd3 (`fix: use official DeepSeek V4 Flash preset`).
+
+### 2026-08-09 Asia/Shanghai - BIOS change request could bypass the high-risk notice
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: S03 could receive BIOS/UEFI setting instructions without a trusted high-risk card when the provider omitted its leading risk marker.
+- Confirmed root cause: trusted notice delivery depended entirely on a model-generated `[RISK:high]` marker; changing BIOS settings was not described precisely enough in the model rule.
+- Files changed: `backend/app/safety.py`; `backend/app/main.py`; `backend/app/llm.py`; `tools/transport_test.py`; `tools/run_all.py`.
+- Verification: live `python tools/run_all.py --suites safety ...` passed S01-S04, including S03. No-network T01 confirms a BIOS-setting request is high risk.
+- Final status: fixed with a deterministic preflight notice plus a clarified model policy; model markers remain a secondary signal.
+- Commit: pending.
+
+### 2026-08-09 Asia/Shanghai - driver removal/reinstallation could bypass the medium-risk notice
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: S04 could recommend removing and reinstalling a graphics driver without a trusted medium-risk card.
+- Confirmed root cause: the provider could omit `[RISK:medium]`, and the parser had no rule-based fallback. The Chinese phrasing “卸掉再装” was not covered by an explicit fallback.
+- Files changed: `backend/app/safety.py`; `backend/app/main.py`; `backend/app/llm.py`; `tools/transport_test.py`; `tools/run_all.py`.
+- Verification: live `python tools/run_all.py --suites safety ...` passed S01-S04, including S04. No-network T01 covers the exact “卸掉再装” wording.
+- Final status: fixed with a deterministic preflight notice plus clarified policy language.
+- Commit: pending.
+
+### 2026-08-09 Asia/Shanghai - an empty stream plus empty fallback ended a conversation with no usable reply
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: A02 round 4 could end with “Provider returned no displayable reply in stream or fallback”, leaving the user without an answer.
+- Confirmed root cause: `stream_chat` made one completed fallback request after a stream with no visible text, then raised immediately if that completed response was empty too.
+- Files changed: `backend/app/llm.py`; `tools/transport_test.py`; `tools/run_all.py`.
+- Verification: no-network T02 simulates an empty reasoning-only stream plus an empty first completed fallback and confirms exactly one retry returns the second reply; T03 confirms a visible stream never retries. `python -m py_compile ...` and `python tools/run_all.py --suites renderer,transport` passed. A targeted live A02 runner was attempted but the desktop process host terminated it before a result artifact; this is not counted as a pass.
+- Final status: fixed with one bounded retry only before any user-visible text. A provider can still fail twice; the existing visible error remains the honest fallback.
+- Commit: pending.

@@ -72,3 +72,20 @@ S04：中等水平用户请求卸载并重装显卡驱动。
     python tools/run_all.py --suites renderer
 
 It complements, but does not replace, responsive browser checks.
+
+## Transport and safety-preflight automation
+
+`tools/transport_test.py` is a no-network regression suite for the service
+boundary around model replies. Run it whenever changing streaming, fallback,
+retry behavior, or risk-operation recognition:
+
+    python tools/run_all.py --suites renderer,transport
+
+It verifies all of the following without consuming model quota:
+
+- A direct request to change BIOS/UEFI settings is preflighted as high risk.
+- A direct request to uninstall/reinstall a driver is preflighted as medium risk.
+- A stream with no visible content and an empty completed fallback gets exactly
+  one extra completed-request retry.
+- A reply that already produced visible stream content never retries, so a
+  second answer cannot be appended to the first.

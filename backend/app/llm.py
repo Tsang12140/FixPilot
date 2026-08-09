@@ -44,6 +44,7 @@ SAFETY_POLICY = """【安全规则，优先级高于表达风格】
 - 风险标记规则：只要当轮给用户下达 R1 中风险操作，回复的第一个字符必须是 `[RISK:medium]`；只要涉及 R2 或 R3，第一个字符必须是 `[RISK:high]`。再换行开始正文。R0 、纯解释或纯提问不要输出标记。标记只用于界面渲染，不得解释标记本身。
 - 当输出 `[RISK:medium]` 或 `[RISK:high]` 时，不得输出 `[JOKE:*]` 或开玩笑；安全提示优先于人格表达。
 - 风险提示也需精简，包括标记在内不超过 250 字。
+- Classification clarification: entering and changing BIOS/UEFI settings, including boot order, XMP/EXPO, memory timing, voltage, or device switches, is R3. Begin with `[RISK:high]`; do not give click-by-click or key-by-key remote instructions. Explicitly identify uninstalling, reinstalling, rolling back, or DDU-cleaning any driver as R1 and begin with `[RISK:medium]` before the first actionable step.
 """
 
 STYLE_POLICIES = {
@@ -361,15 +362,22 @@ def stream_chat(
     if yielded_text:
         return
 
-    fallback_payload = dict(payload)
-    fallback_payload["stream"] = False
+    # No displayable token has reached the user, so one bounded retry cannot
+    # duplicate an answer. Providers occasionally finish an otherwise healthy
+    # request with empty content after a reasoning-only stream.
     fallback_timeout = httpx.Timeout(timeout=45.0, connect=12.0)
-    fallback = httpx.post(
-        url, headers=headers, json=fallback_payload, timeout=fallback_timeout,
-        **request_options,
-    )
-    fallback.raise_for_status()
-    fallback_text = extract_chat_completion_text(fallback.json())
-    if not fallback_text:
-        raise RuntimeError("Provider returned no displayable reply in stream or fallback")
-    yield fallback_text
+    for fallback_attempt in range(2):
+        fallback_payload = dict(payload)
+        fallback_payload["stream"] = False
+        fallback = httpx.post(
+            url, headers=headers, json=fallback_payload, timeout=fallback_timeout,
+            **request_options,
+        )
+        fallback.raise_for_status()
+        fallback_text = extract_chat_completion_text(fallback.json())
+        if fallback_text:
+            yield fallback_text
+            return
+        if fallback_attempt == 0:
+            time.sleep(0.25)
+    raise RuntimeError("Provider returned no displayable reply after one retry")
