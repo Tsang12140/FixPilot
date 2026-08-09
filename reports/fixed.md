@@ -299,3 +299,15 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: python tools/run_all.py --suites renderer,memes PASS (renderer 7, memes 7); python -m py_compile backend/app/memes.py backend/app/main.py backend/app/service.py backend/app/llm.py PASS; node --check backend/static/app.js PASS; git diff --check PASS. No live provider or paid API request was made.
 - Status: fixed in the working tree; visual browser automation could not initialize because this Codex runtime lacks its local browser-kernel assets, so one manual cache-refresh check remains before release.
 - Implementation commit: 16469b0 (fix: restrain roast reactions).
+
+---
+
+## 2026-08-10 Asia/Shanghai - blank page from missing autoResize
+
+- Fixing agent/model: DeepSeek-V4-Flash.
+- Symptom: after deploying the API-settings server migration, `https://ai.dnbox.cn/fixpilot/` rendered a blank page (background only). Console: `Uncaught ReferenceError: autoResize is not defined at app.js?v=47:2482:33`. Hard refresh did not help.
+- Confirmed root cause: `autoResize` was added to `backend/static/app.js` locally but never committed/pushed, so the server kept serving the old bundle; `index.html` still referenced `?v=47`.
+- Files changed: `backend/static/app.js` (added `autoResize()`); `backend/static/index.html` (cache tag `?v=47` -> `?v=48`).
+- Verification: `git diff` shows exactly the 14-line `autoResize` addition before the event binding; commit pushed to origin/main.
+- Final status: fixed in the repo and pushed. Requires `git pull` + uvicorn restart on the server (port 8135) to clear online.
+- Commit: 01fdb37.

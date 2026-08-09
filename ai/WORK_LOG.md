@@ -918,6 +918,17 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Implementation commit: `c95a900` (`fix: retain official fallback policy`).
 - Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.
 
+### 2026-08-10 - fix blank page from missing autoResize and redeploy chat UI
+
+- Request / problem: after the API-settings server migration was deployed, the site at `https://ai.dnbox.cn/fixpilot/` showed a blank page (background only). Developer console reported `Uncaught ReferenceError: autoResize is not defined at app.js?v=47:2482:33`, and a hard refresh did not help.
+- Finding / root cause: the `autoResize` function was added to `backend/static/app.js` locally but was never committed or pushed, so the server kept serving the old bundle. The version tag in `index.html` was still `?v=47`, so any cached copy also pointed at the stale file.
+- Changed:
+  - backend/static/app.js - added the `autoResize()` function (input textarea auto-height, max 240px) which the event binding at `input.addEventListener('input', autoResize)` already expected.
+  - backend/static/index.html - bumped the script cache tag from `app.js?v=47` to `app.js?v=48`.
+- Verified: `git diff` shows exactly the 14-line `autoResize` addition; the bundle now defines the symbol before the event-binding line. Commit pushed to origin/main.
+- Implementation commit: 01fdb37 (fix: add autoResize function and bump app.js cache version).
+- Follow-up / risk: the online server must pull this commit (`git pull origin main`) and restart uvicorn on port 8135 before the blank page clears. The deleted `backend/app/fixpilot.db` in the working tree was intentionally not committed/deployed; the live DB at `backend/fixpilot.db` is unaffected.
+
 ### 2026-08-10 - restrain roast-mode reactions and make shares render them compactly
 
 - Request / problem: the user rejected every canned productized roast line, asked to keep only the harmless approved memes, stop repetitive 6 reactions, add a compact chichi reaction, and fix a shared-link/long-image bug where a 6 bubble expanded like a full answer.
