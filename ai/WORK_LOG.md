@@ -954,3 +954,13 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: reviewed current `README.md`, `.gitignore`, `backend/.env.example`, `backend/app/main.py`, `backend/app/db.py`, `backend/app/auth.py`, `backend/requirements.txt`, and `ai/RELEASE_READINESS.md`; `git diff --check` pending after writing. No server access, production deployment, live model call, or sensitive configuration inspection was performed.
 - Commit: pending at handoff time.
 - Follow-up / risk: the runbook intentionally retains placeholders until the owner supplies the real hosting type, project path, service manager, domain, and backup location. Validate the final commands on the actual server before treating it as an operational record.
+
+### 2026-08-10 - correct deployment runbook to the actual production procedure
+
+- Request / problem: replace a newly written generic deployment guide after the project owner provided the verified real FixPilot procedure. The prior guide incorrectly assumed a systemd/Nginx/8000 deployment instead of the live `/www/wwwroot/fixpilot` + backend `.venv` + port 8135 + `pkill`/`nohup` workflow.
+- Investigation: verified the pre-existing incident record in commit `f2ce670` and implementation record `01fdb37`: the actual production blank-page repair used `git pull origin main`, Uvicorn restart at port 8135, `uvicorn.log`, and cache version bump from `app.js?v=47` to `?v=48`. The actual index currently references `app.js?v=48`.
+- Changed:
+  - `ai/DEPLOYMENT_RUNBOOK.md` - replaced generic/inferred instructions with the confirmed current production path, port, process lifecycle, cache workflow, blank-page incident, bounded safety additions, and AI handoff rules.
+- Verified: reviewed `f2ce670`, `01fdb37` record, `reports/fixed.md`, `backend/static/index.html`, and current backend health route. No production connection or command was run by this agent.
+- Commit: pending at handoff time.
+- Follow-up / risk: the reverse-proxy configuration is still not documented as a verified fact, so the runbook deliberately does not prescribe its management. If the process supervisor/path/port changes, update this runbook in the same deployment change.

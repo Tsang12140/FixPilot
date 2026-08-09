@@ -311,3 +311,15 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: `git diff` shows exactly the 14-line `autoResize` addition before the event binding; commit pushed to origin/main.
 - Final status: fixed in the repo and pushed. Requires `git pull` + uvicorn restart on the server (port 8135) to clear online.
 - Commit: 01fdb37.
+
+---
+
+## 2026-08-10 Asia/Shanghai - deployment handoff guide contained an incorrect generic server assumption
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the newly added deployment runbook described an unverified systemd/Nginx/8000 configuration, which did not match FixPilot's live server procedure and could have led a later maintainer to issue the wrong commands.
+- Confirmed root cause: the guide was written from generic repository hints instead of the already-verified deployment record supplied by the project owner.
+- Files changed: `ai/DEPLOYMENT_RUNBOOK.md`; `ai/WORK_LOG.md`.
+- Verification: reconciled against the recorded production incident `f2ce670`, its implementation commit `01fdb37`, the current `index.html` cache tag, and the `/api/health` route. No live server command was run.
+- Final status: fixed in the working tree; the runbook now names the actual project path, backend virtual environment, port 8135, `pkill`/`nohup` lifecycle, cache workflow, and known incident.
+- Commit: pending.
