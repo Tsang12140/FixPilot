@@ -1544,7 +1544,7 @@ function showReplyFailure(bubble, message, retryState) {
 
 /* ---------- 发送 ---------- */
 async function send(retryState = null) {
-  const isRetry = Boolean(retryState);
+  const isRetry = Boolean(retryState && typeof retryState.convId === 'string' && retryState.convId);
   const typedText = (input.value || '').trim();
   if (busy) return;
   if (isRetry && (!retryState || retryState.convId !== activeConvId)) {
@@ -2338,7 +2338,7 @@ modelDropdown.addEventListener('click', (e) => {
 });
 
 /* ---------- Events ---------- */
-sendBtn.addEventListener('click', send);
+sendBtn.addEventListener('click', () => send());
 input.addEventListener('input', autoResize);
 input.addEventListener('keydown', (e) => {
   // Enter 发送，Alt+Enter 换行（WPS 习惯）

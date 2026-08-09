@@ -323,6 +323,30 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   If the composer footer height changes, rerun the same geometry check rather
   than manually nudging only one sidebar element.
 
+### 2026-08-09 - prevent Send clicks from being mistaken for retries
+
+- Request / symptom: clicking Send in a new conversation displayed "return to
+  the original conversation to retry" instead of sending the pasted text.
+- Finding / root cause: `sendBtn.addEventListener('click', send)` handed the
+  browser `MouseEvent` to `send(retryState)`. `Boolean(retryState)` then put a
+  normal send into the retry path; the event has no `convId`, so the safety
+  guard rejected it.
+- Changed:
+  - `backend/static/app.js` - discard the click event explicitly and recognise
+    retry state only when it contains a non-empty string conversation ID.
+  - `AGENTS.md` - added an append-only per-bug `reports/fixed.md` rule that
+    complements, not replaces, the task handoff log and batch reports.
+  - `reports/fixed.md` - created the individual verified-fix ledger and
+    recorded this first event after its regression check passed.
+- Verified:
+  - headless browser clicked the actual Send button and observed one `/api/chat`
+    request with the new conversation ID and typed text, no false retry toast,
+    and an enabled Send button after completion;
+  - `node --check backend/static/app.js` and `git diff --check` passed.
+- Commit: pending (entry written before commit; see git history for final hash).
+- Follow-up / risk: keep the retry API object-shaped; do not reintroduce a
+  truthiness-only retry check or pass DOM events directly into `send`.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.
