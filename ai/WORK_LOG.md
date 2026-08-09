@@ -918,6 +918,15 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Implementation commit: `c95a900` (`fix: retain official fallback policy`).
 - Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.
 
+### 2026-08-10 - fix custom API test button broken on subpath deployment
+
+- Request / problem: online site at `https://ai.dnbox.cn/fixpilot/` reported frequent errors when using custom API settings.
+- Finding / root cause: `testApiSettings_action()` in `backend/static/app.js:2262` used `fetch('/api/test-api', ...)` with a leading slash. The `<base href="/fixpilot/">` tag makes relative URLs resolve correctly, but a URL starting with `/` resolves against the origin only (`ai.dnbox.cn/api/test-api`), bypassing the `/fixpilot/` nginx route and returning 404. This was the only fetch call in the entire app with a leading slash; all other 26 API calls used relative paths.
+- Changed: `backend/static/app.js:2262` - changed `'/api/test-api'` to `'api/test-api'`; `backend/static/index.html` - bumped cache tag from `?v=48` to `?v=49`.
+- Verified: grep confirms no remaining `fetch('/api` patterns in app.js; commit pushed to origin/main.
+- Implementation commit: b6de6d3.
+- Follow-up / risk: if the chat itself (not just the test button) also errors, check the server's `backend/logs/api-diagnostics.log` for provider-side errors.
+
 ### 2026-08-10 - fix blank page from missing autoResize and redeploy chat UI
 
 - Request / problem: after the API-settings server migration was deployed, the site at `https://ai.dnbox.cn/fixpilot/` showed a blank page (background only). Developer console reported `Uncaught ReferenceError: autoResize is not defined at app.js?v=47:2482:33`, and a hard refresh did not help.

@@ -314,6 +314,18 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 
 ---
 
+## 2026-08-10 Asia/Shanghai - custom API test button broken on subpath deployment
+
+- Fixing agent/model: DeepSeek-V4-Flash.
+- Symptom: online site at `https://ai.dnbox.cn/fixpilot/` reported frequent errors when using custom API settings. The "测试连接" button always failed.
+- Confirmed root cause: `testApiSettings_action()` at `backend/static/app.js:2262` used `fetch('/api/test-api', ...)` with a leading slash. With `<base href="/fixpilot/">`, a leading-slash URL resolves against the origin only (`ai.dnbox.cn/api/test-api`), bypassing the `/fixpilot/` nginx route. This was the only fetch call in the app with a leading slash; all other 26 calls used relative paths.
+- Files changed: `backend/static/app.js` (`'/api/test-api'` → `'api/test-api'`); `backend/static/index.html` (cache tag `?v=48` → `?v=49`).
+- Verification: grep confirms no remaining `fetch('/api` patterns; commit pushed to origin/main.
+- Final status: fixed in repo. Requires `git pull` + restart on server.
+- Commit: b6de6d3.
+
+---
+
 ## 2026-08-10 Asia/Shanghai - deployment handoff guide contained an incorrect generic server assumption
 
 - Fixing agent/model: Codex (GPT-5).
