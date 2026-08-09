@@ -347,6 +347,34 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
 - Follow-up / risk: keep the retry API object-shaped; do not reintroduce a
   truthiness-only retry check or pass DOM events directly into `send`.
 
+### 2026-08-09 - replace raw admin history dump with private conversation reader
+
+- Request / symptom: the admin history view rendered every user conversation as
+  a single raw transcript in the invite-management dialog. It was hard to scan
+  and lost the product's normal message hierarchy.
+- Finding / root cause: `showHistory` fetched all conversations and concatenated
+  title, role label, and escaped content into `ahist-*` text blocks. The public
+  share page has better visuals but is token-based and must not be used for
+  private admin viewing.
+- Changed:
+  - `backend/static/app.js` - replaced the raw dump with an authenticated
+    conversation list and read-only transcript renderer that reuses normal chat
+    bubbles, Markdown rendering, user avatars, memes, images, and timestamps.
+  - `backend/static/style.css` - added the private reader's desktop two-pane
+    layout and compact mobile horizontal conversation list.
+  - `backend/static/index.html` - bumped the app bundle cache version to 43.
+- Verified:
+  - headless browser loaded two mocked admin conversations, rendered two
+    chat-bubble rows with Markdown, showed no legacy role labels, and switched
+    to the second conversation correctly;
+  - mobile 390px test confirmed the conversation list becomes horizontal;
+  - `node --check backend/static/app.js`, `git diff --check`, and local `GET /`
+    HTTP 200 passed.
+- Commit: pending (entry written before commit; see git history for final hash).
+- Follow-up / risk: the existing admin endpoint still returns all messages for
+  an invite at once. Keep it for the current small-scale product; paginate or
+  add per-conversation retrieval if invite histories become large.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.

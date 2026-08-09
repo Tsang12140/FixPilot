@@ -599,27 +599,143 @@ async function delInvite(code) {
 
 async function showHistory(code) {
   const prev = adminBody.innerHTML;
-  adminBody.innerHTML = '<div class="acard-title">邀请码 ' + code + ' 的对话历史</div><div id="aHistoryBody"><div class="aempty">加载中...</div></div>' +
-    '<div class="aactions"><button class="a-btn ghost" id="aBack">返回</button></div>';
-  document.getElementById('aBack').addEventListener('click', () => { adminBody.innerHTML = prev; bindAdminEvents(); });
+  adminBody.classList.add('admin-history-body');
+  adminBody.innerHTML = '<div class="admin-history-reader">' +
+    '<div class="admin-history-toolbar"><button class="a-btn ghost admin-history-back" id="aBack" type="button">\u8fd4\u56de\u7ba1\u7406</button><div><strong>\u9080\u8bf7\u7801 ' + escapeHtml(code) + '</strong><span id="adminHistoryMeta">\u52a0\u8f7d\u5bf9\u8bdd\u4e2d...</span></div></div>' +
+    '<div class="admin-history-layout"><aside class="admin-conversation-list" id="adminConversationList"><div class="aempty">\u52a0\u8f7d\u4e2d...</div></aside><section class="admin-transcript-panel"><div class="admin-transcript-head"><strong id="adminTranscriptTitle">\u9009\u62e9\u4e00\u6bb5\u5bf9\u8bdd</strong><span id="adminTranscriptMeta"></span></div><div class="admin-transcript-empty" id="adminTranscriptEmpty">\u9009\u62e9\u5de6\u4fa7\u5bf9\u8bdd\u540e\u67e5\u770b\u5b8c\u6574\u8bb0\u5f55</div><div class="admin-transcript" id="adminTranscript"></div></section></div></div>';
+  document.getElementById('aBack').addEventListener('click', () => {
+    adminBody.classList.remove('admin-history-body');
+    adminBody.innerHTML = prev;
+    bindAdminEvents();
+  });
   try {
-    const r = await fetch('api/admin/invites/' + code + '/conversations', { headers: authHeaders() });
+    const r = await fetch('api/admin/invites/' + encodeURIComponent(code) + '/conversations', { headers: authHeaders() });
     const d = await r.json();
-    const convs = d.conversations || [];
-    const hb = document.getElementById('aHistoryBody');
-    if (!convs.length) { hb.innerHTML = '<div class="aempty">该邀请码还没有对话</div>'; return; }
-    let html = '';
-    for (const c of convs) {
-      html += '<div class="ahist-conv">' + escapeHtml(c.conv.title) + '</div>';
-      for (const m of c.messages) {
-        html += '<div class="ahist-msg ' + (m.role === 'user' ? 'user' : 'bot') + '"><span class="ahist-role">' +
-          (m.role === 'user' ? '用户' : '助手') + '</span><div>' + escapeHtml(m.content) + '</div></div>';
-      }
-    }
-    hb.innerHTML = html;
+    if (!r.ok) throw new Error(d.detail || 'history request failed');
+    renderAdminHistory(d.conversations || []);
   } catch (e) {
-    document.getElementById('aHistoryBody').innerHTML = '<div class="aempty">加载失败</div>';
+    const list = document.getElementById('adminConversationList');
+    if (list) list.innerHTML = '<div class="aempty">\u52a0\u8f7d\u5931\u8d25</div>';
   }
+}
+
+function adminHistoryTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function adminHistoryUserAvatar(avatarIdx) {
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar admin-history-user-avatar';
+  const img = document.createElement('img');
+  img.src = 'avatars/' + (Number(avatarIdx) || 1) + '.webp';
+  img.alt = '';
+  avatar.appendChild(img);
+  return avatar;
+}
+
+function makeAdminTranscriptMessage(message, avatarIdx) {
+  const isBot = message.role !== 'user';
+  const content = typeof message.content === 'string' ? message.content : '';
+  if (isBot && !content.trim() && !message.image) return null;
+
+  const row = document.createElement('div');
+  row.className = 'msg ' + (isBot ? 'bot' : 'user');
+  if (isBot) row.appendChild(botAvatar());
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  row.appendChild(bubble);
+
+  if (isBot) {
+    const memeId = memeIdFromMessage(content);
+    if (memeId) {
+      row.classList.add('meme-msg');
+      bubble.classList.add('meme-card');
+      const meme = document.createElement('img');
+      meme.className = 'meme-img';
+      meme.src = memeSrc(memeId);
+      meme.alt = 'FixPilot meme';
+      bubble.appendChild(meme);
+    } else {
+      renderBotMsg(row, content);
+    }
+  } else {
+    renderUserMsg(row, message.content, message.image || null);
+    row.appendChild(adminHistoryUserAvatar(avatarIdx));
+  }
+
+  const time = adminHistoryTime(message.created_at);
+  if (time) {
+    const timeEl = document.createElement('span');
+    timeEl.className = 'msg-time';
+    timeEl.textContent = time;
+    row.appendChild(timeEl);
+  }
+  return row;
+}
+
+function renderAdminHistory(convs) {
+  const list = document.getElementById('adminConversationList');
+  const transcript = document.getElementById('adminTranscript');
+  const empty = document.getElementById('adminTranscriptEmpty');
+  const title = document.getElementById('adminTranscriptTitle');
+  const meta = document.getElementById('adminTranscriptMeta');
+  const overview = document.getElementById('adminHistoryMeta');
+  if (!list || !transcript || !empty || !title || !meta || !overview) return;
+
+  if (!convs.length) {
+    list.innerHTML = '<div class="aempty">\u8fd9\u4e2a\u9080\u8bf7\u7801\u8fd8\u6ca1\u6709\u5bf9\u8bdd</div>';
+    overview.textContent = '\u6682\u65e0\u5bf9\u8bdd';
+    return;
+  }
+
+  overview.textContent = convs.length + ' \u4e2a\u5bf9\u8bdd\uff0c\u70b9\u5f00\u67e5\u770b';
+  let activeIndex = 0;
+
+  const renderConversation = (index) => {
+    activeIndex = index;
+    const entry = convs[index] || {};
+    const conv = entry.conv || {};
+    const messages = Array.isArray(entry.messages) ? entry.messages : [];
+    list.querySelectorAll('.admin-conversation-item').forEach((button, buttonIndex) => {
+      const selected = buttonIndex === index;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-current', selected ? 'true' : 'false');
+    });
+    title.textContent = conv.title || '\u672a\u547d\u540d\u5bf9\u8bdd';
+    meta.textContent = messages.length + ' \u6761\u6d88\u606f' + (conv.created_at ? ' \u00b7 ' + adminHistoryTime(conv.created_at) : '');
+    transcript.innerHTML = '';
+    empty.hidden = messages.length > 0;
+    if (!messages.length) {
+      empty.textContent = '\u8fd9\u6bb5\u5bf9\u8bdd\u8fd8\u6ca1\u6709\u6d88\u606f';
+      return;
+    }
+    for (const message of messages) {
+      const row = makeAdminTranscriptMessage(message, conv.avatar || 1);
+      if (row) transcript.appendChild(row);
+    }
+    transcript.scrollTop = 0;
+  };
+
+  list.innerHTML = '';
+  convs.forEach((entry, index) => {
+    const conv = entry.conv || {};
+    const messages = Array.isArray(entry.messages) ? entry.messages : [];
+    const last = messages[messages.length - 1] || conv;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'admin-conversation-item';
+    const itemTitle = document.createElement('strong');
+    itemTitle.textContent = conv.title || '\u672a\u547d\u540d\u5bf9\u8bdd';
+    const itemMeta = document.createElement('span');
+    itemMeta.textContent = messages.length + ' \u6761\u6d88\u606f' + (last.created_at ? ' \u00b7 ' + adminHistoryTime(last.created_at) : '');
+    button.append(itemTitle, itemMeta);
+    button.addEventListener('click', () => renderConversation(index));
+    list.appendChild(button);
+  });
+  renderConversation(activeIndex);
 }
 
 async function copyCode(code) {
