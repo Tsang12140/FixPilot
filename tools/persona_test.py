@@ -23,7 +23,6 @@ FixPilot 人设渐进式对话测试引擎（动态应答版）
 也可用 --tutor-key/--tutor-base/--tutor-model 覆盖。
 """
 import argparse
-import base64
 import json
 import os
 import re
@@ -36,6 +35,7 @@ import requests
 # 同目录导入
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scenarios import PERSONAS, SCENARIOS
+from testkit import create_conversation, configure_profile, login_as_admin, login_with_code, send_chat
 
 
 # ============================================================
@@ -225,133 +225,14 @@ def tutor_respond(cfg, persona, facts, history, fixpilot_reply, sent_images=None
 # FixPilot 后端交互
 # ============================================================
 
-def login_with_code(base, code):
-    r = requests.post(f"{base}/api/auth/invite-login", json={"code": code}, timeout=10)
-    r.raise_for_status()
-    return r.json()["token"]
-
-
-def login_as_admin(base, username, password):
-    r = requests.post(f"{base}/api/auth/admin-login", json={"username": username, "password": password}, timeout=10)
-    r.raise_for_status()
-    return r.json()["token"]
-
-
-def create_conversation(base, token, title="test"):
-    r = requests.post(
-        f"{base}/api/conversations",
-        json={"title": title},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=10,
-    )
-    r.raise_for_status()
-    return r.json()["id"]
-
+# ============================================================
+# FixPilot backend interaction: shared auth, profile setup and SSE parsing via testkit.
+# ============================================================
 
 def send_message(base, token, text, conv_id, image_path=None):
-    """发消息给 FixPilot，读取 SSE 流式回复。
-    返回 (reply, status, extra)。extra 含 risk/joke/options/error_detail。
+    """Send through the shared transport, preserving this suite's image root."""
+    return send_chat(base, token, text, conv_id, image_path, assets_dir=TOOLS_DIR)
 
-    图片用前端一致的 OpenAI 多模态格式发送（content 为数组，含 image_url dataURL），
-    否则后端 service._content_to_text 不会走 OCR，图片会被丢弃。
-    """
-    headers = {"Authorization": f"Bearer {token}"}
-    messages = []
-    if image_path:
-        full = os.path.join(TOOLS_DIR, image_path) if not os.path.isabs(image_path) else image_path
-        if os.path.isfile(full):
-            with open(full, "rb") as f:
-                img_b64 = base64.b64encode(f.read()).decode()
-            ext = os.path.splitext(image_path)[1].lower().lstrip(".")
-            mime = "image/png" if ext == "png" else "image/jpeg"
-            data_url = f"data:{mime};base64,{img_b64}"
-            content = [
-                {"type": "text", "text": text},
-                {"type": "image_url", "image_url": {"url": data_url, "thumbnail": data_url}},
-            ]
-            messages.append({"role": "user", "content": content})
-        else:
-            # 图片文件不存在，降级为纯文本，并标记
-            messages.append({"role": "user", "content": text + "  [图片文件缺失: " + image_path + "]"})
-            return _stream_chat(base, headers, messages, conv_id, image_missing=image_path)
-    else:
-        messages.append({"role": "user", "content": text})
-
-    return _stream_chat(base, headers, messages, conv_id)
-
-
-def _stream_chat(base, headers, messages, conv_id, image_missing=None):
-    body = {"messages": messages}
-    if conv_id:
-        body["convId"] = conv_id
-
-    try:
-        r = requests.post(f"{base}/api/chat", json=body, headers=headers, stream=True, timeout=120)
-    except requests.RequestException as e:
-        return "", 0, {"error": f"请求异常: {e}", "risk": False, "joke": False, "options": []}
-
-    if r.status_code != 200:
-        # 尝试读取错误体
-        try:
-            err_body = r.text[:500]
-        except Exception:
-            err_body = ""
-        return "", r.status_code, {
-            "error": err_body, "risk": False, "joke": False, "options": [],
-            "image_missing": image_missing,
-        }
-
-    full_reply = ""
-    risk = False
-    joke = False
-    options = []
-
-    for line in r.iter_lines(decode_unicode=True):
-        if not line:
-            continue
-        if line.startswith("data:"):
-            data = line[5:].strip()
-            if data == "__start__":
-                continue
-            elif data == "__end__":
-                break
-            elif data.startswith("__error__:"):
-                # The HTTP request succeeded. Preserve that fact so test reports
-                # distinguish an SSE/application failure from a real HTTP 500.
-                return "", 200, {
-                    "error": data[len("__error__:"):], "risk": False, "joke": False, "options": [],
-                    "image_missing": image_missing, "stream_error": True,
-                }
-            elif data.startswith("__risk__:"):
-                risk = True
-                continue
-            elif data.startswith("__joke__:"):
-                joke = True
-                continue
-            elif data.startswith("__profile_notice__:"):
-                continue
-            else:
-                try:
-                    full_reply += json.loads(data)
-                except (json.JSONDecodeError, TypeError):
-                    full_reply += data
-
-    # 解析选项
-    if "选项：" in full_reply or "选项:" in full_reply:
-        opt_match = re.search(r'选项[：:]\s*([\s\S]+)', full_reply)
-        if opt_match:
-            opt_text = opt_match.group(1)
-            opts = re.split(r'\n?\d+[.、)]\s*', opt_text)
-            options = [o.strip() for o in opts if o.strip()]
-
-    return full_reply, 200, {
-        "risk": risk, "joke": joke, "options": options, "image_missing": image_missing,
-    }
-
-
-# ============================================================
-# 对话主循环
-# ============================================================
 
 def grade_scenario(scenario, fixpilot_replies):
     """Grade broad clues separately from diagnosis-specific direction evidence."""
@@ -377,10 +258,28 @@ def grade_scenario(scenario, fixpilot_replies):
         "diagnosis_correct": diagnosis_correct,
     }
 
-def run_scenario(base, token, tutor_cfg, scenario, max_rounds=18, verbose=True):
+def run_scenario(base, token, tutor_cfg, scenario, max_rounds=18, verbose=True, profile_mode="explicit", response_style=None):
     """跑一个场景：陪练 AI 动态应答 FixPilot。"""
     persona = PERSONAS[scenario["persona"]]
     facts = scenario["facts"]
+    configured_profile = None
+    selected_style = response_style or persona["style"]
+    try:
+        if profile_mode == "explicit":
+            configured_profile = configure_profile(
+                base, token, persona["tech_level"], selected_style
+            )
+        else:
+            configured_profile = configure_profile(base, token, "unknown", "normal")
+    except Exception as exc:
+        return {
+            "scenario_id": scenario["id"], "persona": scenario["persona"],
+            "title": scenario["title"], "root_cause": scenario["grading"]["root_cause"],
+            "profile_mode": profile_mode, "configured_profile": None,
+            "rounds_completed": 0, "solved": False, "diagnosis_correct": False,
+            "evidence_hits": [], "conv_id": None, "rounds_log": [],
+            "bugs": [{"round": 0, "scenario": scenario["id"], "type": "profile_setup_error", "detail": str(exc)}],
+        }
     conv_id = create_conversation(base, token, title=f"test-{scenario['id']}")
     rounds_log = []
     bugs = []
@@ -474,6 +373,8 @@ def run_scenario(base, token, tutor_cfg, scenario, max_rounds=18, verbose=True):
         "persona": scenario["persona"],
         "title": scenario["title"],
         "root_cause": scenario["grading"]["root_cause"],
+        "profile_mode": profile_mode,
+        "configured_profile": configured_profile,
         "rounds_completed": len(rounds_log),
         "solved": solved,
         "diagnosis_correct": grading["diagnosis_correct"],
@@ -542,14 +443,14 @@ def _record_bugs(bugs, rnd, status, extra, reply, scenario, conv_id, img_path=No
 # ============================================================
 
 def run_persona_tests(base, token, tutor_cfg, persona_filter=None, scenario_filter=None,
-                     max_rounds=18, verbose=True):
+                     max_rounds=18, verbose=True, profile_mode="explicit", response_style=None):
     results = []
     for sc in SCENARIOS:
         if persona_filter and sc["persona"] != persona_filter:
             continue
         if scenario_filter and sc["id"] != scenario_filter:
             continue
-        result = run_scenario(base, token, tutor_cfg, sc, max_rounds, verbose)
+        result = run_scenario(base, token, tutor_cfg, sc, max_rounds, verbose, profile_mode, response_style)
         results.append(result)
         time.sleep(2)
     return results
@@ -585,6 +486,8 @@ def main():
     parser.add_argument("--persona", choices=["beginner", "intermediate", "advanced"], help="只跑指定人设")
     parser.add_argument("--scenario", help="只跑指定场景 ID (如 B01)")
     parser.add_argument("--max-rounds", type=int, default=18, help="单场景最大对话轮次")
+    parser.add_argument("--profile-mode", choices=["explicit", "unknown"], default="explicit", help="explicit=manual level; unknown=inference path")
+    parser.add_argument("--response-style", choices=["normal", "roast", "concise"], default=None, help="override persona style to test the level/style axes separately")
     parser.add_argument("--output", default=None, help="结果输出到 JSON 文件")
     # 陪练 LLM 配置
     parser.add_argument("--tutor-key", help="陪练 AI 的 API Key（默认读 backend/.env）")
@@ -615,7 +518,7 @@ def main():
     results = run_persona_tests(
         args.base, token, tutor_cfg,
         persona_filter=args.persona, scenario_filter=args.scenario,
-        max_rounds=args.max_rounds, verbose=True,
+        max_rounds=args.max_rounds, verbose=True, profile_mode=args.profile_mode, response_style=args.response_style,
     )
 
     total_bugs = summarize(results)

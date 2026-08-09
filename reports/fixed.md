@@ -86,3 +86,35 @@ Append-only. One entry per verified fix.
 - Verification: local wrong-path I03 fixture now fails, a compatibility-path fixture passes, and a two-group browser-memory fixture passes.
 - Final status: code fixed; full nine-scenario rebaseline remains required.
 - Commit: `committed atomically with this implementation; inspect Git history for the final hash`.
+
+
+### 2026-08-09 Asia/Shanghai — test option parser emitted no cards
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the new shared test helper never extracted the existing plain-text 选项 list, so a regression result could omit observed choices.
+- Confirmed root cause: the regular expression stored Unicode escapes inside a raw string, making it search for the literal text backslash-u instead of 选项.
+- Files changed: tools/testkit.py.
+- Verification: a no-network mocked assertion parsed two numbered Chinese choices; Python compilation passed.
+- Final status: fixed and verified.
+- Commit: pending.
+
+### 2026-08-09 Asia/Shanghai — persona runner profile mode was unreachable
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: persona_test.py passed args.profile_mode to the runner but did not register --profile-mode, so a real CLI run would fail before testing.
+- Confirmed root cause: the partial integration added the runner parameter but omitted the command-line parser entry.
+- Files changed: tools/persona_test.py.
+- Verification: persona_test.py --help exposes --profile-mode; a mocked two-round scenario verified both explicit and unknown profile setup paths.
+- Final status: fixed and verified.
+- Commit: pending.
+
+
+### 2026-08-09 Asia/Shanghai — modular runner CLI did not compile after axis override
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: after adding independent response-style coverage, run_all.py had the new argument inserted in the middle of the multi-line profile-mode argument, so the command could not start.
+- Confirmed root cause: a line-oriented edit did not preserve the surrounding multi-line argparse call.
+- Files changed: tools/run_all.py.
+- Verification: Python compilation passed; run_all.py --help and persona_test.py --help both expose profile-mode and response-style.
+- Final status: fixed and verified.
+- Commit: pending.

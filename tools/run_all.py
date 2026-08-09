@@ -1,102 +1,139 @@
-"""
-FixPilot 一键跑全部测试
-先跑注入测试，再跑人设测试，最后汇总输出报告
-用法: python tools/run_all.py --base http://127.0.0.1:8000 --code 4CDB97
+"""FixPilot modular product-test runner.
+
+Project suites own their own truth and assertions. This runner only coordinates
+authentication, selection, artifacts, and a truthful exit code.
 """
 import argparse
 import json
-import sys
 import os
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 
-# 同目录导入
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from injection_test import login_with_code, login_as_admin, run_tests as run_injection_tests
-from persona_test import run_persona_tests, load_tutor_config
+from injection_test import run_tests as run_injection_tests
+from persona_test import load_tutor_config, run_persona_tests
+from safety_test import run_tests as run_safety_tests
+from testkit import login_as_admin, login_with_code
+
+ALL_SUITES = ("injection", "safety", "persona")
+
+
+def summarize_status(items):
+    summary = {"PASS": 0, "FAIL": 0, "ERROR": 0, "REVIEW": 0}
+    for item in items:
+        status = item.get("status")
+        if status in summary:
+            summary[status] += 1
+    return summary
+
+
+def persona_statuses(results):
+    """Map persona results to statuses without hiding bugs as a successful run."""
+    mapped = []
+    for result in results:
+        bugs = result.get("bugs") or []
+        status = "PASS"
+        if any(
+            bug.get("type") in {"http_error", "stream_error", "empty_reply", "profile_setup_error"}
+            for bug in bugs
+        ):
+            status = "ERROR"
+        elif bugs or not result.get("diagnosis_correct"):
+            status = "FAIL"
+        mapped.append({"id": result.get("scenario_id"), "status": status})
+    return mapped
+
+
+def parse_suites(raw):
+    requested = tuple(item.strip() for item in raw.split(",") if item.strip())
+    invalid = sorted(set(requested) - set(ALL_SUITES))
+    if invalid:
+        raise ValueError(f"unknown suite(s): {', '.join(invalid)}")
+    return requested or ALL_SUITES
 
 
 def main():
-    parser = argparse.ArgumentParser(description="FixPilot 一键跑全部测试")
-    parser.add_argument("--base", default="http://127.0.0.1:8000", help="服务地址")
-    parser.add_argument("--code", help="邀请码")
+    parser = argparse.ArgumentParser(description="FixPilot 模块化产品回归测试")
+    parser.add_argument("--base", default="http://127.0.0.1:8000", help="FixPilot 服务地址")
+    parser.add_argument("--code", help="邀请码登录")
     parser.add_argument("--admin-user", help="管理员用户名")
     parser.add_argument("--admin-pass", help="管理员密码")
-    parser.add_argument("--skip-injection", action="store_true", help="跳过注入测试")
-    parser.add_argument("--skip-persona", action="store_true", help="跳过人设测试")
+    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：injection,safety,persona")
+    parser.add_argument("--skip-injection", action="store_true", help="兼容旧命令：跳过 injection")
+    parser.add_argument("--skip-safety", action="store_true", help="跳过 safety")
+    parser.add_argument("--skip-persona", action="store_true", help="兼容旧命令：跳过 persona")
     parser.add_argument("--persona", choices=["beginner", "intermediate", "advanced"], help="只跑指定人设")
-    parser.add_argument("--output-dir", default=None, help="结果输出目录")
-    parser.add_argument("--tutor-key", help="陪练 AI 的 API Key（默认读 backend/.env）")
-    parser.add_argument("--tutor-base", help="陪练 AI 的 base url（默认读 backend/.env）")
-    parser.add_argument("--tutor-model", help="陪练 AI 的模型名（默认读 backend/.env）")
+    parser.add_argument("--profile-mode", choices=["explicit", "unknown"], default="explicit", help="explicit=manual selection; unknown=inference path")
+    parser.add_argument("--response-style", choices=["normal", "roast", "concise"], default=None, help="override persona style for axis-isolated coverage")
+    parser.add_argument("--max-rounds", type=int, default=18, help="每个人设场景最多轮数")
+    parser.add_argument("--output-dir", default="reports/test-runs", help="JSON result directory; defaults to local evidence")
+    parser.add_argument("--tutor-key", help="陪练 AI API key；不会写入结果文件")
+    parser.add_argument("--tutor-base", help="陪练 AI base URL")
+    parser.add_argument("--tutor-model", help="陪练 AI 模型")
     args = parser.parse_args()
 
-    # 登录
+    try:
+        suites = set(parse_suites(args.suites))
+    except ValueError as exc:
+        parser.error(str(exc))
+    for suite, skip in (("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
+        if skip:
+            suites.discard(suite)
+    if not suites:
+        parser.error("没有选择要运行的测试模块")
+
     if args.admin_user and args.admin_pass:
-        print(f"管理员登录: {args.admin_user}")
         token = login_as_admin(args.base, args.admin_user, args.admin_pass)
     elif args.code:
-        print(f"邀请码登录: {args.code}")
         token = login_with_code(args.base, args.code)
     else:
-        print("需要 --code 或 --admin-user/--admin-pass")
-        sys.exit(1)
+        parser.error("需要 --code 或 --admin-user/--admin-pass")
 
-    print(f"登录成功\n")
-    all_results = {}
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    all_results = {
+        "schema_version": 1,
+        "project": "FixPilot",
+        "started_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "base_url": args.base,
+        "selected_suites": sorted(suites),
+        "profile_mode": args.profile_mode,
+        "response_style": args.response_style,
+        "results": {},
+    }
 
-    # 1. 注入测试
-    if not args.skip_injection:
-        print(f"\n{'#'*60}")
-        print(f"# Phase 1: 注入边界测试 (12 类)")
-        print(f"{'#'*60}\n")
-        injection_results = run_injection_tests(args.base, token)
-        all_results["injection"] = injection_results
-
-    # 2. 人设测试
-    if not args.skip_persona:
-        print(f"\n{'#'*60}")
-        print(f"# Phase 2: 人设渐进式对话测试")
-        print(f"{'#'*60}\n")
+    if "injection" in suites:
+        print("\n# injection：提示词注入边界")
+        all_results["results"]["injection"] = run_injection_tests(args.base, token)
+    if "safety" in suites:
+        print("\n# safety：风险提示与停止指导")
+        all_results["results"]["safety"] = run_safety_tests(args.base, token)
+    if "persona" in suites:
+        print("\n# persona：动态用户人设与故障诊断")
         tutor_cfg = load_tutor_config(args)
-        print(f"陪练 LLM: {tutor_cfg['model']} @ {tutor_cfg['url']}\n")
-        persona_results = run_persona_tests(args.base, token, tutor_cfg, persona_filter=args.persona)
-        all_results["persona"] = persona_results
+        print(f"陪练模型：{tutor_cfg['model']} @ {tutor_cfg['url']}")
+        all_results["results"]["persona"] = run_persona_tests(
+            args.base, token, tutor_cfg, persona_filter=args.persona,
+            max_rounds=args.max_rounds, profile_mode=args.profile_mode, response_style=args.response_style,
+        )
 
-    # 3. 汇总
-    print(f"\n{'='*60}")
-    print(f"全部测试完成")
-    print(f"{'='*60}")
+    all_results["finished_at"] = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    all_results["summary"] = {}
+    failed = False
+    print("\n" + "=" * 64 + "\n测试摘要\n" + "=" * 64)
+    for suite, results in all_results["results"].items():
+        statuses = persona_statuses(results) if suite == "persona" else results
+        summary = summarize_status(statuses)
+        all_results["summary"][suite] = summary
+        failed = failed or any(summary[key] for key in ("FAIL", "ERROR", "REVIEW"))
+        print(f"{suite}: PASS {summary['PASS']} / FAIL {summary['FAIL']} / ERROR {summary['ERROR']} / REVIEW {summary['REVIEW']}")
 
-    if all_results.get("injection"):
-        inj = all_results["injection"]
-        passed = sum(1 for r in inj if r["status"] == "PASS")
-        failed = sum(1 for r in inj if r["status"] == "FAIL")
-        print(f"注入测试: {passed} PASS / {failed} FAIL / {len(inj)} 总计")
-
-    if all_results.get("persona"):
-        per = all_results["persona"]
-        total_rounds = sum(r["rounds_completed"] for r in per)
-        total_bugs = sum(len(r["bugs"]) for r in per)
-        correct = sum(1 for r in per if r["diagnosis_correct"])
-        solved = sum(1 for r in per if r["solved"])
-        print(f"人设测试: {len(per)} 场景 / {total_rounds} 轮 / 查对{correct} / 解决{solved} / bug{total_bugs}")
-
-    # 输出 JSON
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
-        out_file = os.path.join(args.output_dir, f"test-{ts}.json")
-        with open(out_file, "w", encoding="utf-8") as f:
-            json.dump(all_results, f, ensure_ascii=False, indent=2)
-        print(f"\n结果已保存到 {out_file}")
+        output_path = os.path.join(args.output_dir, "test-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".json")
+        with open(output_path, "w", encoding="utf-8") as result_file:
+            json.dump(all_results, result_file, ensure_ascii=False, indent=2)
+        print(f"\n结果已保存：{output_path}")
 
-    # 非 0 退出如果有问题
-    has_failures = False
-    if all_results.get("injection"):
-        has_failures = any(r["status"] == "FAIL" for r in all_results["injection"])
-    if all_results.get("persona"):
-        has_failures = has_failures or any(r["bugs"] or not r["diagnosis_correct"] for r in all_results["persona"])
-    sys.exit(1 if has_failures else 0)
+    raise SystemExit(1 if failed else 0)
 
 
 if __name__ == "__main__":

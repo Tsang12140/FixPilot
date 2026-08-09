@@ -577,6 +577,36 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
 - Commit: `committed atomically with this implementation; inspect Git history for the final hash`; unrelated prior uncommitted work remains intentionally unstaged.
 - Follow-up / risk: run all 9 scenarios with the tightened grader before renaming the report `-fixed`. I03's content-quality regression (wrong branch after runtime-library checks) is now visible and needs product/prompt work; do not hide it behind the P1 transport fix.
 
+### 2026-08-09 - modularize the product test workflow and preserve design context
+
+- Request / symptom: turn the dynamic persona-test handoff into a dependable, reusable testing process; make “我要测试” meaningful to later AI agents; retain the useful Trae product conversation in the repository.
+- Finding / root cause:
+  - the original tools duplicated authentication/SSE behavior and did not give the orchestration layer a consistent ERROR/REVIEW result model;
+  - persona tests could visually simulate a user level without proving the backend had received that level;
+  - safety behavior had no focused live-regression suite;
+  - durable context existed only in an external share link and a one-off handoff.
+- Changed:
+  - AGENTS.md - added the repository test-workflow trigger and mandatory reading order for future agents.
+  - ai/Testing/ - added the workflow, FixPilot-specific test profile, and new-project template.
+  - ai/Chats/ - added a sanitised archive convention and the Trae dynamic-persona-test decision record.
+  - tools/testkit.py - centralized authentication, profile setup verification, conversation creation, image payload creation, SSE parsing, and failure classification.
+  - tools/persona_test.py - uses the shared transport and supports explicit/unknown backend profile modes plus an independent response-style override.
+  - tools/injection_test.py - shares transport semantics so an error cannot be counted as a defended attack.
+  - tools/safety_test.py - added FixPilot-specific medium/high risk notice and stop-guidance regression cases.
+  - tools/run_all.py - added modular suite selection, independent style selection, structured summaries, non-zero exit for FAIL/ERROR/REVIEW, and default local result artifacts.
+  - .gitignore - excludes generated local test result JSON.
+- Verified:
+  - Python compilation passed for every changed test module;
+  - the run_all and persona_test command help expose suite selection, profile mode, and response-style override;
+  - no-network mocked checks passed for numbered-option parsing, request/SSE classification, risk PASS/FAIL/REVIEW classification, and explicit/unknown persona profile setup;
+  - git diff --check passed, the local health endpoint returned status ok, and the new test modules contain no literal question-mark corruption.
+  - the live tutor/full-product suite was deliberately not run: it would consume external model quota and needs a chosen local account; no live-product PASS is claimed.
+- Commit: pending.
+- Follow-up / risk:
+  - rerun all nine persona scenarios with the tightened evidence grading before declaring the historic full-suite score current;
+  - UI regressions remain browser/manual checks until a stable browser suite is added;
+  - for a different project, copy the playbook/template and write that project’s own truth fixtures rather than copying FixPilot’s scenarios.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.

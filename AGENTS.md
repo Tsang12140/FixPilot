@@ -32,3 +32,25 @@ record below:
 When a batch repairs several bugs, write both: one `fixed.md` entry for every
 verified individual fix and one batch report containing the complete findings,
 coverage, regression result, and remaining risks.
+
+
+## Test workflow trigger
+
+When the user says “我要测试”, “跑测试”, “回归测试”, “测一下”, or
+otherwise asks to test a change, treat it as a product-validation request — not
+a request to run only compilation/static checks.
+
+Before selecting or running tests, read:
+
+1. ai/Testing/README.md;
+2. ai/Testing/TESTING_PLAYBOOK.md; and
+3. the current project profile, ai/Testing/FixPilot_TEST_PROFILE.md.
+
+Choose the smallest sufficient module set from that profile, state whether a
+live/paid model call is involved, preserve a structured result artifact, and
+classify outcomes as PASS, FAIL, ERROR, or REVIEW. ERROR/REVIEW must never be
+reported as passed. For a real bug fix, retain the existing requirements for
+reports/fixed.md, a batch report where applicable, and ai/WORK_LOG.md.
+
+For another project, copy the testing playbook, the project-profile template,
+and this trigger section into that repository before asking an AI to “test”.
