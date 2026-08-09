@@ -67,7 +67,7 @@ let bindBannerShown = false;  // 本次会话是否已弹过绑定提示条
 let bindBannerDismissed = false; // 用户已手动关闭提示条，本次会话不再弹
 let currentUser = null;       // /api/auth/me 返回的完整用户对象
 let currentProfile = null;
-let platformModelName = 'deepseek-v4-flash'; // ??????????????    // 后端保存的回答偏好与技术水平画像
+let platformModelName = 'deepseek-v4-flash'; // 后端返回的当前平台模型名
 
 /* ---------- 随机用户头像（42 张 WebP，首次登录随机分配） ---------- */
 const AVATAR_KEY = 'fixpilot_avatar';

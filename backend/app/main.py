@@ -444,12 +444,16 @@ def get_shared(token: str):
 
 @app.post("/api/title")
 def title(req: TitleRequest, authorization: Optional[str] = Header(None)):
+    payload = _require_auth(authorization)
     t = (req.question or "").strip()
     if not t:
         title = "新对话"
     else:
         title = t[:12]
     if req.convId:
+        conv = db.get_conversation(req.convId)
+        if not conv or conv["invite_code"] != _owner(payload):
+            raise HTTPException(status_code=404, detail="会话不存在")
         db.update_conversation_title(req.convId, title)
     return {"title": title}
 
@@ -527,7 +531,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
 
     def gen():
         yield "data:__start__\n\n"
-        attempt_id = api_diagnostics.start("chat", req.apiBase or "", req.model or "", req.apiKey or "") if use_custom_api else ""
+        attempt_id = api_diagnostics.start("chat", req.apiBase or "", req.model or "", req.apiKey or "", conv_id=conv_id) if use_custom_api else api_diagnostics.start("chat", "", "", "", conv_id=conv_id)
         acc = []
         prefix = []
         effect = None
@@ -590,8 +594,9 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         except Exception as exc:
             message = "服务出错，请稍后重试"
             if attempt_id:
-                api_diagnostics.failure(attempt_id, exc)
-                message = api_diagnostics.public_message(exc, attempt_id)
+                api_diagnostics.failure(attempt_id, exc, conv_id=conv_id)
+                if use_custom_api:
+                    message = api_diagnostics.public_message(exc, attempt_id)
             yield f"data: __error__:{message}\n\n"
             return
 
@@ -599,12 +604,12 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         if not full:
             empty_reply_error = RuntimeError("Provider returned an empty streamed reply")
             if attempt_id:
-                api_diagnostics.failure(attempt_id, empty_reply_error)
+                api_diagnostics.failure(attempt_id, empty_reply_error, conv_id=conv_id)
             yield "data: __error__:服务没有返回可显示的回复，请重试。\n\n"
             return
 
         if attempt_id:
-            api_diagnostics.success(attempt_id)
+            api_diagnostics.success(attempt_id, conv_id=conv_id)
 
         user_text, user_image = _content_to_text_and_image(req.messages[-1].get("content")) if req.messages else ("", None)
         db.add_message(conv_id, "user", user_text, user_image)

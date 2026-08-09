@@ -323,6 +323,135 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   If the composer footer height changes, rerun the same geometry check rather
   than manually nudging only one sidebar element.
 
+### 2026-08-09 - rebuild testing tools suite
+
+- Request / symptom: user wanted the deleted test scripts (`_injection_test.py` etc.)
+  rebuilt into a proper `tools/` folder, plus a new persona-based progressive
+  dialogue test system simulating 3 user levels (beginner/intermediate/advanced)
+  with ~20 rounds per scenario including image uploads.
+- What was built:
+  - `tools/injection_test.py` - rebuilt 12 attack scenarios from report20260808_001
+  - `tools/scenarios.py` - 10 progressive dialogue scenarios (4 beginner, 3 intermediate,
+    3 advanced) with trigger-based step-by-step disclosure
+  - `tools/persona_test.py` - progressive dialogue test engine with quality analysis
+  - `tools/run_all.py` - one-click runner (injection + persona)
+  - `tools/images/` - 4 AI-generated test images (BSOD, error dialog, device manager,
+    task manager)
+- Files changed: all new files under `tools/`. No backend code changes.
+- Verified: not yet run against live server (needs running FixPilot backend + valid
+  invite code or admin credentials).
+- Commit: not committed yet.
+- Follow-up / risk: persona_test.py currently does not create conversations via API
+  first (sends messages without convId, so backend auto-creates). Multi-turn context
+  depends on backend storing messages by conversation. The trigger matching is
+  keyword-based and may miss some AI reply variations. Image upload uses base64
+  encoding in the message body (matching frontend behavior).
+
+### 2026-08-09 - fix image upload + add conv_id to diagnostics logs
+
+- Request / symptom: image upload fails with 400 on Ark Responses API; also need
+  diagnostics logs to carry conv_id so AI can trace errors from a conversation URL.
+- Finding / root cause: `build_responses_payload` in `llm.py` was missing `type: "message"`
+  and `status: "completed"` on user input items. Ark Responses API requires both fields
+  on all input items. The error only surfaced when conversation history existed (multi-turn
+  with image), because the first turn had no prior messages to validate.
+  Separately, `api_diagnostics` logs had no conv_id, and platform API errors (non-custom
+  API) were not logged at all.
+- Changed:
+  - `backend/app/llm.py:216-229` - added `type: "message"` + `status: "completed"` to both
+    user and assistant input items in `build_responses_payload`; also fixed the fallback
+    empty-input default item.
+  - `backend/app/api_diagnostics.py:50` - `start()` now accepts `conv_id` parameter and
+    writes it into the log entry.
+  - `backend/app/api_diagnostics.py:67` - `success()` now accepts `conv_id`.
+  - `backend/app/api_diagnostics.py:97` - `failure()` now accepts `conv_id`.
+  - `backend/app/main.py:534` - platform API errors now also create diagnostics entries
+    (not just custom API); all `start/success/failure` calls pass `conv_id`.
+  - `backend/app/main.py:597-607` - failure messages for platform API show generic text
+    (not the provider-specific `public_message` which is only for custom API).
+- Verified: `py_compile` passed for llm.py, api_diagnostics.py, main.py. Needs runtime test
+  with image upload on Ark Responses API to confirm 400 is gone.
+- Commit: not committed yet.
+- Follow-up / risk: the `public_message` function is only called for `use_custom_api` now;
+  platform API errors show "服务出错，请稍后重试" which is less specific. If users need
+  more detail on platform errors, `public_message` could be extended to non-custom cases.
+  The `test_chat_connection` function in llm.py still calls `start()` without `conv_id`
+  (test requests have no conversation context).
+
+### 2026-08-09 - write fix records back into reports
+
+- Request / symptom: after fixing all bugs and renaming reports with `-fixed`, write the
+  fix details back into each report per the new iron rule (per-bug fix section + status
+  column + fix date).
+- Finding / root cause: two reports needed updates.
+- Changed:
+  - `reports/report20260808_001-fixed.md` - added fix date; added status column to summary
+    table; appended `#### 修复` sections after P1 (llm.py:68) and P3 (llm.py:44); updated
+    `## 8. 变更文件` section.
+  - `reports/report20260809_001-fixed.md` - added fix date; changed title from "只检不修"
+    to plain; added status column to summary table; appended `#### 修复` sections after
+    F1-F7; rewrote "交给下一步" from suggestions to executed; updated `## 变更文件` section.
+  - `project_memory.md` - added iron rule: fixed reports must contain per-bug fix sections
+    (file:line, method, verification), status column, and fix date.
+- Verified: both reports re-read to confirm structure matches the new iron rule.
+- Commit: not committed yet.
+- Follow-up / risk: prompt-level fixes (P1/P3) need runtime regression tests to confirm
+  the hallucination and length issues are actually resolved.
+
+### 2026-08-09 - fix all bugs found in reports
+
+- Request / symptom: fix all bugs listed in reports under `reports/`, rename fixed reports
+  with `-fixed` suffix, add this naming convention to the iron rules.
+- Finding / root cause: two reports contained 9 fixable items total (7 from the layered
+  search + 2 prompt-level from the injection test report).
+- Changed:
+  - `backend/static/app.js` - F1: fixed corrupted comment at line 70.
+  - `backend/app/main.py` - F3: added `_require_auth` + ownership check to `/api/title`.
+  - `backend/app/knowledge.py` - F4: wrapped `load_chunks()` in try/except, returns `[]` on
+    FileNotFoundError or other errors.
+  - `backend/app/llm.py` - F6: removed dead `SYSTEM_PROMPT`; P1: added anti-hallucination
+    constraint to `LEVEL_POLICIES["unknown"]`; P3: added 250-char limit to SAFETY_POLICY.
+  - `backend/app/db.py` - F7: enabled WAL mode in `_connect()`.
+  - `backend/static/index.html` - bumped `app.js` cache version to 41.
+  - Deleted: `backend/app/fixpilot.db` (F2), `_injection_test.py` / `_test_joke.py` /
+    `_mktest.py` (F5).
+  - `reports/report20260808_001.md` → renamed to `report20260808_001-fixed.md`.
+  - `reports/report20260809_001.md` → renamed to `report20260809_001-fixed.md`.
+- Verified:
+  - `py_compile` passed for main.py, llm.py, knowledge.py, db.py.
+  - `node --check` passed for app.js.
+- Commit: not committed yet.
+- Follow-up / risk: WAL mode creates `fixpilot.db-wal` and `fixpilot.db-shm` sidecar files;
+  ensure they are included in backups. The anti-hallucination constraint in
+  `LEVEL_POLICIES["unknown"]` is prompt-based; re-test with injection scenarios to confirm.
+
+### 2026-08-09 - layered bug search (search only, no fixes)
+
+- Request / symptom: run `ai/FixPilot_分层Bug检索与修复流程_v1.1.md` end to end but only
+  search, do not fix; archive the report per the project rule (reports/reportYYYYMMDD_NNN.md).
+- Finding / root cause: Phase A (10-class matrix) + Phase B (Layer 0-2) found 7 items.
+  Confirmed: F1 corrupted comment at `backend/static/app.js:70` (`// ??????????????`);
+  F2 duplicate sqlite file `backend/app/fixpilot.db` (in-use path is `backend/fixpilot.db`
+  per `db.py:9`); F3 `/api/title` in `backend/app/main.py:445-454` has no `_require_auth`
+  and no ownership check, so any client can rename any conversation; F4 module-level
+  `_chunks = load_chunks()` in `main.py:31` crashes the app at startup if the transcript
+  file is missing (no degrade); F5 leftover debug scripts `_injection_test.py`,
+  `_test_joke.py`, `_mktest.py`; F6 dead `SYSTEM_PROMPT` in `llm.py:104` (no callers).
+  To-verify (low): F7 SQLite write concurrency across multiple uvicorn workers (single
+  process `threading.Lock`, no WAL). No gaps found in injection/XSS/authz-on-other-routes/
+  streaming/quota -1.
+- Changed:
+  - `reports/report20260809_001.md` - added full Phase A + Phase B (Layer 0-2) report.
+  - `ai/WORK_LOG.md` - this entry.
+- Verified: all findings backed by file:line + code excerpts; cross-checked every route for
+  auth, every `json.dumps` for `ensure_ascii=False`, every `open()` for encoding, and the
+  frontend risk/profile enums against the backend. No code was modified.
+- Commit: not committed yet.
+- Follow-up / risk: only F3 (and optionally F4) are worth fixing soon; F1/F2/F5/F6 are
+  hygiene. This round intentionally did not fix anything per the user's instruction. If a
+  later round is authorized, patch F3 first (mirror `share_conv` authz) and F4 (guard
+  `load_chunks`).
+
 ### 2026-08-09 - prevent Send clicks from being mistaken for retries
 
 - Request / symptom: clicking Send in a new conversation displayed "return to
@@ -374,6 +503,79 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
 - Follow-up / risk: the existing admin endpoint still returns all messages for
   an invite at once. Keep it for the current small-scale product; paginate or
   add per-conversation retrieval if invite histories become large.
+
+### 2026-08-09 - persona test run + fix AI refusing images
+
+- Request / symptom: run full persona-based progressive dialogue tests (3
+  personas x 3 scenarios = 9 scenarios), record bugs found to
+  `reports/report20260809_002.md`, fix and continue. User clarified that
+  `scenarios.py` must store complete fault truth (symptoms, hardware, timeline,
+  outcomes, images, grading), NOT predicted dialogue scripts; the tutor AI
+  dynamically responds based on facts + persona style.
+- Finding / root cause:
+  - Confirmed `scenarios.py` already stores complete fault truth (facts +
+    grading), not dialogue scripts. Persona only affects the tutor AI's
+    expression style, not the facts.
+  - Ran 9 scenarios (71 rounds total): 8/9 solved, 9/9 correct diagnosis
+    direction. Found 3 bugs + 1 test coverage gap:
+    - P1 (I03 R11): HTTP 500 empty reply when user asked about DEP settings
+      (conv_id: c72dd6831137cedd4). Likely DeepSeek API timeout/limit on long
+      context. NOT fixed.
+    - P2 (A03 R2 + A02 R6): AI proactively tells users "别发图，我看不了图"
+      and "我这边看不到截图". Root cause: `llm.py:13` BASE_POLICY said
+      "不能真正看图", AI interpreted as "cannot process any images" and
+      refused images, despite having OCR pipeline. FIXED.
+    - P3: test coverage gap - tutor AI (deepseek-chat) never output [IMG:path]
+      tags in 71 rounds, so OCR pipeline was not tested at all.
+- Changed:
+  - `backend/app/llm.py:13` - rewrote BASE_POLICY boundary line: "能识别用户
+    上传截图中的文字（如蓝屏代码、错误对话框、设备管理器状态、任务管理器
+    数值）；用户发来截图时应鼓励，不要说'看不了图'或拒绝接收。但不能'看图'
+    判断硬件外观、接线是否正确、屏幕画面等需要视觉判断的内容..."
+  - `reports/report20260809_002.md` - created full test report with 3 bugs +
+    1 coverage gap, speed table, per-scenario details, P2 fix section.
+  - `reports/fixed.md` - appended P2 fix entry per the per-bug ledger rule.
+- Verified:
+  - `py_compile` passed for `llm.py`.
+  - Backend uvicorn restarted successfully (old PID 60580 stopped, new PID
+    59824 running on port 8000).
+  - Health endpoint returns `{"status":"ok","chunks":80}`.
+  - Test results saved to `tools/persona_results.json`.
+- Commit: not committed yet.
+- Follow-up / risk:
+  - P1 (HTTP 500) needs investigation: check `backend/logs/api-diagnostics.log`
+    for conv_id `c72dd6831137cedd4` to find the exact error. May need retry
+    logic or context truncation for long conversations.
+  - P2 fix needs verification: re-run A03 scenario to confirm AI no longer
+    says "看不了图".
+  - P3 coverage gap: improve `persona_test.py` tutor AI prompt to force image
+    sending when FixPilot asks for screenshots, or add `must_send_round` field
+    to scenarios.
+  - The report is NOT renamed to `-fixed` because P1 and P3 are still open.
+
+### 2026-08-09 - take over persona-test framework and validate the first fixes
+
+- Request / symptom: audit and take over `ai/HANDOFF_persona_test.md`, then turn its P1/P2/P3 claims into verified, maintainable test behavior.
+- Finding / root cause:
+  - P1 was not HTTP 500. The provider sometimes ended a successful SSE request with reasoning-only deltas and no displayable `content`; the test tool incorrectly converted the SSE application error into status 500.
+  - P2's prompt change existed but had only compile-time verification.
+  - P3 was real: optional tutor `[IMG:...]` markers left all configured OCR images untested.
+  - The original direction grader also had a false-positive defect: generic words such as an error code or "administrator" could mark a wrong diagnosis as correct.
+  - The local service initially could not use an inherited SOCKS proxy because `socksio` was absent from runtime dependencies.
+- Changed:
+  - `backend/app/llm.py` - added a safe Chat Completions non-streaming fallback after an empty stream; retained the existing screenshot-text policy; added a completed-response text extractor.
+  - `backend/requirements.txt` - declared `socksio` for inherited SOCKS proxy support.
+  - `tools/persona_test.py` - records SSE application failures separately, forces due scenario images, and grades direction through discriminative evidence groups.
+  - `tools/scenarios.py` - added per-image trigger/due metadata and per-scenario direction-evidence groups.
+  - `reports/report20260809_002.md` and `reports/fixed.md` - recorded the corrected findings and targeted verification state.
+- Verified:
+  - no-network mocked tests covered empty-stream-to-completed fallback, no duplicate retry after visible text, Responses output extraction, SSE error classification, deterministic image delivery, and direction-grading false positives;
+  - `py_compile` passed for updated backend and test modules; `git diff --check` passed;
+  - local server restarted successfully and `/api/health` returned 200;
+  - targeted A03 sent a real OCR image on round 2 and completed in 8 rounds with no image rejection or response failure;
+  - targeted I03 completed 14 rounds with no stream/HTTP/empty-reply failure; regrading proves its diagnosis branch was actually wrong, so the full report must be rebaselined rather than called 9/9 correct.
+- Commit: `committed atomically with this implementation; inspect Git history for the final hash`; unrelated prior uncommitted work remains intentionally unstaged.
+- Follow-up / risk: run all 9 scenarios with the tightened grader before renaming the report `-fixed`. I03's content-quality regression (wrong branch after runtime-library checks) is now visible and needs product/prompt work; do not hide it behind the P1 transport fix.
 
 ## Append template
 

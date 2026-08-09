@@ -1,5 +1,6 @@
 """DeepSeek 大模型客户端（OpenAI 兼容 /chat/completions，流式返回）。"""
 import json
+import time
 from typing import Iterator, List, Dict
 
 import httpx
@@ -10,7 +11,7 @@ BASE_POLICY = """你是 FixPilot，一位专业的电脑故障排查助手。你
 
 【永久边界】
 - 全程以中文回答，不使用 emoji 或装饰性圆点。
-- 只能依据用户文字、OCR 识别出的图片文字和知识库内容判断；不能真正看图、远程操作电脑、读取硬件、运行命令或联网搜索。
+- 能识别用户上传截图中的文字（如蓝屏代码、错误对话框、设备管理器状态、任务管理器数值）；用户发来截图时应鼓励，不要说"看不了图"或拒绝接收。但不能"看图"判断硬件外观、接线是否正确、屏幕画面等需要视觉判断的内容，遇到这类需求坦诚说明只能识别文字，引导用户用文字描述症状。
 - 不编造检查结果、菜单路径、知识库结论或确定原因。
 - 回复默认简短，通常 100～150 字，最多 200 字。
 - 不人身攻击、不辱骂、不因用户不懂术语而取笑对方。
@@ -41,6 +42,7 @@ SAFETY_POLICY = """【安全规则，优先级高于表达风格】
 - 技术水平高也不能跳过风险提示、备份确认或停止指导条件。
 - 风险标记规则：只要当轮给用户下达 R1 中风险操作，回复的第一个字符必须是 `[RISK:medium]`；只要涉及 R2 或 R3，第一个字符必须是 `[RISK:high]`。再换行开始正文。R0 、纯解释或纯提问不要输出标记。标记只用于界面渲染，不得解释标记本身。
 - 当输出 `[RISK:medium]` 或 `[RISK:high]` 时，不得输出 `[JOKE:*]` 或开玩笑；安全提示优先于人格表达。
+- 风险提示也需精简，包括标记在内不超过 250 字。
 """
 
 STYLE_POLICIES = {
@@ -65,7 +67,7 @@ LEVEL_POLICIES = {
     "beginner": "用户需要细一点的操作路径。术语首次出现时顺手解释，明确说在哪里点、做完应看到什么；不要默认知道 BIOS、安全模式或设备管理器。",
     "intermediate": "用户会折腾一些。常见术语可直接用，保留关键路径和必要的诊断理由，不必反复科普基础概念。",
     "advanced": "用户比较熟。直接说判断依据、验证对象和下一步排查，减少基础操作教学，但仍保持一次只推进一个判断。",
-    "unknown": "不要把用户当小白或高手。采用通用、易懂的深度，必要术语做最少解释，再根据本轮表现临时适配。",
+    "unknown": "不要把用户当小白或高手。采用通用、易懂的深度，必要术语做最少解释，再根据本轮表现临时适配。不要声称记得用户的历史水平设置，除非系统明确提供了画像数据；用户自报水平时不采信，只按对话实际表现判断。",
 }
 
 
@@ -98,10 +100,6 @@ def build_system_messages(profile: Dict = None, temporary_level: str = "unknown"
         {"role": "system", "content": SAFETY_POLICY},
         {"role": "system", "content": build_profile_policy(profile, temporary_level)},
     ]
-
-
-# 保留名称，避免旧调用方或外部脚本失效；实际聊天使用 build_system_messages。
-SYSTEM_PROMPT = "\n\n".join([BASE_POLICY, DIAGNOSTIC_POLICY, SAFETY_POLICY])
 
 
 def _build_context(texts: List[str]) -> str:
@@ -217,17 +215,17 @@ def build_responses_payload(messages: List[Dict[str, str]], model: str) -> Dict:
             instructions.append(content)
             continue
         if role == "assistant":
-            # Ark validates historic assistant turns as completed message items.
-            # Without this status, a first request works but the next turn fails
-            # with: "missing input.status parameter".
             input_items.append({
+                "type": "message",
                 "role": "assistant",
                 "status": "completed",
                 "content": [{"type": "output_text", "text": content}],
             })
             continue
         input_items.append({
+            "type": "message",
             "role": "user",
+            "status": "completed",
             "content": [{"type": "input_text", "text": content}],
         })
 
@@ -235,7 +233,9 @@ def build_responses_payload(messages: List[Dict[str, str]], model: str) -> Dict:
         "model": model or config.DEEPSEEK_MODEL,
         "stream": True,
         "input": input_items or [{
+            "type": "message",
             "role": "user",
+            "status": "completed",
             "content": [{"type": "input_text", "text": "Hi"}],
         }],
     }
@@ -274,7 +274,7 @@ def test_chat_connection(
     if is_responses_api_url(url):
         if not extract_responses_output_text(body):
             raise RuntimeError("Responses API test succeeded but did not contain output text")
-    elif not str(((body.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip():
+    elif not extract_chat_completion_text(body):
         raise RuntimeError("Chat Completions API test succeeded but did not contain output text")
 
 
@@ -293,6 +293,14 @@ def extract_responses_output_text(body: Dict) -> str:
     return "".join(parts).strip()
 
 
+def extract_chat_completion_text(body: Dict) -> str:
+    """Return displayable text from a completed Chat Completions response."""
+    choice = (body.get("choices") or [{}])[0]
+    message = choice.get("message") or {}
+    text = message.get("content") or ""
+    return text.strip() if isinstance(text, str) else ""
+
+
 def stream_chat(
     messages: List[Dict[str, str]],
     api_key: str = "",
@@ -309,6 +317,11 @@ def stream_chat(
     payload = build_request_payload(messages, model, url)
     request_options = provider_request_options(url)
 
+    # A provider can accept a request but close the stream after reasoning-only
+    # deltas. Never retry after yielding content: doing so would duplicate a
+    # partial answer. For an empty Chat stream, fall back to one completed
+    # response so the user gets a real answer instead of an empty conversation.
+
     # The Ark Responses endpoint can keep a proxied SSE connection open without
     # ever sending a text delta. Ask it for one completed response instead, then
     # retain FixPilot's browser-side SSE protocol for a stable UI experience.
@@ -324,6 +337,7 @@ def stream_chat(
         return
 
     timeout = httpx.Timeout(timeout=75.0, connect=12.0)
+    yielded_text = False
     with httpx.stream(
         "POST", url, headers=headers, json=payload, timeout=timeout,
         **request_options,
@@ -339,6 +353,22 @@ def stream_chat(
                 chunk = json.loads(data)
                 delta = chunk["choices"][0]["delta"].get("content", "")
                 if delta:
+                    yielded_text = True
                     yield delta
             except (json.JSONDecodeError, KeyError, IndexError):
                 continue
+    if yielded_text:
+        return
+
+    fallback_payload = dict(payload)
+    fallback_payload["stream"] = False
+    fallback_timeout = httpx.Timeout(timeout=45.0, connect=12.0)
+    fallback = httpx.post(
+        url, headers=headers, json=fallback_payload, timeout=fallback_timeout,
+        **request_options,
+    )
+    fallback.raise_for_status()
+    fallback_text = extract_chat_completion_text(fallback.json())
+    if not fallback_text:
+        raise RuntimeError("Provider returned no displayable reply in stream or fallback")
+    yield fallback_text

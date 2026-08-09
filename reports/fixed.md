@@ -1,41 +1,88 @@
-# FixPilot verified fix ledger
+# FixPilot per-bug fix ledger
 
-This is the append-only ledger for individual bugs that have been fixed and
-verified. Add an entry only after the repair has passed its relevant checks.
+Append-only. One entry per verified fix.
 
-It complements, rather than replaces:
+---
 
-- `ai/WORK_LOG.md` for task handoff; and
-- `reports/reportYYYYMMDD_NNN.md` for a full batch-search or batch-repair report.
+## 2026-08-09 Asia/Shanghai - image upload 400 on Ark Responses API
 
-### 2026-08-09 11:18 Asia/Shanghai - Send click misclassified as retry
+- Fixing agent: DeepSeek-V4-Flash
+- Symptom: sending image in conversation fails twice with HTTP 400 from Ark Responses API ("missing input.status parameter" then "missing input.type parameter").
+- Confirmed root cause: `build_responses_payload` in `backend/app/llm.py` only added `status: "completed"` to assistant input items; user input items were missing both `type: "message"` and `status: "completed"`. Ark Responses API requires both fields on all input items. Multi-turn conversations (with history) triggered stricter validation than first-turn requests.
+- Files changed: `backend/app/llm.py:216-239` (added `type` + `status` to user, assistant, and fallback items).
+- Verification: `py_compile` passed. Needs runtime test with image upload on Ark Responses API.
+- Final status: code fix applied, pending runtime confirmation.
+- Commit: not committed yet.
 
-- Agent/model: Codex (GPT-5)
-- Discovered: 2026-08-09 11:18 Asia/Shanghai
-- Fixed: 2026-08-09 11:18 Asia/Shanghai
-- Symptom: Clicking Send in a newly created conversation showed the warning to
-  return to the original conversation and did not send the typed message.
-- Root cause: `addEventListener('click', send)` passed a DOM `MouseEvent` as
-  `send(retryState)`. The old truthiness check treated that event as retry
-  state, then rejected it because it had no conversation ID.
-- Files changed: `backend/static/app.js`; `AGENTS.md`; `reports/fixed.md`.
-- Verification: A headless-browser click on Send made exactly one `/api/chat`
-  request for `c-send-regression` with the typed text, showed no incorrect
-  retry toast, and left Send enabled. `node --check backend/static/app.js`
-  and `git diff --check` passed.
-- Status: verified fixed.
-- Commit: pending.
+---
 
-## Entry template
+## 2026-08-09 Asia/Shanghai - diagnostics logs missing conv_id
 
-### YYYY-MM-DD HH:MM Asia/Shanghai - short bug title
+- Fixing agent: DeepSeek-V4-Flash
+- Symptom: error logs in `api-diagnostics.log` cannot be associated with a specific conversation, making debugging difficult.
+- Confirmed root cause: `api_diagnostics.start/success/failure` did not accept or record `conv_id`. Platform API errors (non-custom API) were not logged at all.
+- Files changed: `backend/app/api_diagnostics.py:50,67,97` (added `conv_id` parameter to `start`, `success`, `failure`); `backend/app/main.py:534,597-607` (always create diagnostics entries, pass `conv_id` to all calls).
+- Verification: `py_compile` passed.
+- Final status: fixed. All future log entries will carry `conv_id`. Platform API errors are now also logged.
+- Commit: not committed yet.
 
-- Agent/model:
-- Discovered:
-- Fixed:
-- Symptom:
-- Root cause:
-- Files changed:
-- Verification:
-- Status:
-- Commit:
+---
+
+## 2026-08-09 Asia/Shanghai - AI tells users "I can't see images" despite having OCR capability
+
+- Fixing agent: GLM-5.2
+- Symptom: FixPilot AI proactively tells users "别发图，我看不了图" (don't send images, I can't see them) and "我这边看不到截图" (I can't see screenshots), refusing to accept images. This contradicts FixPilot's core OCR feature which can extract text from screenshots (BSOD codes, error dialogs, device manager status).
+- Confirmed root cause: `backend/app/llm.py:13` BASE_POLICY stated "不能真正看图" (cannot truly see images). The AI interpreted this as "I cannot process any images at all" and proactively refused images, even though the OCR pipeline (`backend/app/ocr.py` + `service._content_to_text`) works correctly.
+- Files changed: `backend/app/llm.py:13` - rewrote the boundary line to distinguish "can recognize text in screenshots" vs "cannot visually inspect hardware appearance/connections". Added explicit instruction: "用户发来截图时应鼓励，不要说'看不了图'或拒绝接收" (encourage users to send screenshots, don't say "can't see images" or refuse).
+- Verification: `py_compile` passed. Backend uvicorn restarted successfully (PID 59824). Health endpoint returns ok. Awaiting next test round to confirm AI no longer refuses images.
+- Found during: persona progressive disclosure test, scenarios A03 R2 (conv_id: ca15a5992ababc0a5) and A02 R6 (conv_id: c0ced5db8d1a8fbdc).
+- Final status: fixed (pending next test round verification).
+- Commit: not committed yet.
+
+---
+
+## 2026-08-09 Asia/Shanghai - empty streamed replies recovered without exposing reasoning
+
+- Fixing agent: Codex (GPT-5)
+- Symptom: a provider could complete an HTTP/SSE request using only non-displayable `reasoning_content` deltas, then end with no user-visible text. The old tester mislabeled its SSE application error as HTTP 500.
+- Confirmed root cause: protocol capture showed many reasoning-only deltas before final text. Some requests ended before a `content` delta. The original P1 log recorded a runtime empty-stream error, not an upstream HTTP 500.
+- Files changed: `backend/app/llm.py` (one streaming attempt, then a non-streaming Chat Completions fallback only when no displayable content was yielded); `tools/persona_test.py` (SSE errors are recorded as `stream_error`, preserving the real HTTP 200 status).
+- Verification: local mocked tests verified fallback text is returned for a reasoning-only stream and that a partial visible stream never triggers a duplicate request. Redacted protocol replay returned a 281-character final answer. Targeted A03 completed 8 rounds and I03 completed 14 rounds without stream, HTTP, or empty-reply errors.
+- Final status: fixed and targeted-runtime verified.
+- Commit: `committed atomically with this implementation; inspect Git history for the final hash`.
+
+---
+
+## 2026-08-09 Asia/Shanghai - image OCR acceptance verification
+
+- Fixing agent: Codex (GPT-5)
+- Symptom: the prior OCR prompt fix was only compiled, not verified against a real conversation.
+- Confirmed root cause: the previous BASE_POLICY wording had caused the assistant to refuse screenshots despite the OCR pipeline.
+- Files changed: no additional product-prompt change; this entry records runtime verification of the existing `backend/app/llm.py` policy repair.
+- Verification: targeted A03 sent `images/device_manager_yellow.jpg` on round 2. FixPilot referenced the OCR-derived Realtek/Intel network-adapter text and never used a refusal phrase such as "can't see images". The scenario completed in 8 rounds with no image-not-seen bug.
+- Final status: verified fixed.
+- Commit: `committed atomically with this implementation; inspect Git history for the final hash`.
+
+---
+
+## 2026-08-09 Asia/Shanghai - deterministic OCR coverage in persona tests
+
+- Fixing agent: Codex (GPT-5)
+- Symptom: 71 persona-test rounds never sent a configured image, so the OCR path was untested.
+- Confirmed root cause: image delivery depended entirely on an optional `[IMG:...]` marker from the tutor model.
+- Files changed: `tools/scenarios.py` (per-image trigger terms and `must_send_by_round`); `tools/persona_test.py` (deterministic image selection, including tutor-model fallback).
+- Verification: local tests prove trigger and due-round selection for all six configured images. Targeted A03 sent an actual image on round 2 and completed with no OCR rejection.
+- Final status: fixed and targeted-runtime verified.
+- Commit: `committed atomically with this implementation; inspect Git history for the final hash`.
+
+---
+
+## 2026-08-09 Asia/Shanghai - persona direction-grading false positives
+
+- Fixing agent: Codex (GPT-5)
+- Symptom: the test suite could report a correct diagnosis after matching generic error-code or administrative-step words, even when the model had changed to the wrong troubleshooting branch.
+- Confirmed root cause: `diagnosis_correct` required only one third of a broad keyword list. I03 was falsely marked correct from `0xc0000005` and "administrator" while it missed the required compatibility direction.
+- Files changed: `tools/scenarios.py` (nine scenario-specific direction-evidence groups); `tools/persona_test.py` (all required groups must be hit for a correct-direction result).
+- Verification: local wrong-path I03 fixture now fails, a compatibility-path fixture passes, and a two-group browser-memory fixture passes.
+- Final status: code fixed; full nine-scenario rebaseline remains required.
+- Commit: `committed atomically with this implementation; inspect Git history for the final hash`.

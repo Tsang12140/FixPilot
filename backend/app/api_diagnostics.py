@@ -47,7 +47,7 @@ def key_metadata(api_key: str) -> Dict[str, Any]:
     }
 
 
-def start(kind: str, api_base: str, model: str, api_key: str = "") -> str:
+def start(kind: str, api_base: str, model: str, api_key: str = "", conv_id: str = "") -> str:
     event_id = f"api-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
     entry = {
         "id": event_id,
@@ -57,17 +57,22 @@ def start(kind: str, api_base: str, model: str, api_key: str = "") -> str:
         "api_base": redact(api_base),
         "model": redact(model),
     }
+    if conv_id:
+        entry["conv_id"] = conv_id
     entry.update(key_metadata(api_key))
     _write(entry)
     return event_id
 
 
-def success(event_id: str) -> None:
-    _write({
+def success(event_id: str, conv_id: str = "") -> None:
+    entry = {
         "id": event_id,
         "time": datetime.now().isoformat(timespec="seconds"),
         "event": "success",
-    })
+    }
+    if conv_id:
+        entry["conv_id"] = conv_id
+    _write(entry)
 
 
 def upstream_detail(exc: Exception) -> tuple[int | None, str]:
@@ -89,16 +94,19 @@ def upstream_detail(exc: Exception) -> tuple[int | None, str]:
     return None, redact(exc)
 
 
-def failure(event_id: str, exc: Exception) -> tuple[int | None, str]:
+def failure(event_id: str, exc: Exception, conv_id: str = "") -> tuple[int | None, str]:
     status, detail = upstream_detail(exc)
-    _write({
+    entry = {
         "id": event_id,
         "time": datetime.now().isoformat(timespec="seconds"),
         "event": "failure",
         "http_status": status,
         "provider_detail": detail,
         "exception": type(exc).__name__,
-    })
+    }
+    if conv_id:
+        entry["conv_id"] = conv_id
+    _write(entry)
     return status, detail
 
 
