@@ -26,3 +26,8 @@
 - tools/run_all.py：模块化入口，默认产出本地 JSON 证据。
 
 测试运行产生的 JSON 默认放在 reports/test-runs/，保留在本机、不会误加入提交。经过人工确认的重要失败，才整理为 reports/reportYYYYMMDD_NNN.md；实际修好的单项 Bug 仍按仓库铁律追加 reports/fixed.md。
+
+
+## Automated renderer check
+
+For response-layout regressions, run `python tools/run_all.py --suites renderer`. This invokes `tools/renderer_test.js`; it is credential-free and does not call a model.

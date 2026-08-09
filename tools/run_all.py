@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import sys
+import subprocess
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -15,7 +16,7 @@ from persona_test import load_tutor_config, run_persona_tests
 from safety_test import run_tests as run_safety_tests
 from testkit import login_as_admin, login_with_code
 
-ALL_SUITES = ("injection", "safety", "persona")
+ALL_SUITES = ("renderer", "injection", "safety", "persona")
 
 
 def summarize_status(items):
@@ -52,13 +53,43 @@ def parse_suites(raw):
     return requested or ALL_SUITES
 
 
+def run_renderer_tests():
+    """Run DOM-free frontend answer-renderer checks without model calls."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "renderer_test.js")
+    try:
+        completed = subprocess.run(
+            ["node", script, "--json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except FileNotFoundError:
+        return [{"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": "Node.js is not installed"}]
+    except subprocess.TimeoutExpired:
+        return [{"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": "renderer test timed out"}]
+
+    try:
+        payload = json.loads(completed.stdout or "{}")
+        results = payload.get("results")
+        if not isinstance(results, list):
+            raise ValueError("missing results")
+    except (json.JSONDecodeError, ValueError) as exc:
+        detail = (completed.stderr or completed.stdout or str(exc)).strip()[:600]
+        return [{"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": detail or "invalid renderer output"}]
+
+    if completed.returncode and all(item.get("status") == "PASS" for item in results):
+        results.append({"id": "R00", "name": "renderer runner", "status": "ERROR", "detail": "renderer test exited non-zero"})
+    return results
+
 def main():
     parser = argparse.ArgumentParser(description="FixPilot 模块化产品回归测试")
     parser.add_argument("--base", default="http://127.0.0.1:8000", help="FixPilot 服务地址")
     parser.add_argument("--code", help="邀请码登录")
     parser.add_argument("--admin-user", help="管理员用户名")
     parser.add_argument("--admin-pass", help="管理员密码")
-    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：injection,safety,persona")
+    parser.add_argument("--suites", default=",".join(ALL_SUITES), help="以逗号分隔：renderer,injection,safety,persona")
+    parser.add_argument("--skip-renderer", action="store_true", help="跳过 renderer")
     parser.add_argument("--skip-injection", action="store_true", help="兼容旧命令：跳过 injection")
     parser.add_argument("--skip-safety", action="store_true", help="跳过 safety")
     parser.add_argument("--skip-persona", action="store_true", help="兼容旧命令：跳过 persona")
@@ -76,18 +107,21 @@ def main():
         suites = set(parse_suites(args.suites))
     except ValueError as exc:
         parser.error(str(exc))
-    for suite, skip in (("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
+    for suite, skip in (("renderer", args.skip_renderer), ("injection", args.skip_injection), ("safety", args.skip_safety), ("persona", args.skip_persona)):
         if skip:
             suites.discard(suite)
     if not suites:
         parser.error("没有选择要运行的测试模块")
 
-    if args.admin_user and args.admin_pass:
-        token = login_as_admin(args.base, args.admin_user, args.admin_pass)
-    elif args.code:
-        token = login_with_code(args.base, args.code)
-    else:
-        parser.error("需要 --code 或 --admin-user/--admin-pass")
+    token = None
+    needs_auth = bool(suites & {"injection", "safety", "persona"})
+    if needs_auth:
+        if args.admin_user and args.admin_pass:
+            token = login_as_admin(args.base, args.admin_user, args.admin_pass)
+        elif args.code:
+            token = login_with_code(args.base, args.code)
+        else:
+            parser.error("credentials are required for injection, safety, or persona")
 
     all_results = {
         "schema_version": 1,
@@ -100,6 +134,9 @@ def main():
         "results": {},
     }
 
+    if "renderer" in suites:
+        print("\n# renderer: answer rendering integrity")
+        all_results["results"]["renderer"] = run_renderer_tests()
     if "injection" in suites:
         print("\n# injection：提示词注入边界")
         all_results["results"]["injection"] = run_injection_tests(args.base, token)

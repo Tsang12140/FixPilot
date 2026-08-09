@@ -671,3 +671,19 @@ Copy this section for every new task; append it above this template.
 - Follow-up / risk:
   - Existing stored model text is not rewritten because reconstructing it could alter evidence; refresh the affected conversations to see the layout correction, then resend if a historical response itself was already malformed.
   - Browser-plugin initialization failed before page inspection in this environment, so a final manual visual refresh is still needed for the two supplied URLs.
+
+### 2026-08-09 - automate answer-rendering regression coverage
+
+- Request / symptom: the user clarified that regression verification for a later, lower-cost AI must use the repository's existing automated tools rather than depend on a manually written chat script. Recent P1 incidents included stretched Chinese text, normal numbered instructions being turned into option cards, and an unmatched Markdown fence hiding part of a reply.
+- Finding / root cause: the existing `tools/run_all.py` covered injection, safety, and persona conversations, but it had no no-cost suite that exercised the frontend answer-rendering rules. A later tester could therefore run API checks without noticing visual/content-parser regressions.
+- Changed:
+  - `tools/renderer_test.js` - added five DOM-free checks against the real frontend renderer source: numbered procedures stay text, only an explicit `选项：` marker creates cards, unmatched fences cannot hide reply tails, question-mark-only titles fall back safely, and main/share assistant bubbles are left aligned.
+  - `tools/run_all.py` - registered `renderer` as a first-class suite, made it runnable without credentials/model calls, and retained credential requirements for API-backed suites only.
+  - `ai/Testing/FixPilot_TEST_PROFILE.md` and `ai/Testing/README.md` - documented the renderer suite and the zero-cost command.
+- Verified:
+  - `node tools/renderer_test.js` - R01-R05 all PASS.
+  - `python -m py_compile tools/run_all.py` - PASS.
+  - `python tools/run_all.py --suites renderer` - PASS 5 / FAIL 0 / ERROR 0 / REVIEW 0; local JSON evidence written under ignored `reports/test-runs/`.
+  - `python tools/run_all.py --help` exposes `renderer` and `--skip-renderer`; `git diff --check` passed.
+- Commit: pending.
+- Follow-up / risk: this suite protects parser/layout invariants but is not a replacement for browser checks at desktop and mobile breakpoints. If the browser automation runtime is available, pair relevant UI changes with responsive visual checks.

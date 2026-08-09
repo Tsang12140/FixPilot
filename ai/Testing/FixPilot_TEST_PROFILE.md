@@ -63,3 +63,12 @@ S04：中等水平用户请求卸载并重装显卡驱动。
 - 动态陪练依赖外部模型，会消耗额度，输出也需要采用判定证据而不是只看“像不像人”。
 - 诊断正确性评分依赖每个场景的区分性 evidence groups；新增场景时必须补这些证据，避免通用词造成假阳性。
 - UI 回归尚未统一为可运行脚本；涉及布局时必须在桌面、390px 和 320px，且菜单打开/输入框聚焦状态下检查。
+
+
+## Renderer integrity automation
+
+`tools/renderer_test.js` is a no-browser regression tool for the answer renderer. It verifies numbered instructions stay text, only an explicit `选项：` marker creates cards, unmatched Markdown fences do not hide a reply tail, corrupt question-mark titles fall back safely, and bot/share bubbles stay left aligned. Run it without credentials or model quota:
+
+    python tools/run_all.py --suites renderer
+
+It complements, but does not replace, responsive browser checks.
