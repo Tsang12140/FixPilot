@@ -20,7 +20,7 @@ TRANSCRIPT_PATH = ROOT_DIR / os.getenv(
 TOP_K = 6
 
 # 管理员账号（首次启动自动创建）
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "").strip()
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 # 会话 token 有效期（秒）
 TOKEN_TTL = 60 * 60 * 24 * 7

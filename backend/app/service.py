@@ -48,12 +48,35 @@ def _content_to_text(content, seen: set) -> str:
     return "\n".join(parts_text)
 
 
+def validate_client_messages(messages: List[Dict]) -> List[Dict]:
+    """Accept exactly one current user message from the public chat API.
+
+    Conversation history is server-owned. Allowing a client to submit an
+    ``assistant`` or ``system`` role would let it rewrite the model context.
+    """
+    if not isinstance(messages, list) or len(messages) != 1:
+        raise ValueError("每次只能提交一条用户消息")
+    message = messages[0]
+    if not isinstance(message, dict) or message.get("role") != "user":
+        raise ValueError("请求只能包含当前用户消息")
+    content = message.get("content")
+    if not isinstance(content, (str, list)):
+        raise ValueError("消息内容格式不正确")
+    if isinstance(content, str) and not content.strip():
+        raise ValueError("消息不能为空")
+    if isinstance(content, list) and not content:
+        raise ValueError("消息不能为空")
+    return [{"role": "user", "content": content}]
+
+
 def normalize_messages(messages: List[Dict]) -> List[Dict]:
     """把可能含图片的消息统一转成纯文本消息，供 DeepSeek 使用。"""
     seen: set = set()
     out: List[Dict] = []
     for m in messages:
         role = m.get("role")
+        if role not in {"user", "assistant"}:
+            continue
         content = _content_to_text(m.get("content"), seen)
         # UI-only easter-egg messages must not become model conversation context.
         if role == "assistant" and (content == "6" or re.fullmatch(r"\[MEME:[a-z_]+\]", content)):

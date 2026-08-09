@@ -704,7 +704,7 @@ function renderAdminHistory(convs) {
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-current', selected ? 'true' : 'false');
     });
-    title.textContent = conv.title || '\u672a\u547d\u540d\u5bf9\u8bdd';
+    title.textContent = safeDisplayText(conv.title, '\u672a\u547d\u540d\u5bf9\u8bdd');
     meta.textContent = messages.length + ' \u6761\u6d88\u606f' + (conv.created_at ? ' \u00b7 ' + adminHistoryTime(conv.created_at) : '');
     transcript.innerHTML = '';
     empty.hidden = messages.length > 0;
@@ -728,7 +728,7 @@ function renderAdminHistory(convs) {
     button.type = 'button';
     button.className = 'admin-conversation-item';
     const itemTitle = document.createElement('strong');
-    itemTitle.textContent = conv.title || '\u672a\u547d\u540d\u5bf9\u8bdd';
+    itemTitle.textContent = safeDisplayText(conv.title, '\u672a\u547d\u540d\u5bf9\u8bdd');
     const itemMeta = document.createElement('span');
     itemMeta.textContent = messages.length + ' \u6761\u6d88\u606f' + (last.created_at ? ' \u00b7 ' + adminHistoryTime(last.created_at) : '');
     button.append(itemTitle, itemMeta);
@@ -1000,8 +1000,9 @@ function renderList() {
     item.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
     const title = document.createElement('span');
     title.className = 'conv-title';
-    title.textContent = c.title;
-    title.title = c.title;
+    const displayTitle = safeDisplayText(c.title, '\u672a\u547d\u540d\u5bf9\u8bdd');
+    title.textContent = displayTitle;
+    title.title = displayTitle;
     const del = document.createElement('button');
     del.className = 'conv-del';
     del.setAttribute('aria-label', '\u5220\u9664');
@@ -1092,6 +1093,10 @@ window.addEventListener('hashchange', () => {
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+function safeDisplayText(value, fallback) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text && !/^[?\uFF1F\s]+$/.test(text) ? text : fallback;
+}
 function inline(s) {
   s = escapeHtml(s);
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1099,6 +1104,9 @@ function inline(s) {
   return s;
 }
 function mdToHtml(text) {
+  /* A lone code fence must stay visible text. Treating the entire tail as
+     code makes an otherwise readable repair answer appear truncated. */
+  if (((text.match(/```/g) || []).length % 2) !== 0) return mdBlock(text);
   const parts = text.split(/```/);
   let html = '';
   for (let i = 0; i < parts.length; i++) {
@@ -1321,28 +1329,16 @@ function mergeBrokenOptionFragments(items) {
 
 function parseOptions(text) {
   const marker = text.match(/(?:^|\n)\s*\u9009\u9879\s*[:\uff1a]/);
-  let source = text;
-  let prefix = '';
-  let strict = false;
-  if (marker) {
-    strict = true;
-    prefix = text.slice(0, marker.index).trim();
-    source = text.slice(marker.index + marker[0].length);
-  }
+  /* Only the explicit protocol may turn model text into clickable controls.
+     Guessing from ordinary numbered paragraphs can delete or split advice. */
+  if (!marker) return { main: text, options: [] };
 
+  const prefix = text.slice(0, marker.index).trim();
+  const source = text.slice(marker.index + marker[0].length);
   const block = extractNumberedOptionBlock(source);
   if (!block) return { main: text, options: [] };
 
   const suffix = source.slice(block.end).trim();
-  if (!strict) {
-    const context = source.slice(Math.max(0, block.start - 280), block.start);
-    const hasQuestion = /[\uff1f?]/.test(context);
-    const hasChoiceCue = /(?:\u6311(?:\u4e00|\u4e2a)|\u9009(?:\u4e00|\u4e2a|\u62e9)|\u54ea(?:\u79cd|\u4e00\u9879|\u4e2a)|\u6700\u8d34\u8fd1|\u66f4\u63a5\u8fd1|\u544a\u8bc9\u6211|\u56de\u590d(?:\u6211|\u5bf9\u5e94)?|\u6709\u6ca1\u6709|\u662f\u5426)/.test(context + suffix);
-    const looksLikeProcedure = /(?:\u6309(?:\u7167|\u4ee5\u4e0b|\u4e0b\u9762)|\u64cd\u4f5c\u6b65\u9aa4|\u4f9d\u6b21|\u6b65\u9aa4\u5982\u4e0b)/.test(context);
-    if (!hasQuestion || !hasChoiceCue || looksLikeProcedure) return { main: text, options: [] };
-    prefix = source.slice(0, block.start).trim();
-  }
-
   const options = mergeBrokenOptionFragments(block.items).slice(0, MAX_CLICKABLE_OPTIONS);
   if (options.length < 2) return { main: text, options: [] };
   const main = [prefix, suffix].filter(Boolean).join('\n\n');
@@ -1351,13 +1347,6 @@ function parseOptions(text) {
 
 function isGenericOption(option) {
   return /^(?:\u5176\u4ed6|\u5176\u5b83|\u90fd\u4e0d\u662f|\u4ee5\u4e0a\u5747\u4e0d\u662f|\u6211\u6765\u63cf\u8ff0|\u81ea\u5df1\u63cf\u8ff0|\u624b\u52a8\u8f93\u5165|\u81ea\u5b9a\u4e49)/.test(option.trim());
-}
-/* 把紧跟在文字后、同行连写的编号步骤拆到新行，保留已有空行，便于排版 */
-function breakNumbered(text) {
-  /* 前导空格/字符保留原样，但空格不单独成行，避免打断 ol */
-  return text.replace(/([^\n])(\d+[.、)])(?!\d)/g, (_, before, num) =>
-    before.trim() ? before + '\n' + num : '\n' + num
-  );
 }
 const RISK_NOTICES = {
   medium: { title: '中风险操作', message: '这一步会改动系统、驱动或设备状态。先看清对象和恢复方式，再继续。' },
@@ -1380,7 +1369,7 @@ function riskNoticeHtml(notice) {
 function renderBotMsg(div, text, riskNotice = null) {
   const { main, options } = parseOptions(text);
   const bubble = div.querySelector('.bubble');
-  bubble.innerHTML = (riskNotice ? riskNoticeHtml(riskNotice) : '') + mdToHtml(breakNumbered(main));
+  bubble.innerHTML = (riskNotice ? riskNoticeHtml(riskNotice) : '') + mdToHtml(main);
   let wrap = div.querySelector('.opts');
   if (wrap) wrap.remove();
   if (options.length) {

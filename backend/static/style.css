@@ -294,7 +294,7 @@ body {
   background: var(--bubble-bot);
   border: 1px solid #eef0f3;
   border-radius: 4px 16px 16px 16px;
-  text-align: justify;
+  text-align: left;
   max-width: 64%;
   box-shadow: 0 1px 2px rgba(20,30,60,.04);
 }
@@ -1358,7 +1358,7 @@ body.bg-5 .login-screen::after {
   border: 1px solid #eef0f3;
   border-radius: 4px 16px 16px 16px;
   max-width: 78%;
-  text-align: justify;
+  text-align: left;
 }
 .share-node .msg.user .bubble {
   background: var(--user-grad);

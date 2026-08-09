@@ -642,3 +642,32 @@ Copy this section for every new task; append it above this template.
 - Commit: `abc1234 subject` (or `not committed yet`)
 - Follow-up / risk:
 ```
+
+
+### 2026-08-09 - repair response rendering integrity and harden administrator boundary
+
+- Request / symptom:
+  - Two live conversations rendered ordinary answers incorrectly: Chinese text was stretched across a bubble, normal numbered text was split into controls, and unmatched Markdown fences could hide a reply tail.
+  - A blue-screen screenshot conversation incorrectly claimed that screenshots could not be read, despite the OCR path.
+  - The user requested a hard administrator/instruction-injection boundary after seeing untrusted content near the admin experience.
+- Finding / root cause:
+  - `text-align: justify` stretched short Chinese lines; the same rule existed in share-page bubbles.
+  - The frontend used heuristic numbered-list detection and `breakNumbered()` to mutate model output before rendering. This could reclassify procedural steps as selectable cards and split original text. An unmatched triple-backtick fence also turned the remainder into a code block.
+  - The prompt did not distinguish supported OCR screenshot text strongly enough from unsupported physical visual inspection.
+  - `/api/chat` trusted client-supplied message roles, so a direct caller could attempt to inject a `system` or forged `assistant` message into model context. The project also had a fallback default administrator credential in source/example configuration.
+- Changed:
+  - `backend/static/style.css` - changed bot/share bubble alignment to left alignment.
+  - `backend/static/app.js` - only explicit `选项：` blocks can render as clickable options; removed source-mutating numbered-step rewriting; renders unmatched fences as visible text; replaces corrupt question-mark-only conversation titles with `未命名对话`.
+  - `backend/app/llm.py` - makes OCR support for blue-screen/error screenshots explicit and adds an untrusted-input/prompt-injection rule.
+  - `backend/app/service.py` and `backend/app/main.py` - accept exactly one current `user` message from a chat request, keep history server-owned, whitelist stored history roles, and prevent invite accounts from claiming an administrator name.
+  - `backend/app/auth.py`, `backend/app/config.py`, and `backend/.env.example` - remove default admin bootstrap credentials and add an in-memory five-failure/ten-minute administrator login guard.
+  - `reports/fixed.md` - added per-event fixed records for this task.
+- Verified:
+  - Node assertions: ordinary numbered steps remain text; only strict `选项：` syntax becomes choices; unmatched code fences keep the tail visible.
+  - Python assertions: invalid client `system`/`assistant` roles and malformed message lists are rejected; history role filtering works; missing admin environment credentials create no admin; login failure throttling engages and resets correctly.
+  - Direct live-route assertion: `/api/chat` rejects forged `system` and `assistant` roles with HTTP 400 before creating a conversation or invoking a provider.
+  - `python -m py_compile backend\app\auth.py backend\app\config.py backend\app\llm.py backend\app\main.py backend\app\service.py`, `git diff --check`, and restarted local `/api/health` all passed. Served `app.js` and `style.css` contain the renderer fix.
+- Commit: pending.
+- Follow-up / risk:
+  - Existing stored model text is not rewritten because reconstructing it could alter evidence; refresh the affected conversations to see the layout correction, then resend if a historical response itself was already malformed.
+  - Browser-plugin initialization failed before page inspection in this environment, so a final manual visual refresh is still needed for the two supplied URLs.

@@ -156,23 +156,33 @@ def health():
 
 @app.post("/api/auth/admin-login")
 def admin_login(req: AdminLoginRequest):
-    admin = db.get_admin(req.username)
+    admin = db.get_admin((req.username or "").strip())
+    if admin and not auth.admin_login_allowed(admin["username"]):
+        raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
     if not admin or not auth.verify_password(req.password, admin["password_hash"]):
+        if admin:
+            auth.record_admin_login_failure(admin["username"])
         raise HTTPException(status_code=401, detail="账号或密码错误")
+    auth.clear_admin_login_failures(admin["username"])
     token = auth.make_token({"role": "admin", "username": admin["username"]})
     return {"token": token, "role": "admin", "username": admin["username"]}
 
 
 @app.post("/api/auth/account-login")
 def account_login(req: AccountLoginRequest):
-    """账号密码登录：先查管理员表，再查用户表。任一命中即返回对应 role 的 token。"""
+    """账号密码登录：同时接受管理员账号和用户绑定账号。"""
     username = (req.username or "").strip()
-    # 1. 管理员
+    # 1. Administrator
     admin = db.get_admin(username)
+    if admin and not auth.admin_login_allowed(admin["username"]):
+        raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
     if admin and auth.verify_password(req.password, admin["password_hash"]):
+        auth.clear_admin_login_failures(admin["username"])
         token = auth.make_token({"role": "admin", "username": admin["username"]})
         return {"token": token, "role": "admin", "username": admin["username"]}
-    # 2. 用户绑定账号（username 小写存储）
+    if admin:
+        auth.record_admin_login_failure(admin["username"])
+    # 2. Bound invite user (usernames are stored lowercase).
     user = db.get_user_by_username(username.lower())
     if user and auth.verify_password(req.password, user["password_hash"]):
         token = auth.make_token({"role": "user", "username": user["username"], "code": user["invite_code"]})
@@ -210,8 +220,9 @@ def bind_account(req: BindAccountRequest, authorization: Optional[str] = Header(
     if db.get_user_by_invite_code(code):
         raise HTTPException(status_code=409, detail="当前邀请码已绑定账号")
     # 用户名被占用
-    if db.get_user_by_username(username):
-        raise HTTPException(status_code=409, detail="账号名已被占用")
+    # Reserve administrator names so an invite user cannot impersonate one.
+    if db.get_admin(username) or db.get_user_by_username(username):
+        raise HTTPException(status_code=409, detail="账号名不可用")
 
     db.create_user(username, auth.hash_password(password), code)
     return {"ok": True, "username": username}
@@ -491,6 +502,10 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="无权限")
     owner = _owner(payload)
     code = payload.get("code") if role == "user" else None
+    try:
+        client_messages = service.validate_client_messages(req.messages)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     use_custom_api = bool(req.apiKey)
     if role == "user" and not use_custom_api:
@@ -515,8 +530,9 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     history = [
         {"role": item["role"], "content": item["content"]}
         for item in db.list_messages(conv_id)[-16:]
+        if item.get("role") in {"user", "assistant"}
     ]
-    chat_messages = history + req.messages
+    chat_messages = history + client_messages
     normalized_messages = service.normalize_messages(chat_messages)
     latest_user_text = next(
         (item["content"] for item in reversed(normalized_messages) if item.get("role") == "user"), ""
@@ -611,7 +627,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         if attempt_id:
             api_diagnostics.success(attempt_id, conv_id=conv_id)
 
-        user_text, user_image = _content_to_text_and_image(req.messages[-1].get("content")) if req.messages else ("", None)
+        user_text, user_image = _content_to_text_and_image(client_messages[0]["content"])
         db.add_message(conv_id, "user", user_text, user_image)
         if effect:
             if effect["kind"] == "six":

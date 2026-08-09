@@ -3,10 +3,49 @@ import hashlib
 import hmac
 import os
 import secrets
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from . import config, db
+
+# In-memory guard for the two administrator login endpoints. It deliberately
+# covers only known administrator names, so arbitrary usernames cannot grow it.
+_ADMIN_LOGIN_WINDOW_SECONDS = 10 * 60
+_ADMIN_LOGIN_MAX_FAILURES = 5
+_admin_login_failures: dict[str, list[float]] = {}
+_admin_login_lock = threading.Lock()
+
+
+def _admin_login_key(username: str) -> str:
+    return (username or "").strip().casefold()
+
+
+def admin_login_allowed(username: str) -> bool:
+    now = time.monotonic()
+    key = _admin_login_key(username)
+    with _admin_login_lock:
+        attempts = [stamp for stamp in _admin_login_failures.get(key, []) if now - stamp < _ADMIN_LOGIN_WINDOW_SECONDS]
+        if attempts:
+            _admin_login_failures[key] = attempts
+        else:
+            _admin_login_failures.pop(key, None)
+        return len(attempts) < _ADMIN_LOGIN_MAX_FAILURES
+
+
+def record_admin_login_failure(username: str) -> None:
+    now = time.monotonic()
+    key = _admin_login_key(username)
+    with _admin_login_lock:
+        attempts = [stamp for stamp in _admin_login_failures.get(key, []) if now - stamp < _ADMIN_LOGIN_WINDOW_SECONDS]
+        attempts.append(now)
+        _admin_login_failures[key] = attempts
+
+
+def clear_admin_login_failures(username: str) -> None:
+    with _admin_login_lock:
+        _admin_login_failures.pop(_admin_login_key(username), None)
 
 
 def hash_password(password: str) -> str:
@@ -105,6 +144,10 @@ def can_use(invite: dict) -> tuple:
 
 
 def bootstrap_admin():
-    """首次启动创建管理员。"""
-    if db.get_admin(config.ADMIN_USERNAME) is None:
-        db.create_admin(config.ADMIN_USERNAME, hash_password(config.ADMIN_PASSWORD))
+    """Create an administrator only from explicit environment credentials."""
+    username = (config.ADMIN_USERNAME or "").strip()
+    password = config.ADMIN_PASSWORD or ""
+    if not username or not password:
+        return
+    if db.get_admin(username) is None:
+        db.create_admin(username, hash_password(password))
