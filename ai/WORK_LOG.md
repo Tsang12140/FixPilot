@@ -835,3 +835,18 @@ The work item immediately above was implemented and verified in `a2b4b16` (`fix:
   to Fire/Volcengine/custom endpoints without provider-specific evidence,
   source parsing tests, and a separate product decision. Recheck desktop and
   390px mobile layout manually after a cache refresh.
+
+
+### 2026-08-09 - reserve the sidebar footer and keep external lookup optional
+
+- Request / symptom: the desktop conversation list could render beneath the fixed account/contact area (including the admin row). The user also required the one-turn `???` control to supplement manuals/PDFs/model-specific documentation without turning normal FixPilot diagnosis into generic web search.
+- Finding / root cause: desktop CSS absolutely positioned the account and contact controls while `.conv-list` was allowed to consume the entire sidebar height. The official DeepSeek search payload used `tool_choice`, forcing a web-search call every time the user clicked the one-turn control.
+- Changed:
+  - `backend/static/index.html` and `backend/static/style.css` - moved the account/contact block into the sidebar flex layout, added a visible boundary, and constrained the conversation scroller with `min-height: 0`; the list now reserves space instead of drawing behind the footer.
+  - `backend/app/llm.py` - changed the web-search instruction from mandatory search to conditional external evidence; the payload now exposes `web_search` but does not force `tool_choice`; the visible search label is emitted only when provider output proves a search tool call occurred.
+  - `backend/static/app.js` and `backend/static/index.html` - clarified the one-turn control tooltip: it is for model, manual, PDF, official driver, and compatibility material.
+  - `tools/web_search_test.py` - added a regression case proving the search capability remains optional and an unneeded request is labelled as not externally searched.
+  - `ai/FixPilot_????????_v1.0.md` - revised the product rule to match the optional-search behavior and the knowledge-base-first boundary.
+- Verified: `python -m py_compile backend/app/llm.py tools/web_search_test.py` PASS; `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport,websearch` PASS (renderer 5, transport 3, websearch 6); `git diff --check` PASS.
+- Commit: pending.
+- Follow-up / risk: automated browser visual control is unavailable in this environment, so confirm the desktop sidebar at a long-history account and 390px mobile manually after the server restart. The model still decides whether a permitted lookup is necessary; the regression tests cover request construction and transparent labelling, not a paid live provider call.

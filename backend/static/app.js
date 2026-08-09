@@ -178,8 +178,8 @@ function refreshWebSearchControl() {
   webSearchBtn.classList.toggle('is-active', supported && webSearchRequested);
   webSearchBtn.setAttribute('aria-pressed', String(supported && webSearchRequested));
   webSearchBtn.title = supported
-    ? '仅本轮使用官方 DeepSeek V4 Flash 查公开资料'
-    : '查资料仅支持官方 DeepSeek V4 Flash';
+    ? '仅本轮补充型号、说明书、PDF、官方驱动或兼容性资料'
+    : '查资料仅支持官方 DeepSeek V4 Flash；仅用于型号、说明书等外部资料';
 }
 function setWebSearchRequested(next, notify = false) {
   if (next && !activeModelSupportsWebSearch()) {

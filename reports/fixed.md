@@ -215,3 +215,15 @@ The three fixes immediately above were implemented and verified in commit `a2b4b
 - Verification: live HTTP flow confirmed save, re-read, clear, and re-read all return promptly with correct values; `py_compile` and `node --check` passed.
 - Final status: fixed and live-route verified.
 - Implementation commit: ad6c48f3eea7a988935ff88041ebc98cf33df478 (`feat: persist custom API settings and testing records`).
+
+
+## 2026-08-09 Asia/Shanghai - sidebar account overlapped the conversation list
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: with enough conversation history, the sidebar list could flow visually behind the contact/account area; the account row (including admin) appeared to overlap list entries.
+- Root cause: `.sidebar-account` and `.sidebar-foot` used desktop absolute positioning while `.conv-list` was not given a reserved bottom region.
+- Files changed: `backend/static/index.html`; `backend/static/style.css`.
+- Fix: placed the footer and account button in a normal flex child (`.sidebar-bottom`) with a separator; made the list the constrained scroll region via `min-height: 0`.
+- Verification: static inspection plus `python tools/run_all.py --suites renderer,transport,websearch` PASS and `git diff --check` PASS.
+- Status: fixed in the working tree; manual visual confirmation remains after server restart.
+- Commit: pending.

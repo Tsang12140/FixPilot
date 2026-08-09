@@ -44,7 +44,7 @@ def test_official_gate_is_narrow():
     )
 
 
-def test_payload_enables_only_the_supported_tool():
+def test_payload_offers_the_supported_tool_without_forcing_it():
     normal = llm.build_responses_payload([{"role": "user", "content": "hello"}], "deepseek-v4-flash")
     searched = llm.build_responses_payload(
         [{"role": "system", "content": "policy"}, {"role": "user", "content": "hello"}],
@@ -53,7 +53,7 @@ def test_payload_enables_only_the_supported_tool():
     )
     assert_true("tools" not in normal and "tool_choice" not in normal, "normal Responses payload enabled a tool")
     assert_true(searched.get("tools") == [{"type": "web_search"}], "web-search tool payload is incorrect")
-    assert_true(searched.get("tool_choice") == {"type": "web_search"}, "web search is not explicitly selected")
+    assert_true("tool_choice" not in searched, "web search must remain optional for this turn")
     assert_true(searched.get("instructions") == "policy", "system policy did not become instructions")
 
 
@@ -87,6 +87,13 @@ def test_search_request_uses_official_responses_and_labels_sources():
     assert_true(payload.get("tools") == [{"type": "web_search"}], "official request omitted web_search")
     assert_true("本轮已联网查资料。" in reply, "reply did not transparently label the search")
     assert_true("https://example.com/search?q=graphics-driver" in reply, "provider-returned source URL was not preserved")
+
+
+def test_search_permission_keeps_normal_diagnosis_offline_when_unneeded():
+    body = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "normal reply"}]}]}
+    reply = llm.append_web_search_sources("normal reply", body)
+    assert_true("本轮未检索外部资料" in reply, "unneeded search turn was not transparently kept offline")
+    assert_true("本轮已联网查资料" not in reply, "unneeded search turn falsely claimed a web search")
 
 
 def test_other_providers_fail_before_network_call():
@@ -132,10 +139,11 @@ def test_client_one_turn_control_contract():
 
 TESTS = [
     ("W01", "official web-search gate accepts only DeepSeek V4 Flash", test_official_gate_is_narrow),
-    ("W02", "Responses payload enables only explicit web_search", test_payload_enables_only_the_supported_tool),
+    ("W02", "Responses payload offers web search without forcing it", test_payload_offers_the_supported_tool_without_forcing_it),
     ("W03", "search uses official Responses endpoint and labels provider sources", test_search_request_uses_official_responses_and_labels_sources),
     ("W04", "unsupported provider fails before network access", test_other_providers_fail_before_network_call),
     ("W05", "client keeps search explicit, one-turn, and responsive", test_client_one_turn_control_contract),
+    ("W06", "search permission does not force an unnecessary web call", test_search_permission_keeps_normal_diagnosis_offline_when_unneeded),
 ]
 
 
