@@ -347,3 +347,15 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: onboarding static contract PASS; `node --check backend/static/app.js` PASS; renderer R01-R07 PASS; `git diff --check` PASS. Visual desktop/mobile verification remains pending. No live model or production deployment was performed.
 - Final status: fixed in the working tree. The two requested lines are removed; cards now state the resulting response style and show a light click affordance. Direct input remains unblocked.
 - Commit: pending.
+
+---
+
+## 2026-08-10 Asia/Shanghai - no upper bounds on any input (thousands of chars in a password field)
+
+- Fixing agent/model: DeepSeek-V4-Flash.
+- Symptom: user found they could paste several thousand Chinese characters into a password field. Project-wide audit requested.
+- Confirmed root cause: every input enforced only a lower bound (e.g. password >= 6); no upper limits and almost no frontend maxlength. Backend endpoints likewise only checked lower bounds, so oversized passwords (slow PBKDF2), notes, chat text, and API settings were accepted.
+- Files changed: `backend/app/main.py` (credential/invite/API-settings length bounds), `backend/app/service.py` (`MAX_MESSAGE_LEN=2000` in `validate_client_messages`), `backend/static/index.html` (maxlength on all inputs), `backend/static/app.js` (maxlength + number max + 6-64 password validation).
+- Verification: `py_compile` (main.py, service.py) and `node --check app.js` PASS. BOM-only cleanup in `ai/DEPLOYMENT_RUNBOOK.md`.
+- Final status: fixed in the working tree. Backend bounds are the real enforcement; frontend maxlength is a UX guard.
+- Commit: TBD.

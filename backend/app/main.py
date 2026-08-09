@@ -13,6 +13,10 @@ from pydantic import BaseModel
 from . import api_diagnostics, auth, config, db, llm, memes, profiling, safety, service
 from .knowledge import load_chunks
 
+# 输入护栏：密码/账号/URL 等的最大长度，防止超长输入（粘贴几千字）拖慢哈希或撑爆存储。
+_MAX_PASSWORD_LEN = 64
+_MAX_USERNAME_LEN = 64
+
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
 
 
@@ -165,6 +169,8 @@ def health():
 
 @app.post("/api/auth/admin-login")
 def admin_login(req: AdminLoginRequest):
+    if len(req.password) > _MAX_PASSWORD_LEN or len((req.username or "").strip()) > _MAX_USERNAME_LEN:
+        raise HTTPException(status_code=401, detail="账号或密码错误")
     admin = db.get_admin((req.username or "").strip())
     if admin and not auth.admin_login_allowed(admin["username"]):
         raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
@@ -181,6 +187,9 @@ def admin_login(req: AdminLoginRequest):
 def account_login(req: AccountLoginRequest):
     """账号密码登录：同时接受管理员账号和用户绑定账号。"""
     username = (req.username or "").strip()
+    # 超长输入直接判错，避免超长密码拖慢 PBKDF2 哈希。
+    if len(req.password) > _MAX_PASSWORD_LEN or len(username) > _MAX_USERNAME_LEN:
+        raise HTTPException(status_code=401, detail="账号或密码错误")
     # 1. Administrator
     admin = db.get_admin(username)
     if admin and not auth.admin_login_allowed(admin["username"]):
@@ -222,8 +231,8 @@ def bind_account(req: BindAccountRequest, authorization: Optional[str] = Header(
     if not re.match(r"^[a-z0-9_]{3,20}$", username):
         raise HTTPException(status_code=400, detail="账号需为 3-20 位字母/数字/下划线")
     password = req.password or ""
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="密码至少 6 位")
+    if len(password) < 6 or len(password) > _MAX_PASSWORD_LEN:
+        raise HTTPException(status_code=400, detail=f"密码需为 6-{_MAX_PASSWORD_LEN} 位")
 
     # 邀请码已绑定过
     if db.get_user_by_invite_code(code):
@@ -249,8 +258,8 @@ def change_password(req: ChangePasswordRequest, authorization: Optional[str] = H
         raise HTTPException(status_code=400, detail="请先绑定账号")
     if not auth.verify_password(req.oldPassword, user["password_hash"]):
         raise HTTPException(status_code=401, detail="原密码错误")
-    if len(req.newPassword) < 6:
-        raise HTTPException(status_code=400, detail="新密码至少 6 位")
+    if len(req.newPassword) < 6 or len(req.newPassword) > _MAX_PASSWORD_LEN:
+        raise HTTPException(status_code=400, detail=f"新密码需为 6-{_MAX_PASSWORD_LEN} 位")
     db.update_user_password(user["username"], auth.hash_password(req.newPassword))
     return {"ok": True}
 
@@ -299,6 +308,12 @@ def me(authorization: Optional[str] = Header(None)):
 @app.post("/api/admin/invites")
 def create_invites(req: InviteCreateRequest, authorization: Optional[str] = Header(None)):
     _require_admin(authorization)
+    if req.quota != -1 and not (1 <= req.quota <= 1000000):
+        raise HTTPException(status_code=400, detail="次数需为 1-1000000，或 -1 表示不限")
+    if req.hours is not None and not (1 <= req.hours <= 87600):
+        raise HTTPException(status_code=400, detail="有效期需为 1-87600 小时")
+    if len(req.note or "") > 100:
+        raise HTTPException(status_code=400, detail="备注不能超过 100 字")
     expires_at = None
     if req.hours:
         import datetime as dt
@@ -500,11 +515,16 @@ def save_api_settings(req: ApiSettingsRequest, authorization: Optional[str] = He
     payload = _require_auth(authorization)
     if payload.get("role") not in ("user", "admin"):
         raise HTTPException(status_code=403, detail="无权限")
+    api_key = (req.apiKey or "").strip()
+    api_base = (req.apiBase or "").strip()
+    model = (req.model or "").strip()
+    if len(api_key) > 256 or len(api_base) > 256 or len(model) > 64:
+        raise HTTPException(status_code=400, detail="API 配置长度超出限制")
     db.save_api_settings(
         _owner(payload),
-        api_key=(req.apiKey or "").strip(),
-        api_base=(req.apiBase or "").strip(),
-        model=(req.model or "").strip(),
+        api_key=api_key,
+        api_base=api_base,
+        model=model,
         provider=(req.provider or "deepseek").strip() or "deepseek",
         active_source=(req.activeSource or "platform").strip() or "platform",
     )

@@ -492,10 +492,10 @@ function adminBodyHtml() {
     '<div class="acard">' +
       '<div class="acard-title">生成邀请码</div>' +
       '<div class="aform">' +
-        '<label class="arow"><input type="checkbox" id="aqtyOn" checked /><span>次数限制</span><input class="anum" id="aqty" type="number" value="50" min="1" /></label>' +
-        '<label class="arow"><input type="checkbox" id="aexpOn" checked /><span>有效期</span><input class="anum" id="aexpVal" type="number" value="3" min="1" /><select id="aexpUnit"><option value="days" selected>天</option><option value="hours">小时</option></select></label>' +
+        '<label class="arow"><input type="checkbox" id="aqtyOn" checked /><span>次数限制</span><input class="anum" id="aqty" type="number" value="50" min="1" max="1000000" /></label>' +
+        '<label class="arow"><input type="checkbox" id="aexpOn" checked /><span>有效期</span><input class="anum" id="aexpVal" type="number" value="3" min="1" max="87600" /><select id="aexpUnit"><option value="days" selected>天</option><option value="hours">小时</option></select></label>' +
         '<label class="arow"><span>数量</span><input class="anum" id="acount" type="number" value="1" min="1" max="50" /></label>' +
-        '<label class="arow grow"><span>备注</span><input id="anote" placeholder="给朋友1 / 张三等" /></label>' +
+        '<label class="arow grow"><span>备注</span><input id="anote" placeholder="给朋友1 / 张三等" maxlength="100" /></label>' +
       '</div>' +
       '<div class="aactions"><button class="a-btn" id="aGen">生成</button></div>' +
       '<div class="agen-result" id="agenResult"></div>' +
@@ -2053,11 +2053,11 @@ function renderAccountSection() {
       renderAvatarBlock(boundUsername, '已绑定账号') +
       '<div class="pane-title" style="margin-top:16px">修改密码</div>' +
       '<label class="settings-label">原密码</label>' +
-      '<input class="settings-input" id="oldPass" type="password" placeholder="输入原密码" autocomplete="current-password" />' +
+      '<input class="settings-input" id="oldPass" type="password" placeholder="输入原密码" autocomplete="current-password" maxlength="64" />' +
       '<label class="settings-label">新密码</label>' +
-      '<input class="settings-input" id="newPass" type="password" placeholder="至少 6 位" autocomplete="new-password" />' +
+      '<input class="settings-input" id="newPass" type="password" placeholder="至少 6 位" autocomplete="new-password" maxlength="64" />' +
       '<label class="settings-label">确认新密码</label>' +
-      '<input class="settings-input" id="newPass2" type="password" placeholder="再输一次" autocomplete="new-password" />' +
+      '<input class="settings-input" id="newPass2" type="password" placeholder="再输一次" autocomplete="new-password" maxlength="64" />' +
       '<div class="login-err" id="changePassErr"></div>' +
       '<div class="btn-row"><button class="settings-btn" id="changePassBtn">修改密码</button></div>';
     document.getElementById('changePassBtn').addEventListener('click', submitChangePassword);
@@ -2067,9 +2067,9 @@ function renderAccountSection() {
       '<div class="pane-title">绑定账号</div>' +
       '<div class="settings-hint">设置账号密码后，下次可用账号密码登录，无需再输邀请码</div>' +
       '<label class="settings-label">账号</label>' +
-      '<input class="settings-input" id="bindUser" placeholder="3-20 位字母/数字/下划线" autocomplete="off" />' +
+      '<input class="settings-input" id="bindUser" placeholder="3-20 位字母/数字/下划线" autocomplete="off" maxlength="20" />' +
       '<label class="settings-label">密码</label>' +
-      '<input class="settings-input" id="bindPass" type="password" placeholder="至少 6 位" autocomplete="new-password" />' +
+      '<input class="settings-input" id="bindPass" type="password" placeholder="至少 6 位" autocomplete="new-password" maxlength="64" />' +
       '<div class="login-err" id="bindErr"></div>' +
       '<div class="btn-row"><button class="settings-btn" id="bindSubmitBtn">绑定</button></div>' +
       renderAvatarBlock('暂未绑定账号', '可以先选个头像');
@@ -2108,7 +2108,7 @@ async function submitBind() {
   const errEl = document.getElementById('bindErr');
   errEl.textContent = '';
   if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) { errEl.textContent = '账号需为 3-20 位字母/数字/下划线'; return; }
-  if (password.length < 6) { errEl.textContent = '密码至少 6 位'; return; }
+  if (password.length < 6 || password.length > 64) { errEl.textContent = '密码需为 6-64 位'; return; }
   try {
     const r = await fetch('api/auth/bind-account', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify({ username, password })
@@ -2136,7 +2136,7 @@ async function submitChangePassword() {
   const errEl = document.getElementById('changePassErr');
   errEl.textContent = '';
   if (!oldP) { errEl.textContent = '请输入原密码'; return; }
-  if (newP.length < 6) { errEl.textContent = '新密码至少 6 位'; return; }
+  if (newP.length < 6 || newP.length > 64) { errEl.textContent = '新密码需为 6-64 位'; return; }
   if (newP !== newP2) { errEl.textContent = '两次新密码不一致'; return; }
   try {
     const r = await fetch('api/user/change-password', {

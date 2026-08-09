@@ -4,6 +4,9 @@ from typing import Dict, Iterator, List
 from . import config, llm, memes, official_sources, retriever
 from . import ocr
 
+# 单条用户消息的文本长度上限（与前端输入框 maxlength=2000 一致）。
+MAX_MESSAGE_LEN = 2000
+
 
 def _content_to_text(content, seen: set) -> str:
     """把消息 content 转成纯文本。
@@ -65,6 +68,12 @@ def validate_client_messages(messages: List[Dict]) -> List[Dict]:
         raise ValueError("消息不能为空")
     if isinstance(content, list) and not content:
         raise ValueError("消息不能为空")
+    # 上限护栏：限制单条消息文本长度（图片数据不在此限），防止超长粘贴。
+    text_len = len(content) if isinstance(content, str) else sum(
+        len(p.get("text", "") or "") for p in content if isinstance(p, dict)
+    )
+    if text_len > MAX_MESSAGE_LEN:
+        raise ValueError(f"消息内容不能超过 {MAX_MESSAGE_LEN} 字")
     return [{"role": "user", "content": content}]
 
 

@@ -918,6 +918,20 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Implementation commit: `c95a900` (`fix: retain official fallback policy`).
 - Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.
 
+### 2026-08-10 - add input length/type guards across the whole project
+
+- Request / problem: user found they could paste several thousand Chinese characters into a password field. Asked for a project-wide audit of input length and type limits.
+- Finding / root cause: every input only enforced a lower bound (e.g. password >= 6) with no upper limit, and almost no frontend maxlength. Backend endpoints likewise only checked lower bounds, so oversized values (huge passwords slowing PBKDF2, oversized notes, oversized chat text) were accepted.
+- Changed:
+  - backend/app/main.py - added `_MAX_PASSWORD_LEN=64`, `_MAX_USERNAME_LEN=64`; reject oversized credentials before PBKDF2 in admin-login/account-login; 6-64 password bounds in bind-account/change-password; length bounds for invite create (quota 1-1000000 or -1, hours 1-87600, note <=100); API-settings length bounds (key<=256, base<=256, model<=64).
+  - backend/app/service.py - added `MAX_MESSAGE_LEN=2000` and enforce it in `validate_client_messages` (text length only, images excluded).
+  - backend/static/index.html - `maxlength` on login user/pass (20/64), API key/base/model (256/256/64), search (100), chat textarea (2000).
+  - backend/static/app.js - `maxlength` on bind/change-password inputs (64), bind user (20), invite note (100); max on number inputs (quota 1000000, hours 87600); frontend validation now enforces 6-64 passwords.
+  - BOM-only cleanup in ai/DEPLOYMENT_RUNBOOK.md.
+- Verified: `python -m py_compile backend/app/main.py backend/app/service.py` PASS; `node --check backend/static/app.js` PASS.
+- Implementation commit: TBD.
+- Follow-up / risk: frontend maxlength is a UX guard only; the backend bounds are the real enforcement. No live/paid provider call was made.
+
 ### 2026-08-10 - fix custom API test button broken on subpath deployment
 
 - Request / problem: online site at `https://ai.dnbox.cn/fixpilot/` reported frequent errors when using custom API settings.
@@ -986,3 +1000,12 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: onboarding static contract PASS (removed copy/text node and old text CSS; expected new copy, arrow affordance, and cache versions present); `node --check backend/static/app.js` PASS; `node tools/renderer_test.js` PASS (R01-R07); `git diff --check` PASS. No live model request or production deployment was performed.
 - Commit: pending at handoff time.
 - Follow-up / risk: visual browser verification remains needed on desktop and narrow mobile after the next local run; direct entry intentionally remains available and must never be blocked.
+
+### 2026-08-10 - accept concurrent workspace changes and restore local development service
+
+- Request / problem: the owner confirmed that changes visible in the worktree were made by another AI and must be kept as the current baseline, then asked whether the local FixPilot service was deployed.
+- Investigation: `git status --short` showed concurrent/unrelated changes (`ai/DEPLOYMENT_RUNBOOK.md`, local SQLite sidecars, `.workbuddy/`, a text file, and a report draft); none were reverted, staged, or modified. No listener initially answered on port 8000. The project-local Uvicorn startup path was verified from `Start-FixPilot.cmd` and `README.md`.
+- Changed: no repository source or product-rule file was changed. Started the existing local FastAPI/Uvicorn application from the project virtual environment, bound to `127.0.0.1:8000`.
+- Verified: `GET http://127.0.0.1:8000/api/health` returned HTTP 200 with `{"status":"ok","chunks":80}`; `netstat` confirmed `127.0.0.1:8000` is listening (PID 33436 at verification time).
+- Commit: none; this is local runtime state only and deliberately does not include concurrent worktree changes.
+- Follow-up / risk: the local process is for this workstation session. Restart via `Start-FixPilot.cmd` if it is stopped; do not commit runtime databases, WAL/SHM files, or another agent's unreviewed changes merely to make the worktree clean.
