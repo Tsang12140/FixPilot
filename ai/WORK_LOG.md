@@ -907,3 +907,13 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: `python -m py_compile backend/app/official_sources.py backend/app/llm.py backend/app/service.py tools/official_sources_test.py tools/web_search_test.py` PASS; `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (renderer 5, transport 3, websearch 9, sources 7); `git diff --check` PASS. No live or paid provider request was made.
 - Implementation commit: `8d472be` (`fix: prioritize official source registry`).
 - Follow-up / risk: the provider web-search tool still lacks a documented server-side domain-preference parameter. Prompt policy plus visible labels guide the result, but cannot prove an arbitrary returned page is official. For firmware, BIOS, data, partition, or hardware-risk work, treat an unlisted result only as a lead and verify source ownership plus exact model before proceeding.
+
+
+### 2026-08-09 - keep the official-only fallback policy when no preferred registry entry exists
+
+- Request / follow-up: after changing the source directory into a preferred route, ensure that a concrete unlisted documentation request does not reach the model with an empty per-turn source policy.
+- Finding / root cause: `build_lookup_policy([])` returned an empty string. The global official-reference rule still existed, but the model did not receive the explicit unlisted-request boundary that says to broaden only to a direct manufacturer, operating-system, or hardware-vendor official page.
+- Changed: `backend/app/official_sources.py` now emits that explicit fallback policy whenever no curated route matches. `tools/web_search_test.py` asserts the policy is present for an unlisted model-plus-documentation request.
+- Verified: `python -m py_compile backend/app/official_sources.py tools/web_search_test.py` PASS; `python tools/run_all.py --suites websearch,sources` PASS (websearch 9, sources 7); `git diff --check` PASS.
+- Implementation commit: pending (this entry is staged with the implementation).
+- Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.

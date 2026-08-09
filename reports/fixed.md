@@ -276,3 +276,15 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (24 checks); Python compilation and `git diff --check` PASS.
 - Status: fixed and committed.
 - Commit: `8d472be` (`fix: prioritize official source registry`).
+
+
+## 2026-08-09 Asia/Shanghai - unlisted official documentation request lost its per-turn fallback boundary
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: a concrete, unlisted model/manual request could enable lookup but receive an empty source-policy message.
+- Root cause: `build_lookup_policy([])` returned an empty string after the registry became a preferred route.
+- Files changed: `backend/app/official_sources.py`, `tools/web_search_test.py`, and `ai/WORK_LOG.md`.
+- Fix: an empty preferred-source set now produces an official-only fallback: direct manufacturer, OS-vendor, or hardware-vendor support pages only; no forums, mirrors, snippets, or unverified third parties as confirmed evidence.
+- Verification: `python tools/run_all.py --suites websearch,sources` PASS (16 checks); compilation and `git diff --check` PASS.
+- Status: fixed and ready to commit.
+- Commit: pending (record staged with implementation).

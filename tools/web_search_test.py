@@ -170,6 +170,7 @@ def test_service_prioritizes_registry_without_turning_it_into_a_wall():
     assert_true(any("Registry-prioritized external lookup" in message.get("content", "") for message in official_messages), "priority rule was not injected")
     assert_true(not any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in generic_messages), "official rule leaked to a generic symptom")
     assert_true(any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in unlisted_messages), "specific unlisted request missed lookup policy")
+    assert_true(any("No curated registry source matched" in message.get("content", "") for message in unlisted_messages), "unlisted request missed official-only fallback policy")
     assert_true(not any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in other_messages), "official rule leaked to an unsupported provider")
 
 

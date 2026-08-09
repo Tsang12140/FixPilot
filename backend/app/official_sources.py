@@ -156,10 +156,11 @@ def is_allowed_url(url: str, domains: Iterable[str]) -> bool:
 
 
 def build_lookup_policy(sources: Iterable[Dict]) -> str:
-    """Give the model only the few official sites allowed for this turn."""
+    """Tell the model which official sites to prefer for this turn."""
     items = list(sources)
     if not items:
-        return ""
+        return """[Registry-prioritized external lookup]
+No curated registry source matched this identifiable documentation request. External lookup remains optional and local diagnosis still comes first. If an official reference is genuinely necessary, search only for a direct manufacturer, operating-system, or hardware-vendor official support page. Do not use a forum, mirror, snippet, or unverified third-party page as confirmed evidence. For firmware, BIOS, data, partition, or hardware-risk actions, treat any result as a lead until source ownership and exact-model applicability are verified."""
     entries = "\\n".join(
         f"- {item['name']} | domains: {', '.join(item['domains'])} | entry: {item['search_url']} | purpose: {', '.join(item.get('allowed_purposes') or ['manual'])}"
         for item in items
