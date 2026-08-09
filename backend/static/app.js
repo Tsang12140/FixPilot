@@ -2259,7 +2259,7 @@ async function testApiSettings_action() {
   apiStatus.className = 'api-status';
   apiTestBtn.disabled = true;
   try {
-    const res = await fetch('/api/test-api', {
+    const res = await fetch('api/test-api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
       body: JSON.stringify(settings),
