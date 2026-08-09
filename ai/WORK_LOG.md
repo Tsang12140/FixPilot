@@ -685,5 +685,5 @@ Copy this section for every new task; append it above this template.
   - `python -m py_compile tools/run_all.py` - PASS.
   - `python tools/run_all.py --suites renderer` - PASS 5 / FAIL 0 / ERROR 0 / REVIEW 0; local JSON evidence written under ignored `reports/test-runs/`.
   - `python tools/run_all.py --help` exposes `renderer` and `--skip-renderer`; `git diff --check` passed.
-- Commit: pending.
+- Commit: 4707da5 (`test: automate answer renderer regressions`).
 - Follow-up / risk: this suite protects parser/layout invariants but is not a replacement for browser checks at desktop and mobile breakpoints. If the browser automation runtime is available, pair relevant UI changes with responsive visual checks.
