@@ -54,6 +54,6 @@ For the one-turn official DeepSeek V4 Flash “查资料” feature, run:
 python tools/run_all.py --suites renderer,transport,websearch
 ```
 
-`tools/web_search_test.py` is credential-free. It checks the official-host and
-model allowlist, the exact Responses API tool payload, provider-returned source
-labelling, and rejection of other providers before any network request.
+`tools/web_search_test.py` is credential-free. It checks the official host/model allowlist,
+server-decided tool availability without `tool_choice`, removal of the user control, source
+disclosure only after an actual lookup, and rejection of other providers before any network request.

@@ -232,3 +232,15 @@ The three fixes immediately above were implemented and verified in commit `a2b4b
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 The optional external-lookup behavior and sidebar boundary fix above were implemented and verified in commit `3a37a8b` (`fix: keep lookup optional and reserve sidebar footer`).
+
+
+## 2026-08-09 Asia/Shanghai - external lookup was incorrectly exposed as a user search switch
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the composer exposed a `???` button and the browser could include a `webSearch` boolean in a chat request, making a narrow official-reference fallback look like a user-operated general-search feature.
+- Root cause: lookup capability was initially modeled as a one-turn client preference instead of a conservative server/model decision after knowledge-base retrieval.
+- Files changed: `backend/static/index.html`; `backend/static/style.css`; `backend/static/app.js`; `backend/app/main.py`; `backend/app/service.py`; `backend/app/llm.py`; `tools/web_search_test.py`; the aligned policy and handoff documents in `ai/`.
+- Fix: removed the UI/API control. Only the server-approved official DeepSeek V4 Flash path gets an optional tool; the model is instructed to use it only for verifiable official references and otherwise continue local knowledge-base diagnosis. Normal non-search replies show no banner.
+- Verification: static browser/API contract assertions plus `python tools/run_all.py --suites renderer,transport,websearch` PASS (5 renderer, 3 transport, 7 websearch). No live provider call was used.
+- Final status: fixed in the working tree; the local server must be restarted before manual checking.
+- Commit: pending.

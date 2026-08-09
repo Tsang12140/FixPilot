@@ -1,14 +1,13 @@
-"""No-network regression tests for DeepSeek V4 Flash web search."""
+"""No-network regression tests for automatic official-reference lookup."""
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "backend"))
-from app import llm
+from app import llm, service
 
 
 class FakeResponse:
@@ -36,7 +35,7 @@ def test_official_gate_is_narrow():
         not llm.is_official_deepseek_web_search(
             "https://ark.cn-beijing.volces.com/api/v3/responses", "deepseek-v4-flash"
         ),
-        "Ark endpoint must not receive FixPilot web-search requests",
+        "Ark endpoint must not receive FixPilot official lookup",
     )
     assert_true(
         not llm.is_official_deepseek_web_search("https://api.deepseek.com", "deepseek-v4-pro"),
@@ -44,20 +43,20 @@ def test_official_gate_is_narrow():
     )
 
 
-def test_payload_offers_the_supported_tool_without_forcing_it():
+def test_payload_makes_lookup_available_without_forcing_it():
     normal = llm.build_responses_payload([{"role": "user", "content": "hello"}], "deepseek-v4-flash")
-    searched = llm.build_responses_payload(
+    allowed = llm.build_responses_payload(
         [{"role": "system", "content": "policy"}, {"role": "user", "content": "hello"}],
         "deepseek-v4-flash",
-        web_search=True,
+        official_lookup_available=True,
     )
-    assert_true("tools" not in normal and "tool_choice" not in normal, "normal Responses payload enabled a tool")
-    assert_true(searched.get("tools") == [{"type": "web_search"}], "web-search tool payload is incorrect")
-    assert_true("tool_choice" not in searched, "web search must remain optional for this turn")
-    assert_true(searched.get("instructions") == "policy", "system policy did not become instructions")
+    assert_true("tools" not in normal and "tool_choice" not in normal, "normal payload enabled a tool")
+    assert_true(allowed.get("tools") == [{"type": "web_search"}], "lookup tool payload is incorrect")
+    assert_true("tool_choice" not in allowed, "lookup must remain model-decided")
+    assert_true(allowed.get("instructions") == "policy", "system policy did not become instructions")
 
 
-def test_search_request_uses_official_responses_and_labels_sources():
+def test_actual_lookup_uses_official_responses_and_discloses_sources():
     original_post = llm.httpx.post
     calls = []
 
@@ -65,38 +64,39 @@ def test_search_request_uses_official_responses_and_labels_sources():
         calls.append((url, kwargs))
         return FakeResponse({
             "output": [
-                {"type": "web_search_call", "status": "completed", "url": "https://example.com/search?q=graphics-driver"},
-                {"type": "message", "content": [{"type": "output_text", "text": "这是检索后的回答。"}]},
+                {"type": "web_search_call", "status": "completed", "url": "https://vendor.example/manual.pdf"},
+                {"type": "message", "content": [{"type": "output_text", "text": "official answer"}]},
             ]
         })
 
     try:
         llm.httpx.post = fake_post
         reply = "".join(llm.stream_chat(
-            [{"role": "user", "content": "查一下显卡驱动兼容性"}],
-            api_key="test-key", base_url="https://api.deepseek.com", model="deepseek-v4-flash", web_search=True,
+            [{"role": "user", "content": "Need the vendor manual"}],
+            api_key="test-key", base_url="https://api.deepseek.com", model="deepseek-v4-flash",
+            official_lookup_available=True,
         ))
     finally:
         llm.httpx.post = original_post
 
-    assert_true(len(calls) == 1, "web search should make exactly one completed request")
+    assert_true(len(calls) == 1, "official lookup should make one completed request")
     url, kwargs = calls[0]
-    assert_true(url == "https://api.deepseek.com/responses", "web search did not force the official Responses endpoint")
+    assert_true(url == "https://api.deepseek.com/responses", "lookup did not use the official Responses endpoint")
     payload = kwargs.get("json") or {}
-    assert_true(payload.get("stream") is False, "FixPilot must use a completed Responses request")
+    assert_true(payload.get("stream") is False, "Responses lookup must be completed server-side")
     assert_true(payload.get("tools") == [{"type": "web_search"}], "official request omitted web_search")
-    assert_true("本轮已联网查资料。" in reply, "reply did not transparently label the search")
-    assert_true("https://example.com/search?q=graphics-driver" in reply, "provider-returned source URL was not preserved")
+    assert_true(reply.startswith("\u672c\u8f6e\u67e5\u9605\u4e86\u5916\u90e8\u8d44\u6599\u3002"), "actual lookup was not transparently disclosed")
+    assert_true("official answer" in reply, "answer text was lost")
+    assert_true("https://vendor.example/manual.pdf" in reply, "provider-returned source URL was not preserved")
 
 
-def test_search_permission_keeps_normal_diagnosis_offline_when_unneeded():
+def test_normal_answer_has_no_lookup_disclosure_when_model_did_not_search():
     body = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "normal reply"}]}]}
     reply = llm.append_web_search_sources("normal reply", body)
-    assert_true("本轮未检索外部资料" in reply, "unneeded search turn was not transparently kept offline")
-    assert_true("本轮已联网查资料" not in reply, "unneeded search turn falsely claimed a web search")
+    assert_true(reply == "normal reply", "ordinary answer incorrectly exposed a no-search banner")
 
 
-def test_other_providers_fail_before_network_call():
+def test_non_official_provider_fails_before_network_when_lookup_is_requested_internally():
     original_post = llm.httpx.post
     called = False
 
@@ -109,18 +109,54 @@ def test_other_providers_fail_before_network_call():
         llm.httpx.post = fail_if_called
         try:
             list(llm.stream_chat(
-                [{"role": "user", "content": "查资料"}], api_key="test-key",
-                base_url="https://example.test/v1", model="anything", web_search=True,
+                [{"role": "user", "content": "manual"}], api_key="test-key",
+                base_url="https://example.test/v1", model="anything", official_lookup_available=True,
             ))
         except ValueError as exc:
-            assert_true("仅支持官方 DeepSeek V4 Flash" in str(exc), "unsupported-provider error was unclear")
+            assert_true("Official external lookup requires" in str(exc), "unsupported-provider error was unclear")
         else:
             raise AssertionError("unsupported provider did not fail")
     finally:
         llm.httpx.post = original_post
     assert_true(not called, "unsupported provider attempted a request")
 
-def test_client_one_turn_control_contract():
+
+def test_service_automatically_exposes_lookup_only_to_the_supported_model():
+    original_retrieve = service.retriever.retrieve
+    original_context = service.llm._build_context
+    original_stream = service.llm.stream_chat
+    captures = []
+
+    def fake_stream(messages, **kwargs):
+        captures.append((messages, kwargs))
+        yield "ok"
+
+    try:
+        service.retriever.retrieve = lambda _query: []
+        service.llm._build_context = lambda _items: ""
+        service.llm.stream_chat = fake_stream
+        list(service.chat_stream(
+            [{"role": "user", "content": "Need a manual"}],
+            api_key="test-key", base_url="https://api.deepseek.com", model="deepseek-v4-flash",
+        ))
+        list(service.chat_stream(
+            [{"role": "user", "content": "Normal symptom"}],
+            api_key="test-key", base_url="https://example.test/v1", model="anything",
+        ))
+    finally:
+        service.retriever.retrieve = original_retrieve
+        service.llm._build_context = original_context
+        service.llm.stream_chat = original_stream
+
+    official_messages, official_kwargs = captures[0]
+    other_messages, other_kwargs = captures[1]
+    assert_true(official_kwargs.get("official_lookup_available") is True, "supported model was not granted internal lookup")
+    assert_true(other_kwargs.get("official_lookup_available") is False, "unsupported model was granted internal lookup")
+    assert_true(any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in official_messages), "official rule was not injected")
+    assert_true(not any(message.get("content") == llm.OFFICIAL_LOOKUP_POLICY for message in other_messages), "official rule leaked to an unsupported provider")
+
+
+def test_lookup_is_server_decided_and_has_no_user_control():
     static_root = os.path.join(ROOT, "backend", "static")
     with open(os.path.join(static_root, "index.html"), encoding="utf-8") as source_file:
         html = source_file.read()
@@ -128,22 +164,25 @@ def test_client_one_turn_control_contract():
         app = source_file.read()
     with open(os.path.join(static_root, "style.css"), encoding="utf-8") as source_file:
         css = source_file.read()
-    assert_true('id="webSearchBtn"' in html, "composer does not contain the explicit search control")
-    assert_true("webSearch: useWebSearch" in app, "chat payload does not include the one-turn search flag")
-    assert_true("const retry = { convId, text, content, webSearch: useWebSearch };" in app, "retry state does not preserve search intent")
-    assert_true("setWebSearchRequested(false);" in app, "successful send does not reset one-turn search state")
-    assert_true("hostname.toLowerCase() === 'api.deepseek.com'" in app, "client model gate is not host-specific")
-    assert_true("platform_web_search" in open(os.path.join(ROOT, "backend", "app", "main.py"), encoding="utf-8").read(), "server does not expose actual platform web-search support")
-    assert_true("platformWebSearchEnabled" in app, "client does not follow the server platform capability flag")
-    assert_true('"model web . img send"' in css and '"web input img send"' in css, "desktop/mobile composer placement is missing")
+    with open(os.path.join(ROOT, "backend", "app", "main.py"), encoding="utf-8") as source_file:
+        main = source_file.read()
+    with open(os.path.join(ROOT, "backend", "app", "service.py"), encoding="utf-8") as source_file:
+        service = source_file.read()
+
+    assert_true("webSearchBtn" not in html and "web-search-btn" not in html, "user lookup button remains in composer")
+    assert_true("webSearch" not in app, "client can still request lookup")
+    assert_true("webSearch" not in main and "platform_web_search" not in main, "chat API still exposes user lookup state")
+    assert_true('"model . img send"' in css and '"input img send"' in css, "composer grid did not close after removing lookup control")
+
 
 TESTS = [
-    ("W01", "official web-search gate accepts only DeepSeek V4 Flash", test_official_gate_is_narrow),
-    ("W02", "Responses payload offers web search without forcing it", test_payload_offers_the_supported_tool_without_forcing_it),
-    ("W03", "search uses official Responses endpoint and labels provider sources", test_search_request_uses_official_responses_and_labels_sources),
-    ("W04", "unsupported provider fails before network access", test_other_providers_fail_before_network_call),
-    ("W05", "client keeps search explicit, one-turn, and responsive", test_client_one_turn_control_contract),
-    ("W06", "search permission does not force an unnecessary web call", test_search_permission_keeps_normal_diagnosis_offline_when_unneeded),
+    ("W01", "official lookup gate accepts only DeepSeek V4 Flash", test_official_gate_is_narrow),
+    ("W02", "server enables the tool without forcing a search", test_payload_makes_lookup_available_without_forcing_it),
+    ("W03", "actual lookup uses official Responses and preserves sources", test_actual_lookup_uses_official_responses_and_discloses_sources),
+    ("W04", "ordinary answer has no lookup banner", test_normal_answer_has_no_lookup_disclosure_when_model_did_not_search),
+    ("W05", "non-official provider is rejected before network access", test_non_official_provider_fails_before_network_when_lookup_is_requested_internally),
+    ("W06", "service grants lookup only to the supported model", test_service_automatically_exposes_lookup_only_to_the_supported_model),
+    ("W07", "lookup is server-decided and the composer has no user switch", test_lookup_is_server_decided_and_has_no_user_control),
 ]
 
 
@@ -159,18 +198,17 @@ def run_tests():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="FixPilot DeepSeek web-search regression tests")
+    parser = __import__("argparse").ArgumentParser(description="Automatic official-lookup regression suite")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     results = run_tests()
-    failed = any(result["status"] != "PASS" for result in results)
     if args.json:
         print(json.dumps({"suite": "websearch", "results": results}, ensure_ascii=False))
     else:
         for result in results:
-            suffix = f" ({result.get('detail')})" if result.get("detail") else ""
+            suffix = f": {result.get('detail')}" if result.get("detail") else ""
             print(f"[{result['id']}] {result['name']}: {result['status']}{suffix}")
-    raise SystemExit(1 if failed else 0)
+    raise SystemExit(0 if all(result["status"] == "PASS" for result in results) else 1)
 
 
 if __name__ == "__main__":

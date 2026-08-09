@@ -17,7 +17,6 @@ const BASE = (function () {
 const chatEl = document.getElementById('chat');
 const input = document.getElementById('input');
 const sendBtn = document.getElementById('send');
-const webSearchBtn = document.getElementById('webSearchBtn');
 const convList = document.getElementById('convList');
 const sidebar = document.getElementById('sidebar');
 const scrim = document.getElementById('scrim');
@@ -60,7 +59,6 @@ let conversationSearchTimer = null;
 let conversationSearchRequest = 0;
 let activeConvId = null;
 let busy = false;
-let webSearchRequested = false;
 let canUse = true;
 /* 当前登录身份与绑定状态（enterApp 时从 /me 同步） */
 let currentRole = null;       // 'admin' | 'user'
@@ -70,7 +68,6 @@ let bindBannerDismissed = false; // 用户已手动关闭提示条，本次会�
 let currentUser = null;       // /api/auth/me 返回的完整用户对象
 let currentProfile = null;
 let platformModelName = 'deepseek-v4-flash'; // 后端返回的当前平台模型名
-let platformWebSearchEnabled = false; // Server-confirmed platform capability
 
 /* ---------- 随机用户头像（42 张 WebP，首次登录随机分配） ---------- */
 const AVATAR_KEY = 'fixpilot_avatar';
@@ -156,39 +153,6 @@ function chatApiParams() {
   const s = getApiSettings();
   if (!s || !s.apiKey || s.activeSource === 'platform') return null;
   return { apiKey: s.apiKey, apiBase: s.apiBase || '', model: s.model || '' };
-}
-function activeModelSupportsWebSearch() {
-  const custom = chatApiParams();
-  if (!custom) return Boolean(platformWebSearchEnabled);
-  const apiBase = custom.apiBase;
-  const model = custom.model;
-  try {
-    return Boolean(apiBase) &&
-      new URL(apiBase).hostname.toLowerCase() === 'api.deepseek.com' &&
-      String(model || '').trim().toLowerCase() === 'deepseek-v4-flash';
-  } catch (e) {
-    return false;
-  }
-}
-function refreshWebSearchControl() {
-  if (!webSearchBtn) return;
-  const supported = activeModelSupportsWebSearch();
-  if (!supported) webSearchRequested = false;
-  webSearchBtn.disabled = !supported;
-  webSearchBtn.classList.toggle('is-active', supported && webSearchRequested);
-  webSearchBtn.setAttribute('aria-pressed', String(supported && webSearchRequested));
-  webSearchBtn.title = supported
-    ? '仅本轮补充型号、说明书、PDF、官方驱动或兼容性资料'
-    : '查资料仅支持官方 DeepSeek V4 Flash；仅用于型号、说明书等外部资料';
-}
-function setWebSearchRequested(next, notify = false) {
-  if (next && !activeModelSupportsWebSearch()) {
-    if (notify) toast('查资料仅支持官方 DeepSeek V4 Flash');
-    refreshWebSearchControl();
-    return;
-  }
-  webSearchRequested = Boolean(next);
-  refreshWebSearchControl();
 }
 
 /* ---------- 认证 ---------- */
@@ -838,8 +802,6 @@ async function enterApp() {
     }
     const me = await r.json();
     platformModelName = me.platform_model || platformModelName;
-    platformWebSearchEnabled = Boolean(me.platform_web_search);
-    refreshWebSearchControl();
     useProfile(me.profile);
     /* 同步身份与绑定状态到全局，供提示条与收藏逻辑使用 */
     currentRole = me.role;
@@ -1743,8 +1705,7 @@ async function send(retryState = null) {
     ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: pendingImage, thumbnail: pendingThumb || pendingImage } }]
     : text);
   const convId = isRetry ? retryState.convId : activeConvId;
-  const useWebSearch = isRetry ? Boolean(retryState.webSearch) : webSearchRequested;
-  const retry = { convId, text, content, webSearch: useWebSearch };
+  const retry = { convId, text, content };
 
   if (!isRetry) {
     input.value = '';
@@ -1754,7 +1715,6 @@ async function send(retryState = null) {
     autoResize();
     if (chatEl.querySelector('.welcome')) chatEl.innerHTML = '';
     addMsg('user', content);
-    setWebSearchRequested(false);
   }
 
   busy = true;
@@ -1776,7 +1736,7 @@ async function send(retryState = null) {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(Object.assign(
-        { messages: [{ role: 'user', content }], convId, webSearch: useWebSearch },
+        { messages: [{ role: 'user', content }], convId },
         chatApiParams() || {}
       ))
     });
@@ -1946,8 +1906,6 @@ async function refreshQuota() {
     const r = await fetch('api/auth/me', { headers: authHeaders() });
     const me = await r.json();
     platformModelName = me.platform_model || platformModelName;
-    platformWebSearchEnabled = Boolean(me.platform_web_search);
-    refreshWebSearchControl();
     currentUser = me;
     useProfile(me.profile || currentProfile);
     canUse = me.role === 'admin' ? true : me.can_use;
@@ -2461,7 +2419,6 @@ function updateModelPicker() {
   modelPickerBtn.title = label;
   modelDropdown.style.display = 'none';
   requestAnimationFrame(syncMobileModelPicker);
-  refreshWebSearchControl();
 }
 function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
@@ -2522,9 +2479,6 @@ modelDropdown.addEventListener('click', (e) => {
 });
 
 /* ---------- Events ---------- */
-webSearchBtn.addEventListener('click', () => {
-  setWebSearchRequested(!webSearchRequested, true);
-});
 sendBtn.addEventListener('click', () => send());
 input.addEventListener('input', autoResize);
 input.addEventListener('keydown', (e) => {

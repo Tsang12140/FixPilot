@@ -41,7 +41,6 @@ class ChatRequest(BaseModel):
     apiKey: Optional[str] = None       # 用户自带 API Key（有值则用自定义 API，跳过配额）
     apiBase: Optional[str] = None      # 自定义 API 基址（OpenAI 兼容）
     model: Optional[str] = None        # 自定义模型名
-    webSearch: bool = False            # 用户主动选择的本轮联网资料开关
 
 
 class ApiTestRequest(BaseModel):
@@ -277,7 +276,7 @@ def invite_login(req: InviteLoginRequest):
 def me(authorization: Optional[str] = Header(None)):
     payload = _require_auth(authorization)
     if payload.get("role") == "admin":
-        return {"role": "admin", "username": payload.get("username"), "platform_model": config.DEEPSEEK_MODEL, "platform_web_search": llm.is_official_deepseek_web_search("", config.DEEPSEEK_MODEL), "profile": _public_profile(db.get_profile(_owner(payload)))}
+        return {"role": "admin", "username": payload.get("username"), "platform_model": config.DEEPSEEK_MODEL, "profile": _public_profile(db.get_profile(_owner(payload)))}
     code = payload.get("code", "")
     invite = db.get_invite(code)
     if not invite:
@@ -285,7 +284,7 @@ def me(authorization: Optional[str] = Header(None)):
     ok, reason = auth.can_use(invite)
     # 查询当前邀请码是否已绑定账号
     bound = db.get_user_by_invite_code(code)
-    return {"role": "user", "code": code, "platform_model": config.DEEPSEEK_MODEL, "platform_web_search": llm.is_official_deepseek_web_search("", config.DEEPSEEK_MODEL),
+    return {"role": "user", "code": code, "platform_model": config.DEEPSEEK_MODEL,
             "username": payload.get("username") or (bound["username"] if bound else None),
             "bound_username": bound["username"] if bound else None,
             "quota_used": invite["quota_used"], "quota_total": invite["quota_total"],
@@ -619,7 +618,6 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                 profile=profile_for_reply,
                 temporary_level=temporary,
                 already_normalized=True,
-                web_search=req.webSearch,
             ):
                 if awaiting_directive:
                     prefix.append(token)

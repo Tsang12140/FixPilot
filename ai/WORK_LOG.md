@@ -855,3 +855,18 @@ The work item immediately above was implemented and verified in `a2b4b16` (`fix:
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 The optional external-lookup behavior and sidebar boundary fix above were implemented and verified in commit `3a37a8b` (`fix: keep lookup optional and reserve sidebar footer`).
+
+
+### 2026-08-09 - make official-reference lookup server-decided and knowledge-base-first
+
+- Request / product correction: remove the visible `???` control. The user wants FixPilot itself to decide whether official material is necessary, while routine diagnosis remains conservative and driven by the local knowledge base.
+- Finding / root cause: the first implementation represented lookup as a browser toggle and a client-supplied `webSearch` request field. Even after removing forced `tool_choice`, that UI still asked users to make a product-level evidence decision and made the feature appear like general-purpose search.
+- Changed:
+  - `backend/static/index.html`, `backend/static/style.css`, and `backend/static/app.js` - removed the user switch, state, retry flag, capability plumbing, and its composer grid slot; the model picker, image button, and send button close the resulting space.
+  - `backend/app/main.py` - removed the public `webSearch` request field and the now-unused capability response field. A client cannot turn lookup on.
+  - `backend/app/service.py` and `backend/app/llm.py` - the server grants tool availability only for the exact official `api.deepseek.com` + `deepseek-v4-flash` path. The model receives a knowledge-base-first, official-sources-only rule and decides whether to call the optional tool; no `tool_choice` is sent. Ordinary answers remain unlabelled; only an actual tool call receives an external-source disclosure and provider URLs.
+  - `tools/web_search_test.py` - replaced the one-turn-control checks with server-decision, official-provider gate, actual-source, no-banner, and no-user-control regression coverage.
+  - `ai/FixPilot_????????_v1.0.md`, `ai/FixPilot??????.md`, `ai/FixPilot_?????????_v1.0.md`, `ai/FixPilot_Prompt??????????_v1.0.md`, and `ai/Testing/README.md` - aligned handoff, capability, persona, and test documentation with the new narrow policy.
+- Verified: `python -m py_compile backend/app/llm.py backend/app/service.py backend/app/main.py tools/web_search_test.py` PASS; `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport,websearch` PASS (renderer 5, transport 3, websearch 7); source contract confirms the browser and chat API contain no `webSearch` control/field; `git diff --check` PASS. No paid/live provider call was made.
+- Commit: pending.
+- Follow-up / risk: the LLM controls whether to call the enabled tool. The policy limits it to official references, but a live provider acceptance check with a concrete model/manual question is still useful before broad release; do not count an unverified external page as a confirmed diagnosis.

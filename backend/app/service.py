@@ -2,7 +2,7 @@
 from typing import Dict, Iterator, List
 import re
 
-from . import llm, retriever
+from . import config, llm, retriever
 from . import ocr
 
 
@@ -93,7 +93,6 @@ def chat_stream(
     profile: Dict = None,
     temporary_level: str = "unknown",
     already_normalized: bool = False,
-    web_search: bool = False,
 ) -> Iterator[str]:
     """messages: 完整对话历史（不含 system）。可含 OpenAI 多模态图片消息。
 
@@ -111,13 +110,16 @@ def chat_stream(
     hits = retriever.retrieve(query)
     context = llm._build_context([h["text"] for h in hits])
 
+    official_lookup_available = llm.is_official_deepseek_web_search(
+        base_url, model or config.DEEPSEEK_MODEL
+    )
     full = llm.build_system_messages(profile, temporary_level)
-    if web_search:
-        full.append({"role": "system", "content": llm.WEB_SEARCH_POLICY})
+    if official_lookup_available:
+        full.append({"role": "system", "content": llm.OFFICIAL_LOOKUP_POLICY})
     full.extend(normalized)
     # 把检索到的知识上下文插入最后一条用户消息之前，作为 system 提示
     full.insert(max(1, len(full) - 1), {"role": "system", "content": context})
 
     yield from llm.stream_chat(
-        full, api_key=api_key, base_url=base_url, model=model, web_search=web_search
+        full, api_key=api_key, base_url=base_url, model=model, official_lookup_available=official_lookup_available
     )
