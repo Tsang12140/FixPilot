@@ -118,3 +118,15 @@ Append-only. One entry per verified fix.
 - Verification: Python compilation passed; run_all.py --help and persona_test.py --help both expose profile-mode and response-style.
 - Final status: fixed and verified.
 - Commit: pending.
+
+---
+
+## 2026-08-09 Asia/Shanghai - internal test cohort mapping reversed during refactor
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: while introducing internal A/B/C test labels, the first edit mapped A to the beginner cohort and C to the advanced cohort. The requested convention is A = advanced, B = intermediate, C = beginner.
+- Confirmed root cause: the initial refactor inferred letter order from explanation depth instead of the user's explicit internal ordering.
+- Files changed: `tools/scenarios.py`; `tools/persona_test.py`; `tools/run_all.py`; `ai/Testing/FixPilot_TEST_PROFILE.md`.
+- Verification: `py_compile` passed; a no-network assertion verifies A -> `advanced`, B -> `intermediate`, C -> `beginner`, and scenario IDs match their intended cohorts.
+- Final status: corrected before commit. No product UI, saved profile, or external user output used the temporary mapping.
+- Commit: pending.

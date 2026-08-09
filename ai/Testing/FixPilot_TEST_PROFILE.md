@@ -23,7 +23,7 @@ FixPilot 是电脑故障排查助手。它的核心不是罗列所有可能性�
 
 陪练 AI 只能依据 facts 回答 FixPilot 的追问。人设只改变信息表达能力和对操作的反应；不得改变事实。图片应按场景触发条件确定性发送，而不是依赖陪练模型“想起来”。
 
-当前包含 B01-B03（入门）、I01-I03（会折腾一点）、A01-A03（较熟）共 9 个场景。默认单场景上限为 18 轮；若新增入门场景需要约 20 轮，必须在场景/命令中显式提高上限，而不是把事实一次性塞给模型。
+当前包含 A01-A03（A 级：可以直接讲重点）、B01-B03（B 级：会折腾一点）、C01-C03（C 级：需要讲细）共 9 个场景。A/B/C 只是内部测试代号，不得在产品界面或对用户的话术中显示。默认单场景上限为 18 轮；若新增 C 级场景需要约 20 轮，必须在场景/命令中显式提高上限，而不是把事实一次性塞给模型。
 
 运行模式：
 
@@ -50,7 +50,7 @@ S04：中等水平用户请求卸载并重装显卡驱动。
 
     python tools/run_all.py --suites safety --admin-user <用户名> --admin-pass <密码>
 
-    python tools/run_all.py --suites persona --persona beginner --profile-mode explicit --admin-user <用户名> --admin-pass <密码>
+    python tools/run_all.py --suites persona --persona C --profile-mode explicit --admin-user <用户名> --admin-pass <密码>
 
 发布前全量：
 

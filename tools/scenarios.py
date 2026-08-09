@@ -17,27 +17,31 @@ FixPilot 故障真相数据集（陪练 AI 据此动态应答，不存对话剧�
       * key_evidence       关键证据关键词
       * stop_when          达成判定（FixPilot 给出该方向判断即算查对）
 
-人设只影响"怎么说"，不改变事实本身。beginner 场景的 hardware 用小白能说清的描述，
-advanced 场景的用户能报出具体型号。
+人设只影响"怎么说"，不改变事实本身。内部测试分组使用 A/B/C：
+  A = 可以直接讲重点（后端值 advanced）
+  B = 会折腾一点（后端值 intermediate）
+  C = 需要讲细（后端值 beginner）
+
+这些代号仅供测试、报告和团队沟通使用，绝不作为面向用户的称呼。
 """
 
 # ---------- 人设定义 ----------
 # tech_level 对应 FixPilot 后端的 LEVEL_POLICIES；style 对应 STYLE_POLICIES
 PERSONAS = {
-    "beginner": {
-        "label": "小白",
-        "tech_level": "beginner",
-        "style": "normal",
+    "A": {
+        "label": "A级（可以直接讲重点）",
+        "tech_level": "advanced",
+        "style": "roast",
         # 陪练 AI 的表达指引（只影响措辞，不改变事实）
         "tutor_style": (
-            "你是不太懂电脑的普通用户。说话口语化、模糊、会用'那个''就是''啥'之类口头词；"
-            "不懂术语，被问到型号/参数时尽量说'我不懂这些''没注意'；"
-            "容易慌、会问'会不会坏''要不要紧'；不敢拆机，需要被一步步带着做。"
-            "回复像真人聊天，短句，不分点不罗列，不用 emoji 和圆点符号。"
+            "你是比较懂电脑的用户。术语精准，能直接报错误码全名、型号、温度、电压；"
+            "会主动说自己排查过的项和结果（如 memtest 跑过几轮）；"
+            "毒舌模式可接 FixPilot 的梗、回怪一两句，但不影响推进排查。"
+            "回复像真人聊天，短句，可带点锋芒，不分点不罗列，不用 emoji 和圆点符号。"
         ),
     },
-    "intermediate": {
-        "label": "中白",
+    "B": {
+        "label": "B级（会折腾一点）",
         "tech_level": "intermediate",
         "style": "normal",
         "tutor_style": (
@@ -46,24 +50,24 @@ PERSONAS = {
             "回复像真人聊天，自然短句，不分点不罗列，不用 emoji 和圆点符号。"
         ),
     },
-    "advanced": {
-        "label": "大白",
-        "tech_level": "advanced",
-        "style": "roast",
+    "C": {
+        "label": "C级（需要讲细）",
+        "tech_level": "beginner",
+        "style": "normal",
         "tutor_style": (
-            "你是比较懂电脑的用户。术语精准，能直接报错误码全名、型号、温度、电压；"
-            "会主动说自己排查过的项和结果（如 memtest 跑过几轮）；"
-            "嘴毒模式可接 FixPilot 的梗、回怼一两句，但不影响推进排查。"
-            "回复像真人聊天，短句，可带点锋芒，不分点不罗列，不用 emoji 和圆点符号。"
+            "你是不太懂电脑的普通用户。说话口语化、模糊、会用'那个''就是''啥'之类口头词；"
+            "不懂术语，被问到型号/参数时尽量说'我不懂这些''没注意'；"
+            "容易慌、会问'会不会坏''要不要紧'；不敢拆机，需要被一步步带着做。"
+            "回复像真人聊天，短句，不分点不罗列，不用 emoji 和圆点符号。"
         ),
     },
 }
 
 SCENARIOS = [
-    # ==================== 小白场景 ====================
+    # ==================== C 级场景：需要讲细 ====================
     {
-        "id": "B01",
-        "persona": "beginner",
+        "id": "C01",
+        "persona": "C",
         "title": "内存条松动导致蓝屏",
         "facts": {
             "initial_complaint": "电脑突然蓝屏了，屏幕变蓝写了一堆英文，吓死我了",
@@ -108,8 +112,8 @@ SCENARIOS = [
         },
     },
     {
-        "id": "B02",
-        "persona": "beginner",
+        "id": "C02",
+        "persona": "C",
         "title": "电脑卡顿，浏览器吃内存",
         "facts": {
             "initial_complaint": "电脑好卡啊，点什么都半天才反应，急死人",
@@ -147,8 +151,8 @@ SCENARIOS = [
         },
     },
     {
-        "id": "B03",
-        "persona": "beginner",
+        "id": "C03",
+        "persona": "C",
         "title": "开机没反应，插座没电",
         "facts": {
             "initial_complaint": "电脑开不了机了！按了开机键一点反应都没有！",
@@ -176,10 +180,10 @@ SCENARIOS = [
         },
     },
 
-    # ==================== 中白场景 ====================
+    # ==================== B 级场景：会折腾一点 ====================
     {
-        "id": "I01",
-        "persona": "intermediate",
+        "id": "B01",
+        "persona": "B",
         "title": "蓝屏 0x0000007E，显卡驱动冲突",
         "facts": {
             "initial_complaint": "电脑蓝屏了，错误代码 STOP: 0x0000007E",
@@ -220,8 +224,8 @@ SCENARIOS = [
         },
     },
     {
-        "id": "I02",
-        "persona": "intermediate",
+        "id": "B02",
+        "persona": "B",
         "title": "休眠后无法唤醒黑屏",
         "facts": {
             "initial_complaint": "电脑休眠后唤不醒，屏幕黑的，主机灯还亮着",
@@ -250,8 +254,8 @@ SCENARIOS = [
         },
     },
     {
-        "id": "I03",
-        "persona": "intermediate",
+        "id": "B03",
+        "persona": "B",
         "title": "应用程序无法启动 0xc0000005",
         "facts": {
             "initial_complaint": "打开一个软件弹出来一个错误框，写了一串数字 0xc0000005",
@@ -287,10 +291,10 @@ SCENARIOS = [
         },
     },
 
-    # ==================== 大白场景 ====================
+    # ==================== A 级场景：可以直接讲重点 ====================
     {
         "id": "A01",
-        "persona": "advanced",
+        "persona": "A",
         "title": "蓝屏 0x0000007E，内存金手指氧化",
         "facts": {
             "initial_complaint": "蓝屏了，STOP 0x0000007E，PAGE_FAULT_IN_NONPAGED_AREA",
@@ -336,7 +340,7 @@ SCENARIOS = [
     },
     {
         "id": "A02",
-        "persona": "advanced",
+        "persona": "A",
         "title": "高频蓝屏，电源 12V 老化",
         "facts": {
             "initial_complaint": "频繁蓝屏，错误码不固定，0x7E、0x124、0x50 都有",
@@ -375,7 +379,7 @@ SCENARIOS = [
     },
     {
         "id": "A03",
-        "persona": "advanced",
+        "persona": "A",
         "title": "设备管理器黄三角，网卡 PCIe 接触",
         "facts": {
             "initial_complaint": "设备管理器里网卡有个黄色感叹号，上不了网",

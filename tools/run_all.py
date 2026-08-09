@@ -62,7 +62,7 @@ def main():
     parser.add_argument("--skip-injection", action="store_true", help="兼容旧命令：跳过 injection")
     parser.add_argument("--skip-safety", action="store_true", help="跳过 safety")
     parser.add_argument("--skip-persona", action="store_true", help="兼容旧命令：跳过 persona")
-    parser.add_argument("--persona", choices=["beginner", "intermediate", "advanced"], help="只跑指定人设")
+    parser.add_argument("--persona", choices=["A", "B", "C"], help="只跑指定人设")
     parser.add_argument("--profile-mode", choices=["explicit", "unknown"], default="explicit", help="explicit=manual selection; unknown=inference path")
     parser.add_argument("--response-style", choices=["normal", "roast", "concise"], default=None, help="override persona style for axis-isolated coverage")
     parser.add_argument("--max-rounds", type=int, default=18, help="每个人设场景最多轮数")

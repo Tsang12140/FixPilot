@@ -607,6 +607,25 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   - UI regressions remain browser/manual checks until a stable browser suite is added;
   - for a different project, copy the playbook/template and write that project’s own truth fixtures rather than copying FixPilot’s scenarios.
 
+
+
+### 2026-08-09 - standardize internal A/B/C test cohorts
+
+- Request / symptom: replace vague internal cohort labels and mixed B/I/A scenario IDs with one stable A/B/C convention. The user explicitly clarified that these letters are for team/test use only and must never be shown to product users.
+- Finding / root cause: the test scenarios used three overlapping vocabularies: backend enum values (`beginner` / `intermediate` / `advanced`), colloquial team labels, and B/I/A IDs. This made reports and regression commands ambiguous.
+- Changed:
+  - `tools/scenarios.py` - made the test cohort keys and IDs consistent: A = advanced/direct technical discussion, B = intermediate/can tinker, C = beginner/detailed guidance. Existing runtime enum values remain unchanged.
+  - `tools/persona_test.py` and `tools/run_all.py` - accept `--persona A|B|C`; examples use the new IDs.
+  - `ai/Testing/FixPilot_TEST_PROFILE.md` - documents the mapping and the rule that A/B/C cannot appear in user-facing UI or assistant copy.
+  - `reports/fixed.md` - records the brief reversed-mapping correction made during this uncommitted refactor.
+  - `ai/RELEASE_READINESS.md` - records the evidence-based beta/public-launch gate as of this audit.
+- Verified:
+  - `python -m py_compile tools/scenarios.py tools/persona_test.py tools/run_all.py` passed.
+  - A no-network assertion verified A -> `advanced`, B -> `intermediate`, C -> `beginner`, and IDs C01-C03 / B01-B03 / A01-A03 point to those cohorts.
+  - Both CLI help screens expose only `--persona {A,B,C}`; `git diff --check` passed after the documentation encoding repair.
+- Commit: pending.
+- Follow-up / risk: historical reports and chat archives intentionally retain their old wording because they describe past runs. Do not rename the persisted backend values without a migration; they are API/storage data, not the internal test vocabulary.
+
 ## Append template
 
 Copy this section for every new task; append it above this template.

@@ -16,8 +16,8 @@ FixPilot 人设渐进式对话测试引擎（动态应答版）
 
 用法:
   python tools/persona_test.py --base http://127.0.0.1:8000 --code 4CDB97
-  python tools/persona_test.py --base http://127.0.0.1:8000 --code 4CDB97 --scenario B01
-  python tools/persona_test.py --base http://127.0.0.1:8000 --admin-user <configured-admin> --admin-pass <configured-password> --persona beginner
+  python tools/persona_test.py --base http://127.0.0.1:8000 --code 4CDB97 --scenario A01
+  python tools/persona_test.py --base http://127.0.0.1:8000 --admin-user <configured-admin> --admin-pass <configured-password> --persona A
 
 陪练 LLM 默认读 backend/.env（DEEPSEEK_API_KEY/BASE_URL/MODEL），
 也可用 --tutor-key/--tutor-base/--tutor-model 覆盖。
@@ -483,8 +483,8 @@ def main():
     parser.add_argument("--code", help="邀请码")
     parser.add_argument("--admin-user", help="管理员用户名")
     parser.add_argument("--admin-pass", help="管理员密码")
-    parser.add_argument("--persona", choices=["beginner", "intermediate", "advanced"], help="只跑指定人设")
-    parser.add_argument("--scenario", help="只跑指定场景 ID (如 B01)")
+    parser.add_argument("--persona", choices=["A", "B", "C"], help="只跑指定人设")
+    parser.add_argument("--scenario", help="只跑指定场景 ID (如 A01)")
     parser.add_argument("--max-rounds", type=int, default=18, help="单场景最大对话轮次")
     parser.add_argument("--profile-mode", choices=["explicit", "unknown"], default="explicit", help="explicit=manual level; unknown=inference path")
     parser.add_argument("--response-style", choices=["normal", "roast", "concise"], default=None, help="override persona style to test the level/style axes separately")
