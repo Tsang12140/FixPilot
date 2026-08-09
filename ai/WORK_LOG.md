@@ -943,3 +943,14 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: python tools/run_all.py --suites renderer,memes PASS (renderer 7, memes 7); python -m py_compile backend/app/memes.py backend/app/main.py backend/app/service.py backend/app/llm.py PASS; node --check backend/static/app.js PASS; git diff --check PASS. No live/paid model request was made.
 - Implementation commit: 16469b0 (fix: restrain roast reactions).
 - Follow-up / risk: browser automation cannot initialize in this Codex runtime because its local kernel assets path is missing. Manually check a hard-refresh of one legacy raw-6 conversation and one new reaction in main chat, a share link, and a long image after restarting the local server.
+
+### 2026-08-10 - create a human-and-AI deployment runbook
+
+- Request / problem: establish one deployment/update method that a project owner and any later AI can follow after every Git push, without confusing source control with a live release.
+- Investigation: the repository had local start instructions and a short Nginx note, but no production runbook, server inventory, update/rollback procedure, or AI deployment boundary. The requested Trae share URL could not be retrieved through the available web reader because the share host rejected access, so no unverified external instructions were copied into the guide.
+- Changed:
+  - `ai/DEPLOYMENT_RUNBOOK.md` - added current deployment facts, a recommended single-server baseline, first-deploy templates, every-push update steps, Nginx streaming requirements, backup/rollback procedure, and explicit AI safety boundaries.
+  - `ai/README_交接索引.md` - makes the deployment runbook and release gate visible to future handoffs.
+- Verified: reviewed current `README.md`, `.gitignore`, `backend/.env.example`, `backend/app/main.py`, `backend/app/db.py`, `backend/app/auth.py`, `backend/requirements.txt`, and `ai/RELEASE_READINESS.md`; `git diff --check` pending after writing. No server access, production deployment, live model call, or sensitive configuration inspection was performed.
+- Commit: pending at handoff time.
+- Follow-up / risk: the runbook intentionally retains placeholders until the owner supplies the real hosting type, project path, service manager, domain, and backup location. Validate the final commands on the actual server before treating it as an operational record.
