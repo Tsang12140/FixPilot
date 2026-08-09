@@ -893,3 +893,17 @@ The automatic, official-reference-only lookup policy above was implemented and v
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 The official-source registry audit and runtime lookup gate above were implemented and verified in commit `cc47baf` (`feat: gate lookup with official source registry`).
+
+
+### 2026-08-09 - change the official-source registry from a hard allowlist to a preferred route
+
+- Request / product correction: the user clarified that the curated source directory must be a fast, high-trust first route, not a restriction that prevents FixPilot from finding a missing vendor's official manual or other official documentation.
+- Finding / root cause: the prior runtime gate required a registry match and then removed every provider-returned URL outside that turn's selected domains. A real unlisted official source was therefore treated the same as a forum result, and its answer was replaced by a rejection message.
+- Changed:
+  - `backend/app/official_sources.py` - added a narrowly scoped eligibility path for an identifiable model plus explicit documentation intent (manual, driver, firmware, BIOS/UEFI, specification, or compatibility). Generic symptom-only chat remains in the local knowledge-base path.
+  - `backend/app/service.py` and `backend/app/llm.py` - renamed the domain transport field to `preferred_source_domains`; preferred registry domains are tried first, while a direct official manufacturer/OS/hardware source may be used only when the preferred route lacks the material. Returned registry links are labelled `??????`; other returned links are labelled `?????????????` with a cross-check warning. High-risk actions still require the normal source ownership, exact-target, and risk confirmation rules.
+  - `tools/web_search_test.py` and `tools/official_sources_test.py` - added regression coverage for generic-symptom denial, concrete unlisted documentation requests, preferred-source labelling, and unlisted-source downgrading.
+  - `ai/FixPilot_Official_Source_Registry_v1.0.md`, `ai/FixPilot_????????_v1.0.md`, and `ai/Testing/README.md` - updated the contract and maintenance guidance so later agents do not restore a hard domain wall.
+- Verified: `python -m py_compile backend/app/official_sources.py backend/app/llm.py backend/app/service.py tools/official_sources_test.py tools/web_search_test.py` PASS; `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (renderer 5, transport 3, websearch 9, sources 7); `git diff --check` PASS. No live or paid provider request was made.
+- Implementation commit: pending (this entry is staged with the implementation).
+- Follow-up / risk: the provider web-search tool still lacks a documented server-side domain-preference parameter. Prompt policy plus visible labels guide the result, but cannot prove an arbitrary returned page is official. For firmware, BIOS, data, partition, or hardware-risk work, treat an unlisted result only as a lead and verify source ownership plus exact model before proceeding.

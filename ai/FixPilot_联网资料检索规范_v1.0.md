@@ -44,6 +44,8 @@ FixPilot 的护城河是知识库、问诊链和安全规则，不是通用联�
 
 ## Source registry amendment - 2026-08-09
 
-`data/official_sources.json` now decides whether an official-reference lookup is even available. A supported DeepSeek provider by itself is insufficient: the current conversation must match an enabled, verified, official registry source and its required identifier. The normal knowledge-base route remains the default.
+`data/official_sources.json` is a **preferred-source catalogue**, not a hard domain wall. A supported DeepSeek provider is still insufficient for ordinary symptom chat: local knowledge-base diagnosis remains the default. A registry match (verified official source + vendor + required identifier) enables an optional, model-decided lookup and supplies the domains it should try first.
 
-The registry is a source-routing catalogue, not a manual mirror. It permits only manufacturer-owned domains selected for the turn. Nonofficial archives and manual aggregators remain disabled. Provider-returned links are filtered against the selected hostname allowlist before they can be displayed as sources; failure to obtain a matching official link must not become a web-derived diagnostic conclusion.
+If a user has a concrete, identifiable product-document request (model plus a request such as manual, driver, firmware, BIOS/UEFI, specification, or compatibility), FixPilot may still offer the optional tool when that manufacturer is absent from the catalogue. The model must first try any registry source. If it lacks the necessary material, it may broaden only to a direct manufacturer, operating-system, or hardware-vendor official page. Forums, mirrors, snippets, and unverified third-party pages never become confirmed diagnostic evidence.
+
+Source disclosure distinguishes confidence rather than hiding the result: registry-domain results are labelled `优先官方来源`; other returned HTTP(S) results are labelled `外部线索（未列入优先目录）` with a reminder to cross-check important operations against official material. For firmware, BIOS, data, partition, or hardware-risk actions, an unlisted result is only a lead until source ownership and exact-model applicability are verified.

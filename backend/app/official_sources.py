@@ -28,6 +28,11 @@ _OS_VERSION = re.compile(r"\b(?:windows|win)\s*(?:10|11|server\s*20\d{2})\b", re
 _KB_OR_ERROR = re.compile(r"\b(?:kb\d{5,}|0x[0-9a-f]{6,})\b", re.IGNORECASE)
 _COMMAND = re.compile(r"\b(?:diskpart|sfc|dism|bcdboot|chkdsk|bcdedit)\b", re.IGNORECASE)
 _FEATURES = ("bitlocker", "\u8bbe\u5907\u52a0\u5bc6", "winre", "\u6062\u590d\u73af\u5883")
+_REFERENCE_TERMS = (
+    "manual", "driver", "firmware", "bios", "uefi", "datasheet", "compatibility",
+    "support page", "specification", "official document", "\u624b\u518c", "\u8bf4\u660e\u4e66",
+    "\u9a71\u52a8", "\u56fa\u4ef6", "\u517c\u5bb9", "\u89c4\u683c", "\u5b98\u65b9\u8d44\u6599",
+)
 
 
 @lru_cache(maxsize=1)
@@ -73,6 +78,22 @@ def _has_identifier(query: str, identifier: str) -> bool:
         has_feature = any(term in query for term in _FEATURES)
         return has_feature or bool(_KB_OR_ERROR.search(query))
     return False
+
+
+def has_explicit_reference_intent(query: str) -> bool:
+    """Allow a registry miss only for a concrete product-document request.
+
+    This keeps a new or niche vendor searchable without turning everyday
+    symptom chat into unrestricted web search.
+    """
+    normalized = _normalize_text(query)
+    return _has_product_model(normalized) and any(term in normalized for term in _REFERENCE_TERMS)
+
+
+def should_offer_external_lookup(query: str, sources: Iterable[Dict] = None) -> bool:
+    """Whether this turn is specific enough to expose the optional tool."""
+    selected = list(sources) if sources is not None else select_official_sources(query)
+    return bool(selected) or has_explicit_reference_intent(query)
 
 
 def is_enabled_verified_official(source: Dict) -> bool:
@@ -143,8 +164,8 @@ def build_lookup_policy(sources: Iterable[Dict]) -> str:
         f"- {item['name']} | domains: {', '.join(item['domains'])} | entry: {item['search_url']} | purpose: {', '.join(item.get('allowed_purposes') or ['manual'])}"
         for item in items
     )
-    return """[Registry-constrained official lookup]
-External lookup is available only because this turn supplied a matching vendor and identifiable product/identifier. It remains optional: local knowledge base and the current diagnostic chain come first.
-If, and only if, an official reference is necessary for the next diagnostic step, search within the approved domains below. Use a site-restricted query and cite only results from those domains. Never use a forum, mirror, snippet, or another domain as evidence. If no approved official result is returned, say that the official reference could not be verified and continue normal diagnosis; do not replace it with a generic web answer.
-Approved sources for this turn:
+    return """[Registry-prioritized external lookup]
+External lookup remains optional: local knowledge base and the current diagnostic chain come first. The sources below are preferred starting points because they are curated official manufacturer sources for this turn.
+If an official reference is genuinely necessary, try these domains first with a site-restricted query. They are not exhaustive: if they do not contain the required material, you may broaden to another direct manufacturer, operating-system, or hardware-vendor official support page. Do not treat forums, mirrors, snippets, or an unverified third-party page as a confirmed source. For firmware, BIOS, data, or hardware-risk actions, an unlisted source is only a lead until its ownership and exact-model applicability are verified.
+Preferred sources for this turn:
 """ + entries

@@ -207,30 +207,55 @@ def responses_used_web_search(body: Dict) -> bool:
 
 
 def append_web_search_sources(
-    text: str, body: Dict, allowed_source_domains: Iterable[str] = None
+    text: str, body: Dict, preferred_source_domains: Iterable[str] = None
 ) -> str:
-    """Disclose only registry-approved official sources after a real lookup.
+    """Disclose web evidence while treating the registry as a preference, not a wall.
 
-    A provider-side tool call is not proof that a returned page is a permitted
-    FixPilot reference.  If no result belongs to this turn's source registry,
-    do not surface an external conclusion as trusted evidence.
+    Preferred registry domains are clearly labelled.  A provider result outside
+    the registry remains visible as a lower-confidence lead, rather than being
+    silently dropped or replacing the answer.  The model and safety policy must
+    still verify source ownership and exact applicability before any high-risk
+    action.
     """
     if not responses_used_web_search(body):
         return text
+
     label = "\u672c\u8f6e\u67e5\u9605\u4e86\u5916\u90e8\u8d44\u6599\u3002"
     urls = extract_responses_source_urls(body)
-    domains = set(allowed_source_domains or [])
-    if domains:
-        urls = [url for url in urls if official_sources.is_allowed_url(url, domains)]
     if not urls:
-        return (
-            "\u672c\u8f6e\u6ca1有拿到可核验的官方资料，"
-            "\u6240以不把外部网页结论当作排障依据。"
-            "\u8bf7补充完整型号或官方支持链接，"
-            "\u6211会继续按已确认的线索排查。"
+        return f"{label}\n\n{text}"
+
+    domains = set(preferred_source_domains or [])
+    preferred_urls = [
+        url for url in urls
+        if domains and official_sources.is_allowed_url(url, domains)
+    ]
+    preferred_set = set(preferred_urls)
+    unlisted_urls = [url for url in urls if url not in preferred_set]
+
+    notes = []
+    if preferred_urls:
+        notes.append("\u5df2\u4f18\u5148\u547d\u4e2d\u672c\u8f6e\u5b98\u65b9\u6765\u6e90\u76ee\u5f55\u3002")
+    if unlisted_urls:
+        notes.append(
+            "\u90e8\u5206\u5916\u90e8\u8d44\u6599\u672a\u5217\u5165\u4f18\u5148\u76ee\u5f55\uff0c"
+            "\u53ea\u4f5c\u7ebf\u7d22\uff1b\u91cd\u8981\u64cd\u4f5c\u8bf7\u518d\u6838\u5bf9\u5b98\u65b9\u8d44\u6599\u3002"
         )
-    links = "\n".join(f"{index}. {url}" for index, url in enumerate(urls, start=1))
-    return f"{label}\n\n{text}\n\n\u8d44\u6599\u6765\u6e90\uff1a\n{links}"
+
+    links = []
+    for index, url in enumerate(urls, start=1):
+        source_label = (
+            "\u4f18\u5148\u5b98\u65b9\u6765\u6e90"
+            if url in preferred_set
+            else "\u5916\u90e8\u7ebf\u7d22\uff08\u672a\u5217\u5165\u4f18\u5148\u76ee\u5f55\uff09"
+        )
+        links.append(f"{index}. [{source_label}] {url}")
+
+    sections = [label, text]
+    if notes:
+        sections.append("\n".join(notes))
+    sections.append("\u8d44\u6599\u6765\u6e90\uff1a\n" + "\n".join(links))
+    return "\n\n".join(sections)
 
 
 def system_https_proxy() -> str:
@@ -396,7 +421,7 @@ def stream_chat(
     base_url: str = "",
     model: str = "",
     official_lookup_available: bool = False,
-    allowed_source_domains: Iterable[str] = None,
+    preferred_source_domains: Iterable[str] = None,
 ) -> Iterator[str]:
     """Stream a displayable answer from a compatible provider.
 
@@ -430,7 +455,7 @@ def stream_chat(
         if not text:
             raise RuntimeError("Responses API returned no displayable output text")
         yield (
-            append_web_search_sources(text, body, allowed_source_domains)
+            append_web_search_sources(text, body, preferred_source_domains)
             if official_lookup_available
             else text
         )

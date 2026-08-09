@@ -65,6 +65,22 @@ def test_registry_selection_is_conservative_and_brand_scoped():
     assert_true(not any(item["id"] == "colorful_official" for item in official_sources.select_official_sources("colorful CVN B650M BIOS")), "pending Colorful source was routed")
 
 
+def test_registry_is_a_priority_route_not_an_internet_wall():
+    sources = official_sources.select_official_sources("asus B650M-PLUS BIOS manual")
+    assert_true(
+        official_sources.should_offer_external_lookup("asus B650M-PLUS BIOS manual", sources),
+        "routed official source did not allow lookup",
+    )
+    assert_true(
+        official_sources.should_offer_external_lookup("acme X1234 firmware manual"),
+        "concrete unlisted documentation request did not allow lookup",
+    )
+    assert_true(
+        not official_sources.should_offer_external_lookup("computer blue screen"),
+        "generic symptom unlocked external lookup",
+    )
+
+
 def test_domain_filter_rejects_suffix_and_non_https_confusion():
     domains = {"asus.com"}
     assert_true(official_sources.is_allowed_url("https://www.asus.com/support", domains), "official subdomain was rejected")
@@ -78,7 +94,8 @@ TESTS = [
     ("S03", "nonofficial reference sources stay disabled", test_nonofficial_sources_stay_disabled),
     ("S04", "high-risk sources require exact identity and confirmation", test_high_risk_sources_require_identity_and_confirmation),
     ("S05", "selection stays conservative and brand-scoped", test_registry_selection_is_conservative_and_brand_scoped),
-    ("S06", "domain filtering rejects lookalikes and non-HTTP URLs", test_domain_filter_rejects_suffix_and_non_https_confusion),
+    ("S06", "registry can broaden only for a concrete documentation request", test_registry_is_a_priority_route_not_an_internet_wall),
+    ("S07", "domain matching rejects lookalikes and non-HTTP URLs", test_domain_filter_rejects_suffix_and_non_https_confusion),
 ]
 
 

@@ -264,3 +264,15 @@ Implemented and verified in commit `0879ba7` (`feat: make official lookup automa
 #### Commit reference - 2026-08-09 Asia/Shanghai
 
 Implemented and verified in commit `cc47baf` (`feat: gate lookup with official source registry`).
+
+
+## 2026-08-09 Asia/Shanghai - source directory wrongly blocked unlisted official documentation
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: a product or manual outside `data/official_sources.json` could not be used even when the request was specific and an official page existed; returned URLs outside the selected registry domain were hidden and the answer was discarded.
+- Root cause: the registry was implemented as a strict runtime allowlist and `append_web_search_sources` treated every non-matching URL as unsafe evidence, instead of distinguishing a preferred official route from an unlisted lead.
+- Files changed: `backend/app/official_sources.py`, `backend/app/service.py`, `backend/app/llm.py`, `tools/web_search_test.py`, `tools/official_sources_test.py`, `ai/FixPilot_Official_Source_Registry_v1.0.md`, `ai/FixPilot_????????_v1.0.md`, `ai/Testing/README.md`, and `ai/WORK_LOG.md`.
+- Fix: registry matches are now preferred first. A concrete model-plus-documentation request can broaden when no registry route exists. Preferred links display `??????`; unlisted URLs display `?????????????` and a verification warning. Generic symptoms still do not unlock lookup; unlisted sources cannot by themselves justify high-risk actions.
+- Verification: `python tools/run_all.py --suites renderer,transport,websearch,sources` PASS (24 checks); Python compilation and `git diff --check` PASS.
+- Status: fixed and ready to commit.
+- Commit: pending (record staged with implementation).

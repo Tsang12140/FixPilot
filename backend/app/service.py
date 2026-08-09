@@ -116,10 +116,13 @@ def chat_stream(
         if message.get("role") == "user"
     )
     lookup_sources = official_sources.select_official_sources(registry_query)
-    official_lookup_available = bool(lookup_sources) and llm.is_official_deepseek_web_search(
+    lookup_is_specific_enough = official_sources.should_offer_external_lookup(
+        registry_query, lookup_sources
+    )
+    official_lookup_available = lookup_is_specific_enough and llm.is_official_deepseek_web_search(
         base_url, model or config.DEEPSEEK_MODEL
     )
-    allowed_source_domains = official_sources.allowed_domains(lookup_sources)
+    preferred_source_domains = official_sources.allowed_domains(lookup_sources)
     full = llm.build_system_messages(profile, temporary_level)
     if official_lookup_available:
         full.append({"role": "system", "content": llm.OFFICIAL_LOOKUP_POLICY})
@@ -131,5 +134,5 @@ def chat_stream(
     yield from llm.stream_chat(
         full, api_key=api_key, base_url=base_url, model=model,
         official_lookup_available=official_lookup_available,
-        allowed_source_domains=allowed_source_domains,
+        preferred_source_domains=preferred_source_domains,
     )
