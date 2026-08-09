@@ -298,4 +298,4 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Fix: introduced semantic REACTION:six / REACTION:chichi records while retaining legacy raw-6 rendering; added acknowledgement blocking, a three-ordinary-assistant-message cooldown, one-six-per-conversation enforcement, safe meme preference after six, compact reaction cards across chat/admin/share/link/image, and no-context filtering. Removed the rejected meme from the active selection pool. No fixed productized roast lines were added.
 - Verification: python tools/run_all.py --suites renderer,memes PASS (renderer 7, memes 7); python -m py_compile backend/app/memes.py backend/app/main.py backend/app/service.py backend/app/llm.py PASS; node --check backend/static/app.js PASS; git diff --check PASS. No live provider or paid API request was made.
 - Status: fixed in the working tree; visual browser automation could not initialize because this Codex runtime lacks its local browser-kernel assets, so one manual cache-refresh check remains before release.
-- Commit: pending.
+- Implementation commit: 16469b0 (fix: restrain roast reactions).

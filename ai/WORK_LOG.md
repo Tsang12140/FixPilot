@@ -930,5 +930,5 @@ The official-source registry audit and runtime lookup gate above were implemente
   - ai/FixPilot_毒舌项目_v2.0.md, ai/FixPilot_AI人格与毒舌模式_v1.1.md - recorded v2 rule: no fixed roast library; reactions are sparse, context-free UI effects.
   - reports/fixed.md, reports/report20260810_001.md - recorded incident-level and batch-repair evidence.
 - Verified: python tools/run_all.py --suites renderer,memes PASS (renderer 7, memes 7); python -m py_compile backend/app/memes.py backend/app/main.py backend/app/service.py backend/app/llm.py PASS; node --check backend/static/app.js PASS; git diff --check PASS. No live/paid model request was made.
-- Commit: pending.
+- Implementation commit: 16469b0 (fix: restrain roast reactions).
 - Follow-up / risk: browser automation cannot initialize in this Codex runtime because its local kernel assets path is missing. Manually check a hard-refresh of one legacy raw-6 conversation and one new reaction in main chat, a share link, and a long image after restarting the local server.
