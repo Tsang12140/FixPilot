@@ -244,3 +244,7 @@ The optional external-lookup behavior and sidebar boundary fix above were implem
 - Verification: static browser/API contract assertions plus `python tools/run_all.py --suites renderer,transport,websearch` PASS (5 renderer, 3 transport, 7 websearch). No live provider call was used.
 - Final status: fixed in the working tree; the local server must be restarted before manual checking.
 - Commit: pending.
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+Implemented and verified in commit `0879ba7` (`feat: make official lookup automatic`).

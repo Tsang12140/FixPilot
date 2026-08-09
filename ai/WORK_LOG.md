@@ -870,3 +870,7 @@ The optional external-lookup behavior and sidebar boundary fix above were implem
 - Verified: `python -m py_compile backend/app/llm.py backend/app/service.py backend/app/main.py tools/web_search_test.py` PASS; `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport,websearch` PASS (renderer 5, transport 3, websearch 7); source contract confirms the browser and chat API contain no `webSearch` control/field; `git diff --check` PASS. No paid/live provider call was made.
 - Commit: pending.
 - Follow-up / risk: the LLM controls whether to call the enabled tool. The policy limits it to official references, but a live provider acceptance check with a concrete model/manual question is still useful before broad release; do not count an unverified external page as a confirmed diagnosis.
+
+#### Commit reference - 2026-08-09 Asia/Shanghai
+
+The automatic, official-reference-only lookup policy above was implemented and verified in commit `0879ba7` (`feat: make official lookup automatic`).
