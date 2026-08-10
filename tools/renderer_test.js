@@ -86,6 +86,17 @@ check('R07', 'rejected meme is absent from active browser allowlists', () => {
   assert(!/\bsick\s*:/.test(share), 'share still exposes rejected meme');
 });
 
+check('R08', 'every send and history path retains its shared message helpers', () => {
+  for (const helper of ['fmtMsgTime', 'addMsgTime', 'maybeDivider', 'scrollDown']) {
+    assert(source.includes('function ' + helper + '('), helper + ' is missing from the browser bundle');
+  }
+  const sendStart = source.indexOf('async function send(');
+  assert(sendStart >= 0, 'send handler is missing');
+  const sendSource = source.slice(sendStart);
+  assert(sendSource.includes('addMsg(\'user\', content)'), 'first-message render path is missing');
+  assert(sendSource.includes('addTyping()'), 'reply placeholder path is missing');
+});
+
 const output = { suite: 'renderer', results };
 const failed = results.some(item => item.status !== 'PASS');
 if (process.argv.includes('--json')) {

@@ -15,7 +15,7 @@
   <title>FixPilot</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
   <link rel="apple-touch-icon" href="favicon.svg?v=3" />
-  <link rel="stylesheet" href="style.css?v=40" />
+  <link rel="stylesheet" href="style.css?v=43" />
 </head>
 <body>
   <!-- 登录界面 -->
@@ -73,7 +73,10 @@
     <!-- 会话侧边栏 -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <img class="logo" src="logo.svg?v=2" alt="FixPilot" />
+        <picture class="sidebar-brand-mark">
+          <source srcset="assets/fixpilot-logo-mark-v3.webp" type="image/webp" />
+          <img src="assets/fixpilot-logo-mark-v3.png" alt="FixPilot" />
+        </picture>
         <span class="sidebar-name">FixPilot</span>
       </div>
       <label class="sidebar-search" for="conversationSearch">
@@ -104,11 +107,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
         </button>
         <div class="topbar-left">
-          <img class="logo" src="logo.svg?v=2" alt="FixPilot" />
-          <div class="topbar-title">
-            <div class="name">FixPilot</div>
-            <div class="sub">电脑故障排查助手</div>
-          </div>
+          <picture class="topbar-brand-lockup">
+            <source srcset="assets/fixpilot-logo-lockup-v3.webp" type="image/webp" />
+            <img src="assets/fixpilot-logo-lockup-v3.png" alt="FixPilot" />
+          </picture>
         </div>
         <div class="topbar-right">
           <button type="button" class="quota-wrap" id="quotaWrap" style="display:none" aria-label="&#x4F7F;&#x7528;&#x72B6;&#x6001;" title="">
@@ -240,7 +242,6 @@
             <label class="settings-label">服务商</label>
             <select class="settings-input api-select" id="apiProvider">
               <option value="deepseek">DeepSeek</option>
-              <option value="volcengine">火山方舟（Chat Completions）</option>
               <option value="volcengineResponses">火山方舟（Responses）</option>
               <option value="openai">OpenAI 官方</option>
               <option value="custom">全自定义（OpenAI 兼容）</option>
@@ -251,7 +252,11 @@
             <label class="settings-label">API 地址（全自定义时必须填写）</label>
             <input class="settings-input" id="apiBaseInput" placeholder="https://api.deepseek.com" autocomplete="off" maxlength="256" />
             <label class="settings-label">模型</label>
-            <input class="settings-input" id="apiModelInput" placeholder="deepseek-v4-flash" autocomplete="off" maxlength="64" />
+            <div class="api-model-row">
+              <input class="settings-input api-model-input" id="apiModelInput" placeholder="deepseek-v4-flash" autocomplete="off" maxlength="64" />
+              <button class="settings-btn ghost api-model-add" id="apiModelAdd" type="button">添加</button>
+            </div>
+            <div class="api-model-list" id="apiModelList"></div>
             <div class="api-status" id="apiStatus"></div>
             <div class="btn-row">
               <button class="settings-btn" id="apiSaveBtn" type="button">保存设置</button>
@@ -297,6 +302,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=51"></script>
+  <script src="app.js?v=57"></script>
 </body>
 </html>

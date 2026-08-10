@@ -1,5 +1,13 @@
 # FixPilot agent working agreement
 
+## Non-negotiable: commit and push only on explicit instruction
+
+默认不提交、不推送。代码改动只保留在本地工作区，本地浏览器能直接看到效果即可，不需要为了"同步"而频繁 commit / push。
+
+只有用户明确说出 commit / 提交 / push / 推送 等指令时，才执行 `git commit` 和 `git push`。即使改动已完成、已通过验证，也不得擅自提交推送。
+
+这与 `ai/WORK_LOG.md` 和 `reports/fixed.md` 的记录义务不冲突：记录照常写入本地文件，但提交推送仍以用户显式指令为准。
+
 ## Non-negotiable handoff log
 
 Before changing this repository, read `ai/WORK_LOG.md` and the relevant product rule in `ai/`.

@@ -73,6 +73,7 @@ def init_db():
                 api_key TEXT NOT NULL DEFAULT '',
                 api_base TEXT NOT NULL DEFAULT '',
                 model TEXT NOT NULL DEFAULT '',
+                models TEXT NOT NULL DEFAULT '',
                 provider TEXT NOT NULL DEFAULT 'deepseek',
                 active_source TEXT NOT NULL DEFAULT 'platform',
                 updated_at TEXT NOT NULL
@@ -123,6 +124,10 @@ def _migrate(conn: sqlite3.Connection):
     mcols = {r[1] for r in conn.execute("PRAGMA table_info(messages)").fetchall()}
     if "image" not in mcols:
         conn.execute("ALTER TABLE messages ADD COLUMN image TEXT")
+    # user_api_settings
+    ucols = {r[1] for r in conn.execute("PRAGMA table_info(user_api_settings)").fetchall()}
+    if "models" not in ucols:
+        conn.execute("ALTER TABLE user_api_settings ADD COLUMN models TEXT NOT NULL DEFAULT ''")
 
 
 def _now() -> str:
@@ -340,6 +345,20 @@ def update_user_password(username: str, password_hash: str) -> None:
 
 # ---------- 用户自定义 API 配置（按账号/邀请码粒度，跟随 owner_key） ----------
 
+def _parse_models(raw: str, fallback_model: str = "") -> List[str]:
+    """把 models 列（JSON 数组字符串）解析为列表；空/非法时退化为单模型。"""
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                models = [str(m).strip() for m in parsed if str(m).strip()]
+                if models:
+                    return models
+        except (ValueError, TypeError):
+            pass
+    return [fallback_model] if fallback_model else []
+
+
 def get_api_settings(owner_key: str) -> dict:
     """读取某账号的 API 配置，无记录时返回默认空配置。"""
     with _lock, _connect() as conn:
@@ -351,33 +370,43 @@ def get_api_settings(owner_key: str) -> dict:
         else:
             data = {
                 "owner_key": owner_key, "api_key": "", "api_base": "",
-                "model": "", "provider": "deepseek", "active_source": "platform",
+                "model": "", "models": "", "provider": "deepseek", "active_source": "platform",
                 "updated_at": _now(),
             }
+        data["models"] = _parse_models(data.get("models", ""), data.get("model", ""))
         return data
 
 
 def save_api_settings(owner_key: str, api_key: str = "", api_base: str = "",
                       model: str = "", provider: str = "deepseek",
-                      active_source: str = "platform") -> dict:
-    """保存某账号的 API 配置（upsert）。"""
+                      active_source: str = "platform",
+                      models: Optional[List[str]] = None) -> dict:
+    """保存某账号的 API 配置（upsert）。models 为完整模型列表（JSON 存储），model 为当前激活。"""
+    existing = get_api_settings(owner_key)
+    if models is None:
+        models = existing.get("models") or ([existing.get("model")] if existing.get("model") else [])
+    models = [str(m).strip() for m in models if str(m).strip()]
+    if not model and models:
+        model = models[0]
+    models_json = json.dumps(models, ensure_ascii=False)
     with _lock, _connect() as conn:
         conn.execute(
             """INSERT INTO user_api_settings
-               (owner_key, api_key, api_base, model, provider, active_source, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+               (owner_key, api_key, api_base, model, models, provider, active_source, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(owner_key) DO UPDATE SET
                api_key = excluded.api_key,
                api_base = excluded.api_base,
                model = excluded.model,
+               models = excluded.models,
                provider = excluded.provider,
                active_source = excluded.active_source,
                updated_at = excluded.updated_at""",
-            (owner_key, api_key, api_base, model, provider, active_source, _now()),
+            (owner_key, api_key, api_base, model, models_json, provider, active_source, _now()),
         )
     return {
         "owner_key": owner_key, "api_key": api_key, "api_base": api_base,
-        "model": model, "provider": provider, "active_source": active_source,
+        "model": model, "models": models, "provider": provider, "active_source": active_source,
     }
 
 
@@ -387,7 +416,7 @@ def clear_api_settings(owner_key: str) -> dict:
         conn.execute("DELETE FROM user_api_settings WHERE owner_key = ?", (owner_key,))
     return {
         "owner_key": owner_key, "api_key": "", "api_base": "", "model": "",
-        "provider": "deepseek", "active_source": "platform",
+        "models": [], "provider": "deepseek", "active_source": "platform",
     }
 
 

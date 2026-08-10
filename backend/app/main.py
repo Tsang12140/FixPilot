@@ -1,5 +1,6 @@
 """FixPilot 后端入口：FastAPI + 认证 + 邀请码 + 纯 RAG 聊天。"""
 import json
+import re
 import secrets
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -16,6 +17,9 @@ from .knowledge import load_chunks
 # 输入护栏：密码/账号/URL 等的最大长度，防止超长输入（粘贴几千字）拖慢哈希或撑爆存储。
 _MAX_PASSWORD_LEN = 64
 _MAX_USERNAME_LEN = 64
+# 密码白名单：字母数字 + 常用符号，剔除可被解释器/渲染层利用的元字符
+# （* ' " ; < > | \ 反引号 $ ( ) 空格等）。只允许 A-Za-z0-9 与 !@#%^&_=+-.,: /?[]{}~。
+_PASSWORD_REGEX = re.compile(r"^[A-Za-z0-9!@#%^&_=+\-.,:/?\[\]{}~]+$")
 
 app = FastAPI(title="FixPilot", description="电脑故障排查 AI 助手")
 
@@ -59,6 +63,7 @@ class ApiSettingsRequest(BaseModel):
     apiKey: str = ""
     apiBase: str = ""
     model: str = ""
+    models: List[str] = []
     provider: str = "deepseek"
     activeSource: str = "platform"
 
@@ -226,13 +231,14 @@ def bind_account(req: BindAccountRequest, authorization: Optional[str] = Header(
     if not code:
         raise HTTPException(status_code=400, detail="会话无效，请重新登录")
 
-    import re
     username = (req.username or "").strip().lower()
     if not re.match(r"^[a-z0-9_]{3,20}$", username):
         raise HTTPException(status_code=400, detail="账号需为 3-20 位字母/数字/下划线")
     password = req.password or ""
     if len(password) < 6 or len(password) > _MAX_PASSWORD_LEN:
         raise HTTPException(status_code=400, detail=f"密码需为 6-{_MAX_PASSWORD_LEN} 位")
+    if not _PASSWORD_REGEX.fullmatch(password):
+        raise HTTPException(status_code=400, detail="密码只能包含字母/数字及 !@#%^&_=+-.,:/?[]{}~ 等字符，不能包含 *、引号、分号、尖括号、竖线、反斜杠等特殊符号")
 
     # 邀请码已绑定过
     if db.get_user_by_invite_code(code):
@@ -260,6 +266,8 @@ def change_password(req: ChangePasswordRequest, authorization: Optional[str] = H
         raise HTTPException(status_code=401, detail="原密码错误")
     if len(req.newPassword) < 6 or len(req.newPassword) > _MAX_PASSWORD_LEN:
         raise HTTPException(status_code=400, detail=f"新密码需为 6-{_MAX_PASSWORD_LEN} 位")
+    if not _PASSWORD_REGEX.fullmatch(req.newPassword):
+        raise HTTPException(status_code=400, detail="新密码只能包含字母/数字及 !@#%^&_=+-.,:/?[]{}~ 等字符，不能包含 *、引号、分号、尖括号、竖线、反斜杠等特殊符号")
     db.update_user_password(user["username"], auth.hash_password(req.newPassword))
     return {"ok": True}
 
@@ -373,6 +381,64 @@ def invite_conversations(code: str, authorization: Optional[str] = Header(None))
         msgs = db.list_messages(c["id"])
         result.append({"conv": c, "messages": msgs})
     return {"code": code, "conversations": result}
+
+
+# ---------- 人格预览（管理员只读） ----------
+
+@app.get("/api/admin/persona")
+def persona_preview(authorization: Optional[str] = Header(None)):
+    """只读返回人格切片与合并预览，供管理后台查看，不提供任何写操作。"""
+    _require_admin(authorization)
+
+    # 固定人格骨架（多段 system prompt）
+    fixed = [
+        {"id": "base", "label": "人格本体 BASE_POLICY", "content": llm.BASE_POLICY},
+        {"id": "diagnostic", "label": "问诊规则 DIAGNOSTIC_POLICY", "content": llm.DIAGNOSTIC_POLICY},
+        {"id": "safety", "label": "安全红线 SAFETY_POLICY", "content": llm.SAFETY_POLICY},
+        {"id": "official", "label": "官方外查规则 OFFICIAL_LOOKUP_POLICY", "content": llm.OFFICIAL_LOOKUP_POLICY},
+    ]
+
+    # 通用交互层切片
+    styles = [
+        {"id": sid, "label": "语气 - " + {
+            "normal": "正常点", "roast": "嘴毒点", "concise": "少废话"}.get(sid, sid),
+         "content": content}
+        for sid, content in llm.STYLE_POLICIES.items()
+    ]
+    roast_meme = {"label": "嘴毒彩蛋规则 ROAST_MEME_POLICY", "content": llm.ROAST_MEME_POLICY}
+    levels = [
+        {"id": lid, "label": "水平 - " + {
+            "beginner": "不太懂", "intermediate": "会折腾一点", "advanced": "比较熟", "unknown": "未定"}.get(lid, lid),
+         "content": content}
+        for lid, content in llm.LEVEL_POLICIES.items()
+    ]
+
+    # 合并组合预览：四种水平 × 三种语气，复用运行时拼装逻辑 build_profile_policy
+    combos = []
+    style_title = {"normal": "正常点", "roast": "嘴毒点", "concise": "少废话"}
+    level_title = {"beginner": "不太懂", "intermediate": "会折腾一点", "advanced": "比较熟", "unknown": "未定"}
+    for lid, lname in level_title.items():
+        for sid, sname in style_title.items():
+            profile = {"technical_level": lid, "technical_level_source": "explicit", "response_style": sid}
+            profile_policy = llm.build_profile_policy(profile, temporary_level=lid)
+            merged = "\n\n".join([
+                llm.BASE_POLICY, llm.DIAGNOSTIC_POLICY, llm.SAFETY_POLICY, profile_policy,
+            ])
+            combos.append({
+                "level": lid, "level_label": lname,
+                "style": sid, "style_label": sname,
+                "profile_policy": profile_policy,
+                "merged": merged,
+            })
+
+    return {
+        "fixed": fixed,
+        "styles": styles,
+        "roast_meme": roast_meme,
+        "levels": levels,
+        "combos": combos,
+    }
+
 
 # ---------- 回答偏好 / 技术水平画像 ----------
 
@@ -504,6 +570,7 @@ def get_api_settings(authorization: Optional[str] = Header(None)):
         "apiKey": settings["api_key"],
         "apiBase": settings["api_base"],
         "model": settings["model"],
+        "models": settings.get("models", []),
         "provider": settings["provider"],
         "activeSource": settings["active_source"],
     }
@@ -518,13 +585,18 @@ def save_api_settings(req: ApiSettingsRequest, authorization: Optional[str] = He
     api_key = (req.apiKey or "").strip()
     api_base = (req.apiBase or "").strip()
     model = (req.model or "").strip()
-    if len(api_key) > 256 or len(api_base) > 256 or len(model) > 64:
+    models = [m.strip() for m in (req.models or []) if m.strip()]
+    if len(api_key) > 256 or len(api_base) > 256 or len(model) > 64 or len(models) > 20:
         raise HTTPException(status_code=400, detail="API 配置长度超出限制")
+    for m in models:
+        if len(m) > 64:
+            raise HTTPException(status_code=400, detail="模型名长度超出限制")
     db.save_api_settings(
         _owner(payload),
         api_key=api_key,
         api_base=api_base,
         model=model,
+        models=models,
         provider=(req.provider or "deepseek").strip() or "deepseek",
         active_source=(req.activeSource or "platform").strip() or "platform",
     )

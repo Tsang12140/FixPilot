@@ -1,10 +1,15 @@
 .venv/
 __pycache__/
 backend/.env
-backend/fixpilot.db
+*.db
+*.db-shm
+*.db-wal
 file/
 _mktest.py
 _test_joke.py
+_verify_persona.py
+21341.txt
+.workbuddy/
 *.pyc
 node_modules/
 .DS_Store

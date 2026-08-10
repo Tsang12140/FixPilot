@@ -359,3 +359,58 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: `py_compile` (main.py, service.py) and `node --check app.js` PASS. BOM-only cleanup in `ai/DEPLOYMENT_RUNBOOK.md`.
 - Final status: fixed in the working tree. Backend bounds are the real enforcement; frontend maxlength is a UX guard.
 - Commit: TBD.
+
+---
+
+## 2026-08-10 Asia/Shanghai - password fields still accepted Chinese characters
+
+- Fixing agent/model: DeepSeek-V4-Flash.
+- Symptom: after the length guard landed, the user reported "为什么密码还是可以输入汉字" (why can I still type Chinese in the password field).
+- Confirmed root cause: the previous fix added `maxlength` (length limit) but no character-type restriction, so Chinese/emoji/full-width characters were still accepted.
+- Files changed: `backend/static/app.js` (delegated `input` listener strips non-printable-ASCII from every `type="password"` field); `backend/app/main.py` (bind-account and change-password reject passwords not matching `[\x20-\x7e]+`; `import re` moved to module top).
+- Verification: `py_compile main.py` and `node --check app.js` PASS.
+- Final status: fixed in the working tree. Frontend filter is UX; backend regex is the hard enforcement. Existing stored passwords unaffected.
+- Commit: none (per project rule, commit/push only on explicit instruction).
+
+---
+
+## 2026-08-10 Asia/Shanghai - settings modal clipped account controls and account inputs were overly wide
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: on the desktop account tab, the fixed-height settings modal barely contained the page, leaving the password action at the lower edge with a visible scrollbar; password fields stretched visually across the whole content pane.
+- Confirmed root cause: `.settings-card` used a `640px × 480px` desktop box, and account inputs inherited the global `width: 100%` rule.
+- Files changed: `backend/static/style.css`, `backend/static/index.html`.
+- Verification: `node --check backend/static/app.js` PASS; static size/field-width/cache contract PASS; local `GET /style.css?v=41` HTTP 200 with the updated rule; `git diff --check` PASS.
+- Final status: fixed in the working tree. Desktop modal is `720px × 600px` within viewport-safe bounds; only account-page inputs are capped at 420px; CSS cache token is v41.
+- Commit: pending; no unrelated concurrent changes were staged.
+---
+
+## 2026-08-10 Asia/Shanghai - Ark preset pre-filled the wrong kind of model guidance and duplicated protocol choices
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: choosing 火山方舟（Responses） automatically inserted `deepseek-v4-flash-260425`, making a provider/account-specific example look mandatory; the selector also offered a separate Chat Completions route the owner did not want in the guided setup.
+- Confirmed root cause: the dedicated provider presets encoded a specific Ark model ID as a default and exposed two protocols despite the product having one intended guided Ark path.
+- Files changed: `backend/static/app.js`, `backend/static/index.html`.
+- Verification: `node --check backend/static/app.js` PASS; static one-Responses/no-Chat/no-prefill/model-required/legacy-safe/v53 contract PASS; local `GET /app.js?v=53` HTTP 200 and contains no deprecated dedicated preset; `git diff --check` PASS.
+- Final status: fixed in the working tree. Guided Ark setup now keeps only Responses, pre-fills only the endpoint, and requires the user to paste an enabled Model ID from their own console.
+- Commit: pending; unrelated concurrent changes were not staged.
+---
+
+## 2026-08-10 Asia/Shanghai - P1: every new message could blank the chat pane
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: after any send (plain text or an image; platform or custom model), the chat pane became empty. Existing conversation replay could also render blank.
+- Confirmed root cause: commit `16469b0` accidentally removed the shared browser functions `fmtMsgTime`, `addMsgTime`, `maybeDivider`, and `scrollDown` while refactoring reactions. `send()` clears the welcome screen and then calls `addMsg()`, whose first operation called the missing `maybeDivider()`. The resulting `ReferenceError` occurred before the request error UI could render. The live bundle reproduced this exact error.
+- Files changed: `backend/static/app.js` (restore shared message helpers), `backend/static/index.html` (cache token `app.js?v=54`), `tools/renderer_test.js` (R08 helper-contract regression).
+- Verification: browser contract with mocked authentication/SSE: live `https://ai.dnbox.cn/fixpilot/` failed with `ReferenceError: maybeDivider is not defined`, zero chat rows; local hotfix produced one user row and one assistant row with zero page errors. `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport` PASS (renderer 8/8, transport 3/3); `git diff --check` PASS. Evidence: `reports/test-runs/test-20260810-043300-browser-send-path.json`.
+- Final status: fixed and verified locally. The live site remains on its older bundle until this working tree is committed, pushed, pulled on `/www/wwwroot/fixpilot`, and Uvicorn is restarted.
+- Commit: pending.
+### 2026-08-10 Asia/Shanghai - follow-up: restored time helpers used unsafe terminal-encoded literals
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: during the P1 repair, the recovered cross-day timestamp literals could have been written as mojibake by the Windows command channel even though same-day `HH:MM` timestamps worked.
+- Confirmed root cause: source literals passed through a terminal encoding boundary instead of using source-stable JavaScript escapes.
+- Files changed: `backend/static/app.js`.
+- Verification: browser contract PASS: normal send gives one user + one assistant row with no page errors; `fmtMsgTime` evaluated to `8月9日 01:02` and the divider to `昨天 04:37`. Evidence: `reports/test-runs/test-20260810-043700-browser-send-path-final.json`.
+- Final status: fixed before handoff; time text is expressed through JavaScript Unicode escapes and is independent of terminal code pages.
+- Commit: pending with the P1 repair.

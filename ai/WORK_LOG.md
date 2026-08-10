@@ -173,6 +173,26 @@ not put API keys, passwords, tokens, cookies, or other secrets in this file.
   767, 540, 480, 430, 420, 390, 360, 320, and 280px: no page errors or
   horizontal overflow; menu stayed in viewport and below the header.
 
+### 2026-08-11 - 对话界面顶栏与移动端侧栏 logo 统一为 d0c1319 纯色幽灵
+
+- 需求：将对话界面左上角（顶栏）与移动端侧栏左上角的 logo 也换成 commit
+  `d0c1319` 版本的纯色幽灵（白身、深蓝描边、椭圆眼、三条天线、无彩色装饰）。
+- 现状：顶栏用 `assets/fixpilot-logo-lockup-v2.*`（幽灵 + 蓝紫渐变文字），
+  侧栏用 `assets/fixpilot-logo-mark-v2.*`（幽灵带彩色装饰），与 d0c1319 纯幽灵不一致。
+- 改动：
+  - 生成 `backend/static/assets/fixpilot-logo-mark-v3.{png,webp}`（192x192 纯幽灵，
+    用 sharp 渲染自 `logo.svg` 提取的 d0c1319 path）。
+  - 生成 `backend/static/assets/fixpilot-logo-lockup-v3.{png,webp}`（512x180，
+    幽灵 + 深色 #1D2233 'FixPilot' 文字，用 msyhbd 字体，非彩色渐变）。
+  - 更新 `backend/static/index.html`：`.sidebar-brand-mark` → mark-v3、
+    `.topbar-brand-lockup` → lockup-v3。
+  - 删除已不再引用的 v2 图片文件。
+- 验证：服务端 8010 端口返回的 index.html 含 v3 且无 v2 引用；v3 资源 HTTP 200；
+  浏览器清缓存后确认顶栏 `.topbar-brand-lockup` 指向 fixpilot-logo-lockup-v3、
+  移动端侧栏 `.sidebar-brand-mark` 指向 fixpilot-logo-mark-v3，外观为纯白幽灵 + 深色文字。
+- commit：尚未提交（按约定仅在用户显式要求时提交）。
+- 跟进：无。
+
 ## Known investigation notes
 
 - Custom model providers differ materially. A successful request in another
@@ -918,6 +938,17 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Implementation commit: `c95a900` (`fix: retain official fallback policy`).
 - Follow-up / risk: source ownership and exact-model applicability still cannot be proved solely by the provider search tool; high-risk controls remain mandatory.
 
+### 2026-08-10 - restrict password fields to printable ASCII (no Chinese)
+
+- Request / problem: after the length guard was added, the user still could type Chinese characters into a password field ("为什么密码还是可以输入汉字"). The audit covered length only, not character type.
+- Finding / root cause: the previous fix added `maxlength` (length) but no character-type restriction, so Chinese/emoji/full-width chars were still accepted. The user wants password/secret fields to accept only keyboard-printable ASCII.
+- Changed:
+  - backend/static/app.js - added a delegated `input` listener that strips any non-printable-ASCII (`[^\x20-\x7e]`) from every `type="password"` field in real time (covers static login + dynamically rendered bind/change-password fields, and the API key field).
+  - backend/app/main.py - bind-account and change-password now reject passwords not matching `[\x20-\x7e]+` ("密码不能包含汉字等非键盘字符"); moved `import re` to module top.
+- Verified: `python -m py_compile backend/app/main.py` PASS; `node --check backend/static/app.js` PASS.
+- Implementation commit: none (per project rule, commit/push only on explicit user instruction).
+- Follow-up / risk: existing stored passwords are unaffected (filtering only applies to new input; login verifies the stored hash). Frontend filter is a UX guard; backend regex is the hard enforcement.
+
 ### 2026-08-10 - add input length/type guards across the whole project
 
 - Request / problem: user found they could paste several thousand Chinese characters into a password field. Asked for a project-wide audit of input length and type limits.
@@ -1009,3 +1040,80 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verified: `GET http://127.0.0.1:8000/api/health` returned HTTP 200 with `{"status":"ok","chunks":80}`; `netstat` confirmed `127.0.0.1:8000` is listening (PID 33436 at verification time).
 - Commit: none; this is local runtime state only and deliberately does not include concurrent worktree changes.
 - Follow-up / risk: the local process is for this workstation session. Restart via `Start-FixPilot.cmd` if it is stopped; do not commit runtime databases, WAL/SHM files, or another agent's unreviewed changes merely to make the worktree clean.
+
+### 2026-08-10 - enlarge the settings surface and compact account credentials
+
+- Request / problem: the fixed desktop settings dialog was too small for the account page; its content area showed a scrollbar and the password action sat at the lower edge. The account/password fields also stretched across nearly the entire wide pane, which looked disproportionate.
+- Root cause: `.settings-card` was fixed at `640px × 480px`, while account fields inherited the generic `width: 100%` settings input rule. The account page requires more vertical room than that shared modal budget provided.
+- Changed:
+  - `backend/static/style.css` - enlarged the desktop settings surface to `720px × 600px`, preserving viewport-safe maximums; limited inputs in `#accountPane` to `min(420px, 100%)` while leaving API and other long-form fields full width.
+  - `backend/static/index.html` - bumped only the CSS cache version from `style.css?v=40` to `style.css?v=41`.
+- Verified: `node --check backend/static/app.js` PASS; static settings-layout contract PASS; local `GET /style.css?v=41` returned HTTP 200 and contained the new account-input rule; `git diff --check` PASS. No model/API request was made.
+- Commit: pending. Concurrent changes from other agents remain intentionally unstaged and preserved.
+- Follow-up / risk: browser automation is unavailable in this runtime, so visually confirm the account, API, preferences, and about tabs once at normal desktop zoom and on a narrow mobile viewport. Mobile remains governed by its existing responsive override.
+### 2026-08-10 - simplify Volcengine setup and stop pre-filling a specific model
+
+- Request / problem: the dedicated 火山方舟 Responses setup pre-filled `deepseek-v4-flash-260425`, which could be mistaken for the model every user should select. The provider menu also exposed a second 火山方舟 Chat Completions path that the owner does not want to support in the guided UI.
+- Root cause: the original preset list encoded one account-specific/example model as a default and exposed two protocols without making their practical distinction useful to FixPilot users.
+- Changed:
+  - `backend/static/app.js` - removed the dedicated Ark Chat Completions preset and hint; the remaining Ark Responses preset fills only the `/api/v3/responses` endpoint and leaves the model empty with a “copy Model ID from the Ark console” placeholder. Validation now requires the user to provide an enabled Ark model ID. Existing stored `volcengine` settings are shown as a one-time migration form (not silently saved or changed) when settings are opened.
+  - `backend/static/index.html` - removed the Chat Completions option, retained only `火山方舟（Responses）`, and bumped `app.js` cache version from v52 to v53.
+- Verified: `node --check backend/static/app.js` PASS; static API-preset contract PASS (exactly one Responses preset, no dedicated Chat preset, no old model prefill, Responses-only selector, explicit model-ID validation, legacy form mapping, v53); local `GET /app.js?v=53` returned HTTP 200 with no old model or dedicated Chat preset; `git diff --check` PASS. No model/API call was made.
+- Commit: pending. Concurrent worktree changes remain intentionally unstaged and preserved.
+- Follow-up / risk: this removes only the guided dedicated Chat option. Full custom API intentionally still permits a compatible `/chat/completions` URL, because it is the escape hatch for providers outside the guided presets. A legacy stored Ark Chat configuration continues serving its old saved behavior until its owner opens settings and consciously saves the Responses form.
+### 2026-08-10 - repair the P1 blank-chat send path and add a browser regression contract
+
+- Request / symptom: the owner reported that, on the mobile live site, sending any content (plain text or a photo, with either platform or custom model) cleared the complete chat area. They then authorized use of the already logged-in browser for testing.
+- Investigation / root cause: this was provider-independent before the network/model layer. Source history showed `16469b0` removed `fmtMsgTime`, `addMsgTime`, `maybeDivider`, and `scrollDown` while changing the reaction/meme code; later `01fdb37` restored only `autoResize`. In `send()`, the welcome DOM is cleared, then `addMsg('user', content)` calls the now-undefined `maybeDivider()` before it appends a user row. The exception is outside the request `try/catch`, leaving an empty pane. The deployed site was also confirmed to serve `app.js?v=49` / `style.css?v=39`; a no-credential browser contract against that live bundle reproduced `ReferenceError: maybeDivider is not defined` with zero chat rows. The same contract against local `http://127.0.0.1:8000/` after repair gave one user row, one assistant row, and no page errors.
+- Changed:
+  - `backend/static/app.js` - restored the shared timestamp, time-divider, and scroll helpers as one documented block next to other message UI helpers.
+  - `backend/static/index.html` - bumped the browser cache tag from `app.js?v=53` to `app.js?v=54`.
+  - `tools/renderer_test.js` - added R08, asserting all shared helpers required by the send/history/reaction paths exist and the direct send placeholder path remains present.
+- Verification: no provider/model request and no user credentials were used. `node --check backend/static/app.js` PASS; `python tools/run_all.py --suites renderer,transport` PASS (renderer 8 PASS, transport 3 PASS); browser evidence written to `reports/test-runs/test-20260810-043300-browser-send-path.json`; `git diff --check` PASS. A temporary isolated Chrome used for the browser contract was stopped after verification.
+- Commit: pending; no unrelated worktree changes were staged or altered.
+- Follow-up / risk: production cannot receive this correction until the owner explicitly requests a commit/push and then applies the verified deployment procedure. After deployment, manually send one short text and one photo on a mobile device with a force refresh; the browser contract proves the client path but deliberately used mocked SSE so it did not spend API quota.
+### 2026-08-10 - finalise the P1 helper restoration with encoding-safe time labels
+
+- Request / issue found during verification: a source-codepoint check after the P1 blank-chat fix found that the Windows command transport had encoded the newly restored Chinese cross-day time literals incorrectly. This did not affect the blank-chat root cause but would have made older message dates display mojibake.
+- Changed: `backend/static/app.js` now expresses the restored Chinese month/day/yesterday labels as JavaScript Unicode escapes, while keeping the same user-visible output.
+- Verified: final browser contract PASS with mocked authenticated SSE: one user row, one assistant row, no page exceptions; explicit browser evaluation returned `8月9日 01:02` and `昨天 04:37`. Evidence: `reports/test-runs/test-20260810-043700-browser-send-path-final.json`. No model/API call or user credential was used.
+- Commit: pending with the P1 repair; unrelated worktree changes remain untouched.
+### 2026-08-10 - derive transparent candidate assets for the new FixPilot brand mark
+
+- Request / goal: assess `file/logo2026-8-10.png` as a replacement for the current upper-left brand artwork, remove its opaque near-white background, and make small web-ready candidate assets without replacing the live UI prematurely.
+- Finding / decision: the supplied source is an RGB-only 2172 x 724 PNG (about 849 KB) with no alpha channel. Its background consists of near-white pixel noise, so deterministic edge-connected background extraction preserves the supplied lettering more faithfully than generative redraw. A mechanical PNG-to-SVG conversion would not create a genuine vector asset and was deliberately not used.
+- Changed:
+  - `backend/static/assets/fixpilot-brand-lockup-v1.png` and `.webp` - transparent horizontal brand-lockup candidates (512 x 125).
+  - `backend/static/assets/fixpilot-brand-mark-v1.png` and `.webp` - transparent square mark candidates (192 x 192) for compact/mobile placement.
+- Verified: Pillow opened all four outputs as RGBA; each has both fully transparent and fully opaque pixels. Sizes: lockup WebP 19,920 bytes / PNG 49,851 bytes; mark WebP 12,266 bytes / PNG 31,656 bytes. The original file remains unchanged. The built-in image editing tool was attempted but could not read the Windows workspace path under its restricted-token sandbox, so no generative content was substituted.
+- Commit: pending; the assets are candidates only and are not yet referenced by `index.html` or CSS.
+- Follow-up / risk: the owner must visually approve the horizontal lockup and compact mark before replacing the existing `logo.svg`. A real SVG should be created only from a design source or a deliberate manual redraw after approval.
+
+### 2026-08-10 - supersede the rejected first logo candidates with the owner-supplied transparent master
+
+- Correction: the preceding v1 candidate assets were visually rejected. They were derived from an older opaque source and are not a suitable representation of the final brand artwork.
+- Changed:
+  - Removed the four never-referenced `fixpilot-brand-*-v1` candidate files.
+  - Used the owner-supplied transparent master `E:/download/ChatGPT_Image_2026年8月10日_11_10_33.png` as the only source; cropped meaningful transparent padding without redrawing it.
+  - Added `backend/static/assets/fixpilot-logo-lockup.webp` (512 x 155, 19,936 bytes) and `.png` fallback (55,298 bytes).
+  - Added optional compact `fixpilot-logo-mark.webp` (192 x 192, 9,878 bytes) and `.png` fallback (33,212 bytes).
+- Verified: all four output files decode as RGBA with alpha extrema `(0, 255)`. The supplied master remains outside the repository and unchanged. No generated imagery or text substitution was used.
+- Commit: pending; no UI reference has been changed yet.
+- Follow-up / risk: use the lockup only in a location where its existing wordmark will not duplicate nearby `FixPilot` text. Do not globally replace `logo.svg`, because that asset is also used for assistant avatars and login decoration.
+
+### 2026-08-10 - install the approved transparent brand lockup in the application header
+
+- Request / goal: replace only the product's upper-left header logo with the owner-supplied transparent FixPilot lockup, while avoiding duplicated nearby brand text and avoiding an unsafe global replacement of the assistant avatar asset.
+- Finding / decision: `logo.svg` is reused for the assistant avatar, login screen, sidebar and generated share content. Replacing it globally with a horizontal wordmark would break those compact uses. The header is therefore the only changed surface; it uses the new lockup and removes the duplicate `FixPilot` name/subtitle block.
+- Changed:
+  - `backend/static/index.html` - replaced the main `.topbar-left` icon/text pair with a responsive `picture` element that prefers `assets/fixpilot-logo-lockup.webp` and falls back to the transparent PNG; bumped the CSS cache version from v42 to v43 while preserving the concurrent JS cache version v56.
+  - `backend/static/style.css` - added desktop/mobile sizing rules for `.topbar-brand-lockup` and removed now-unused topbar title sizing overrides. Desktop width is 142px; mobile is responsive from 86px to 116px.
+- Verified:
+  - local browser at 1440 x 900: visible lockup 142 x 43, no duplicate old title, no horizontal overflow, no page errors;
+  - local browser at 390 x 844: visible lockup 105 x 32, no horizontal overflow, no page errors;
+  - browser selected `fixpilot-logo-lockup.webp` with natural dimensions 512 x 155, rather than the PNG fallback;
+  - `node --check backend/static/app.js` and `git diff --check` passed. No login, message, image upload, or model call was performed.
+- Commit: pending. Concurrent workspace changes remain preserved and unstaged.
+- Follow-up / risk: the supplied horizontal mark is intentionally limited to the header. If the owner wants the new illustration in chat avatars or login, review/use the dedicated compact mark separately rather than changing `logo.svg` globally.
+
+- Log correction: the source-file name in the preceding entry was affected by Windows terminal encoding. The asset was unambiguously selected from E:\download using the ASCII suffix *11_10_33.png; the repository outputs, checksums/sizes, and all UI references above are unaffected.

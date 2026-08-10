@@ -92,14 +92,10 @@ const API_PRESETS = {
     base: 'https://api.deepseek.com',
     models: ['deepseek-v4-flash'],
   },
-  volcengine: {
-    base: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
-    models: ['deepseek-v4-flash'],
-    keyPlaceholder: '\u706b\u5c71\u65b9\u821f API Key',
-  },
   volcengineResponses: {
     base: 'https://ark.cn-beijing.volces.com/api/v3/responses',
-    models: ['deepseek-v4-flash-260425'],
+    models: [''],
+    modelPlaceholder: '\u8bf7\u586b\u5199\u706b\u5c71\u65b9\u821f\u63a7\u5236\u53f0\u7684 Model ID',
     keyPlaceholder: '\u706b\u5c71\u65b9\u821f API Key',
   },
   openai: {
@@ -123,11 +119,13 @@ async function loadApiSettingsFromServer() {
     const r = await fetch('api/api-settings', { headers: authHeaders() });
     if (!r.ok) return null;
     const d = await r.json();
+    const models = Array.isArray(d.models) && d.models.length ? d.models : (d.model ? [d.model] : []);
     _apiSettingsCache = {
       provider: d.provider || 'deepseek',
       apiKey: d.apiKey || '',
       apiBase: d.apiBase || '',
       model: d.model || '',
+      models: models,
       activeSource: d.activeSource || 'platform',
     };
   } catch (e) { _apiSettingsCache = null; }
@@ -139,7 +137,7 @@ async function saveApiSettings(s) {
     await fetch('api/api-settings', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify({
         apiKey: s.apiKey || '', apiBase: s.apiBase || '', model: s.model || '',
-        provider: s.provider || 'deepseek', activeSource: s.activeSource || 'platform',
+        models: s.models || [], provider: s.provider || 'deepseek', activeSource: s.activeSource || 'platform',
       })
     });
   } catch (e) {}
@@ -501,11 +499,14 @@ function adminBodyHtml() {
       '<div class="agen-result" id="agenResult"></div>' +
     '</div>' +
     '<div class="acard"><div class="acard-title">未使用邀请码 <span class="abadge" id="aUnusedCount"></span></div><div id="aUnusedList"></div></div>' +
-    '<div class="acard"><div class="acard-title">已使用邀请码 <span class="abadge" id="aUsedCount"></span></div><div id="aUsedList"></div></div>';
+    '<div class="acard"><div class="acard-title">已使用邀请码 <span class="abadge" id="aUsedCount"></span></div><div id="aUsedList"></div></div>' +
+    '<div class="acard persona-card"><div class="acard-title">人格预览</div><div class="persona-card-desc">查看人格各切片（独立／合并组合）的完整模样，仅只读，不影响运行。</div><button class="a-btn" id="aPersona" type="button">查看人格切片</button></div>';
 }
 
 function bindAdminEvents() {
   document.getElementById('aGen').addEventListener('click', createInvites);
+  const personaBtn = document.getElementById('aPersona');
+  if (personaBtn) personaBtn.addEventListener('click', showPersonaPreview);
 }
 
 async function createInvites() {
@@ -656,6 +657,116 @@ async function showHistory(code) {
     const list = document.getElementById('adminConversationList');
     if (list) list.innerHTML = '<div class="aempty">\u52a0\u8f7d\u5931\u8d25</div>';
   }
+}
+
+/* ---------- 人格预览（管理员只读） ---------- */
+let personaData = null;
+let personaComboSel = null;   // 当前选中的组合索引
+let personaPrevHtml = '';     // 进入预览前的 adminBody 内容，用于返回
+
+async function showPersonaPreview() {
+  const prev = adminBody.innerHTML;
+  personaPrevHtml = prev;
+  adminBody.classList.add('admin-persona-body');
+  adminBody.innerHTML =
+    '<div class="persona-toolbar">' +
+      '<button class="a-btn ghost persona-back" id="pBack" type="button">\u8fd4\u56de\u7ba1\u7406</button>' +
+      '<div class="persona-toolbar-title">\u4eba\u683c\u9884\u89c8\uff08\u53ea\u8bfb\uff09</div>' +
+      '<div class="persona-toolbar-sub">\u56fa\u5b9a\u9aa8\u67b6 + \u52a8\u6001\u5207\u7247\uff0c\u5408\u5e76\u3001\u72ec\u7acb\u4e24\u79cd\u89c6\u89d2</div>' +
+    '</div>' +
+    '<div class="persona-loading">\u52a0\u8f7d\u5207\u7247\u4e2d...</div>';
+  document.getElementById('pBack').addEventListener('click', () => {
+    adminBody.classList.remove('admin-persona-body');
+    adminBody.innerHTML = prev;
+    bindAdminEvents();
+  });
+  try {
+    const r = await fetch('api/admin/persona', { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'persona request failed');
+    personaData = d;
+    personaComboSel = 0;
+    renderPersona();
+  } catch (e) {
+    const l = document.querySelector('.persona-loading');
+    if (l) l.textContent = '\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5';
+  }
+}
+
+function renderPersona() {
+  if (!personaData) return;
+  const data = personaData;
+  const combo = data.combos[personaComboSel] || data.combos[0];
+
+  const comboOptions = data.combos.map((c, i) => {
+    const sel = i === personaComboSel ? ' selected' : '';
+    return '<option value="' + i + '"' + sel + '>' + escapeHtml(c.level_label) + ' + ' + escapeHtml(c.style_label) + '</option>';
+  }).join('');
+
+  const fixedBlocks = data.fixed.map((s) =>
+    '<div class="persona-slice">' +
+      '<div class="persona-slice-head"><span class="persona-slice-label">' + escapeHtml(s.label) + '</span><span class="persona-slice-tag fixed">\u56fa\u5b9a</span></div>' +
+      '<pre class="persona-pre">' + escapeHtml(s.content) + '</pre>' +
+    '</div>'
+  ).join('');
+
+  const levelBlocks = data.levels.map((s) =>
+    '<div class="persona-slice">' +
+      '<div class="persona-slice-head"><span class="persona-slice-label">' + escapeHtml(s.label) + '</span><span class="persona-slice-tag dynamic">\u52a8\u6001</span></div>' +
+      '<pre class="persona-pre">' + escapeHtml(s.content) + '</pre>' +
+    '</div>'
+  ).join('');
+
+  const styleBlocks = data.styles.map((s) =>
+    '<div class="persona-slice">' +
+      '<div class="persona-slice-head"><span class="persona-slice-label">' + escapeHtml(s.label) + '</span><span class="persona-slice-tag dynamic">\u52a8\u6001</span></div>' +
+      '<pre class="persona-pre">' + escapeHtml(s.content) + '</pre>' +
+    '</div>'
+  ).join('');
+
+  const memeBlock = data.roast_meme ?
+    '<div class="persona-slice">' +
+      '<div class="persona-slice-head"><span class="persona-slice-label">' + escapeHtml(data.roast_meme.label) + '</span><span class="persona-slice-tag dynamic">\u52a8\u6001</span></div>' +
+      '<pre class="persona-pre">' + escapeHtml(data.roast_meme.content) + '</pre>' +
+    '</div>' : '';
+
+  adminBody.innerHTML =
+    '<div class="persona-toolbar">' +
+      '<button class="a-btn ghost persona-back" id="pBack" type="button">\u8fd4\u56de\u7ba1\u7406</button>' +
+      '<div class="persona-toolbar-title">\u4eba\u683c\u9884\u89c8\uff08\u53ea\u8bfb\uff09</div>' +
+      '<div class="persona-toolbar-sub">\u9009\u4e00\u4e2a\u7ec4\u5408\uff0c\u770b\u5b83\u4eec\u5408\u5e76\u540e\u7684\u5b8c\u6574\u6a21\u6837\uff1b\u4e0b\u65b9\u53ef\u4e00\u4e2a\u4e2a\u67e5\u770b\u72ec\u7acb\u5207\u7247\u3002\u4ec5\u53ea\u8bfb\u3002</div>' +
+    '</div>' +
+    '<div class="persona-combo">' +
+      '<label class="persona-combo-label">\u7ec4\u5408\u6a21\u5f0f</label>' +
+      '<select class="persona-combo-select" id="pComboSel">' + comboOptions + '</select>' +
+      '<div class="persona-combo-meta">' + escapeHtml(combo.level_label) + ' - ' + escapeHtml(combo.style_label) + '</div>' +
+    '</div>' +
+    '<details class="persona-section" open>' +
+      '<summary>\u5408\u5e76\u9884\u89c8\uff08\u6b64\u7ec4\u5408\u6700\u7ec8\u53d1\u7ed9\u6a21\u578b\u7684 system prompt\uff09</summary>' +
+      '<pre class="persona-pre combo">' + escapeHtml(combo.merged) + '</pre>' +
+    '</details>' +
+    '<details class="persona-section">' +
+      '<summary>\u8be5\u7ec4\u5408\u7684\u52a8\u6001\u88c1\u5b57\u5207\u7247 build_profile_policy</summary>' +
+      '<pre class="persona-pre">' + escapeHtml(combo.profile_policy) + '</pre>' +
+    '</details>' +
+    '<div class="persona-section-title">\u56fa\u5b9a\u9aa8\u67b6\u5207\u7247</div>' +
+    fixedBlocks +
+    '<div class="persona-section-title">\u52a8\u6001\u5207\u7247 - \u6280\u672f\u6c34\u5e73</div>' +
+    levelBlocks +
+    '<div class="persona-section-title">\u52a8\u6001\u5207\u7247 - \u8bed\u6c14\u98ce\u683c</div>' +
+    styleBlocks +
+    '<div class="persona-section-title">\u52a8\u6001\u5207\u7247 - \u5634\u6bd2\u5f69\u86cb\u89c4\u5219</div>' +
+    memeBlock;
+
+  document.getElementById('pBack').addEventListener('click', () => {
+    adminBody.classList.remove('admin-persona-body');
+    adminBody.innerHTML = personaPrevHtml;
+    bindAdminEvents();
+  });
+  document.getElementById('pComboSel').addEventListener('change', (e) => {
+    personaComboSel = parseInt(e.target.value, 10) || 0;
+    renderPersona();
+  });
 }
 
 function adminHistoryTime(iso) {
@@ -1585,6 +1696,47 @@ function jokeEffectDelay(effect) {
   return effect.reaction === 'six' ? 3500 : 900;
 }
 
+/* ---------- Message time and scroll helpers ---------- */
+/* Shared by first-send, history replay, retries, reactions, and memes. */
+function fmtMsgTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  if (d.toDateString() === new Date().toDateString()) return hh + ':' + mm;
+  return (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5 ' + hh + ':' + mm;
+}
+function addMsgTime(container, iso) {
+  if (!container || container.querySelector('.msg-time')) return;
+  const t = document.createElement('span');
+  t.className = 'msg-time';
+  t.textContent = fmtMsgTime(iso) || fmtMsgTime(new Date().toISOString());
+  container.appendChild(t);
+}
+
+const DIVIDER_MS = 5 * 60 * 1000;
+let lastMsgTime = null;
+function fmtDividerTime(d) {
+  const pad = n => String(n).padStart(2, '0');
+  const hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return hm;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return '\u6628\u5929 ' + hm;
+  return (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5 ' + hm;
+}
+function maybeDivider(iso) {
+  const t = new Date(iso || Date.now());
+  if (lastMsgTime && (t - lastMsgTime) >= DIVIDER_MS) {
+    const d = document.createElement('div');
+    d.className = 'time-divider';
+    d.textContent = fmtDividerTime(t);
+    chatEl.appendChild(d);
+  }
+  lastMsgTime = t;
+}
+function scrollDown() { chatEl.scrollTop = chatEl.scrollHeight; }
 /* ---------- 图片上传 ---------- */
 const imgInput = document.getElementById('imgInput');
 const imgBtn = document.getElementById('imgBtn');
@@ -1937,8 +2089,7 @@ const preferencesSection = document.getElementById('preferencesPane');
 const apiProviderHint = document.getElementById('apiProviderHint');
 const API_PROVIDER_HINTS = {
   deepseek: '\u76f4\u63a5\u586b\u5165 DeepSeek API Key\u5373\u53ef\u3002',
-  volcengine: '\u4f7f\u7528\u706b\u5c71\u65b9\u821f\u7684 API Key\u3002\u63a8\u8350\u4f7f\u7528\u514d\u8d39\u989d\u5ea6\u5df2\u5f00\u901a\u7684 DeepSeek-V4-Flash\uff1b\u5176\u4ed6\u6a21\u578b\u8bf7\u6309\u65b9\u821f\u63a7\u5236\u53f0\u7684 Model ID \u586b\u5199\u3002',
-  volcengineResponses: '\u4f7f\u7528\u65b9\u821f Responses API\uff0c\u81ea\u52a8\u4f7f\u7528 /responses \u548c input \u683c\u5f0f\u3002\u793a\u4f8b\u4e2d\u7684 web_search \u5de5\u5177\u4e0d\u4f1a\u5f00\u542f\uff0cFixPilot \u76ee\u524d\u4e0d\u63d0\u4f9b\u5b9e\u65f6\u7f51\u7edc\u67e5\u8be2\u3002',
+  volcengineResponses: '\u4f7f\u7528\u65b9\u821f Responses API\uff0c\u8bf7\u5728\u65b9\u821f\u63a7\u5236\u53f0\u590d\u5236\u4f60\u5df2\u5f00\u901a\u6a21\u578b\u7684 Model ID\uff1b\u4e0d\u4f1a\u9884\u586b\u7279\u5b9a\u6a21\u578b\u3002',
   openai: '\u9002\u7528\u4e8e\u5176\u4ed6 OpenAI \u517c\u5bb9\u670d\u52a1\uff0c\u8bf7\u81ea\u884c\u786e\u8ba4\u5730\u5740\u548c\u6a21\u578b\u540d\u3002',
   custom: '\u586b\u5165\u670d\u52a1\u5546\u63d0\u4f9b\u7684\u5b8c\u6574\u63a5\u53e3\u5730\u5740\u3001\u6a21\u578b ID \u548c API Key\u3002\u652f\u6301 OpenAI \u517c\u5bb9\u7684 /chat/completions\uff1b\u5982\u679c\u586b\u5b8c\u6574 /responses\uff0cFixPilot \u4f1a\u81ea\u52a8\u4f7f\u7528 Responses \u534f\u8bae\u3002',
 };
@@ -1947,6 +2098,9 @@ function applyApiProviderPreset(provider, replaceValues = false) {
   if (replaceValues) {
     apiBaseInput.value = preset.base;
     apiModelInput.value = preset.models[0];
+    apiModels = preset.models.slice();
+    apiActiveModel = preset.models[0] || '';
+    renderApiModelList();
   } else {
     apiBaseInput.placeholder = preset.base || preset.basePlaceholder || '';
     apiModelInput.placeholder = preset.models[0] || preset.modelPlaceholder || '';
@@ -1963,12 +2117,17 @@ function openSettings(tab) {
   renderPreferencesSection();
   /* API 设置回填 */
   const s = getApiSettings() || {};
-  apiProviderSel.value = API_PRESETS[s.provider] ? s.provider : 'deepseek';
+  const legacyVolcengine = s.provider === 'volcengine';
+  const storedProvider = legacyVolcengine ? 'volcengineResponses' : s.provider;
+  apiProviderSel.value = API_PRESETS[storedProvider] ? storedProvider : 'deepseek';
   apiKeyInput.value = s.apiKey || '';
-  apiBaseInput.value = s.apiBase || '';
+  apiBaseInput.value = legacyVolcengine ? API_PRESETS.volcengineResponses.base : (s.apiBase || '');
   apiModelInput.value = s.model || '';
+  apiModels = (Array.isArray(s.models) && s.models.length) ? s.models.slice() : (s.model ? [s.model] : []);
+  apiActiveModel = s.model || apiModels[0] || '';
+  renderApiModelList();
   applyApiProviderPreset(apiProviderSel.value, false);
-  apiStatus.textContent = '';
+  apiStatus.textContent = legacyVolcengine ? '\u65e7\u7248\u706b\u5c71 Chat \u914d\u7f6e\u8fd8\u672a\u81ea\u52a8\u4fdd\u5b58\u3002\u8bf7\u786e\u8ba4\u6a21\u578b ID \u540e\u70b9\u300c\u4fdd\u5b58\u8bbe\u7f6e\u300d\u5207\u6362\u4e3a Responses\u3002' : '';
   apiStatus.className = 'api-status';
   /* 指定标签打开（如 API），否则默认账号标签 */
   switchSettingsTab(initialTab);
@@ -2210,22 +2369,76 @@ async function savePreferences() {
 }
 
 /* ---------- API settings ---------- */
+/* 表单级模型列表状态（未保存前）：支持同一服务商下维护多个模型 */
+let apiModels = [];
+let apiActiveModel = '';
+
+function renderApiModelList() {
+  const el = document.getElementById('apiModelList');
+  if (!el) return;
+  if (!apiModels.length) {
+    el.innerHTML = '<div class="api-model-empty">尚未添加模型，输入名称后点「添加」加入</div>';
+    return;
+  }
+  el.innerHTML = apiModels.map((m, i) => {
+    const active = m === apiActiveModel;
+    return '<div class="api-model-chip' + (active ? ' active' : '') + '" data-idx="' + i + '" title="' + escapeModelHtml(m) + '">' +
+      '<span class="api-model-chip-pill">' + (i + 1) + '</span>' +
+      '<span class="api-model-chip-name">' + escapeModelHtml(m) + '</span>' +
+      '<button type="button" class="api-model-chip-x" aria-label="删除">×</button>' +
+      '</div>';
+  }).join('');
+  el.querySelectorAll('.api-model-chip').forEach((chip) => {
+    chip.addEventListener('click', (e) => {
+      const idx = parseInt(chip.dataset.idx, 10);
+      if (e.target.classList.contains('api-model-chip-x')) {
+        const removed = apiModels[idx];
+        apiModels.splice(idx, 1);
+        if (apiActiveModel === removed) apiActiveModel = apiModels[0] || '';
+        renderApiModelList();
+      } else {
+        apiActiveModel = apiModels[idx];
+        renderApiModelList();
+      }
+    });
+  });
+}
+
+function addApiModel() {
+  const m = apiModelInput.value.trim();
+  if (!m) { toast('请先输入模型名'); return; }
+  if (apiModels.includes(m)) { toast('该模型已在列表中'); return; }
+  if (apiModels.length >= 20) { toast('最多添加 20 个模型'); return; }
+  apiModels.push(m);
+  if (!apiActiveModel) apiActiveModel = m;
+  apiModelInput.value = '';
+  renderApiModelList();
+}
+
 function readApiSettingsForm() {
   const provider = apiProviderSel.value;
   const apiKey = apiKeyInput.value.trim();
   const preset = API_PRESETS[provider] || API_PRESETS.deepseek;
+  const models = apiModels.length
+    ? apiModels.slice()
+    : (apiModelInput.value.trim() ? [apiModelInput.value.trim()] : []);
   return {
     provider,
     apiKey,
     apiBase: apiBaseInput.value.trim() || preset.base,
-    model: apiModelInput.value.trim() || preset.models[0],
+    model: apiActiveModel || models[0] || '',
+    models: models,
   };
 }
 
 function apiSettingsValidationError(settings) {
   if (!settings.apiKey) return '\u8bf7\u8f93\u5165 API Key';
   if (settings.provider === 'custom' && !settings.apiBase) return '\u5168\u81ea\u5b9a\u4e49\u8bf7\u586b\u5199\u5b8c\u6574 API \u5730\u5740';
-  if (settings.provider === 'custom' && !settings.model) return '\u5168\u81ea\u5b9a\u4e49\u8bf7\u586b\u5199\u6a21\u578b ID';
+  if (!settings.model) {
+    if (settings.provider === 'custom') return '\u5168\u81ea\u5b9a\u4e49\u8bf7\u586b\u5199\u6a21\u578b ID';
+    if (settings.provider === 'volcengineResponses') return '\u8bf7\u586b\u5199\u706b\u5c71\u65b9\u821f\u63a7\u5236\u53f0\u91cc\u5df2\u5f00\u901a\u7684\u6a21\u578b ID';
+    return '\u8bf7\u586b\u5199\u6a21\u578b ID';
+  }
   return '';
 }
 
@@ -2290,6 +2503,9 @@ function clearApiSettings_action() {
   apiKeyInput.value = '';
   apiBaseInput.value = '';
   apiModelInput.value = '';
+  apiModels = [];
+  apiActiveModel = '';
+  renderApiModelList();
   apiStatus.textContent = '已清除，将使用默认 API';
   apiStatus.className = 'api-status ok';
   updateModelPicker();
@@ -2299,6 +2515,7 @@ apiProviderSel.addEventListener('change', () => applyApiProviderPreset(apiProvid
 document.getElementById('apiSaveBtn').addEventListener('click', saveApiSettings_action);
 apiTestBtn.addEventListener('click', testApiSettings_action);
 document.getElementById('apiClearBtn').addEventListener('click', clearApiSettings_action);
+document.getElementById('apiModelAdd').addEventListener('click', addApiModel);
 
 /* ---------- 收藏网址（尝试真实书签，兜底下载 .url 快捷方式） ---------- */
 function starSvg() {
@@ -2352,22 +2569,75 @@ const modelPickerLabel = document.getElementById('modelPickerLabel');
 const modelDropdown = document.getElementById('modelDropdown');
 const modelPickerWrap = document.getElementById('modelPickerWrap');
 let _modelList = [];
+let _pickerKind = 'official';   // 当前选中来源：'official' | 'custom'
+let _pickerIndex = 0;           // 自定义时的序号（从 0 起）
+
+/* 品牌 → 缩写 规则库：已知主流厂商品牌映射到常用缩写。
+   短品牌（≤4）映射回自身（不缩，避免 glm→gl、qwen→qw 越缩越怪）；
+   长品牌给公认缩写（如 deepseek→ds、claude→cl）。
+   未在表内的品牌走机械兜底（>4 才取前 2 字母）。新增厂商在此追加键值即可。 */
+const BRAND_SHORT = {
+  'deepseek': 'ds',
+  'chatglm': 'glm',   // 智谱同源
+  'glm': 'glm',
+  'zhipu': 'glm',
+  'qwen': 'qwen',     // 通义千问
+  'tongyi': 'qwen',
+  'kimi': 'kimi',     // 月之暗面
+  'moonshot': 'kimi',
+  'gpt': 'gpt',
+  'claude': 'cl',
+  'gemini': 'gm',
+  'hunyuan': 'hy',    // 腾讯混元
+  'doubao': 'db',     // 字节豆包
+  'ernie': 'er',      // 百度文心
+  'llama': 'll',
+  'mistral': 'mi',
+  'spark': 'sp',      // 讯飞星火
+  'step': 'step',     // 阶跃星辰
+  'minimax': 'mm',
+  'baichuan': 'bc',
+  'yi': 'yi',
+  'grok': 'grok',
+  'phi': 'phi',
+  'o1': 'o1',
+  'o3': 'o3',
+  'o4': 'o4',
+};
 
 function compactModelLabel(label) {
   const value = String(label || '').trim();
-  if (/deepseek/i.test(value)) return 'DS';
-  if (/glm/i.test(value)) return 'GLM';
-  if (/qwen/i.test(value)) return 'Qwen';
-  if (/kimi/i.test(value)) return 'Kimi';
-  if (/doubao|seed/i.test(value)) return 'DB';
-  return value.length > 7 ? value.slice(0, 6) : value || 'Model';
+  if (!value) return 'Model';
+  // ① 去尾巴：砍掉末尾纯日期戳/版本号段（如 -260425、-20260810、_v2、-beta、rc1 等）
+  let short = value.replace(/[-_.]([0-9]{4,}(?:[a-z0-9._-]*)?|dev|beta|rc\d*)$/i, '');
+  // ② 品牌缩写：先查规则库，命中用映射；未命中走机械兜底（>4 才取前 2 字母）
+  const m = short.match(/^([A-Za-z]+)([-_.].*)?$/);
+  if (m && m[1]) {
+    const key = m[1].toLowerCase();
+    const mapped = BRAND_SHORT[key];
+    if (mapped !== undefined) {
+      short = mapped + (m[2] || '');
+    } else if (m[1].length > 4) {
+      short = m[1].slice(0, 2) + (m[2] || '');
+    }
+  }
+  // ③ 仍过长：收尾省略，但此时品牌已短，开头已保留品牌+型号核心
+  if (short.length > 18) short = short.slice(0, 18) + '…';
+  return short;
+}
+
+/* 来源标识 pill：官方内置 = 「官」琥珀色；自定义 = 序号 浅蓝色 */
+function pickerPillHtml(kind, index) {
+  if (kind === 'official') return '<span class="mp-pill mp-pill--official">官</span>';
+  if (kind === 'custom') return '<span class="mp-pill mp-pill--custom">' + (index + 1) + '</span>';
+  return '';
 }
 
 function syncMobileModelPicker() {
   const isMobile = window.matchMedia('(max-width: 767px)').matches;
-  const fullLabel = modelPickerBtn.dataset.fullLabel || modelPickerLabel.textContent || 'Model';
+  const fullLabel = modelPickerBtn.dataset.fullLabel || platformModelName || 'Model';
   modelPickerBtn.classList.remove('model-picker--short', 'model-picker--tight');
-  modelPickerLabel.textContent = fullLabel;
+  modelPickerLabel.innerHTML = escapeModelHtml(fullLabel) + pickerPillHtml(_pickerKind, _pickerIndex);
 
   if (!isMobile) return;
 
@@ -2376,7 +2646,7 @@ function syncMobileModelPicker() {
   const headerOverflows = header && header.scrollWidth > header.clientWidth + 1;
   if (labelOverflows || headerOverflows) {
     modelPickerBtn.classList.add('model-picker--short');
-    modelPickerLabel.textContent = compactModelLabel(fullLabel);
+    modelPickerLabel.innerHTML = escapeModelHtml(compactModelLabel(fullLabel)) + pickerPillHtml(_pickerKind, _pickerIndex);
   }
   if (header && header.scrollWidth > header.clientWidth + 1) {
     modelPickerBtn.classList.add('model-picker--tight');
@@ -2398,10 +2668,13 @@ function relocateModelPicker() {
 relocateModelPicker();
 window.addEventListener('resize', relocateModelPicker);
 
-function configuredCustomModel(settings) {
-  if (!settings || !settings.apiKey) return '';
+function customModelList(settings) {
+  if (!settings || !settings.apiKey) return [];
   const preset = API_PRESETS[settings.provider] || API_PRESETS.deepseek;
-  return settings.model || preset.models.find(Boolean) || '';
+  const models = (Array.isArray(settings.models) && settings.models.length) ? settings.models.slice() : [];
+  if (!models.length && settings.model) models.push(settings.model);
+  if (!models.length && preset.models.find(Boolean)) models.push(preset.models.find(Boolean));
+  return models;
 }
 function usesCustomModel(settings) {
   return Boolean(settings && settings.apiKey && settings.activeSource !== 'platform');
@@ -2411,22 +2684,33 @@ function escapeModelHtml(value) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[char]));
 }
-function modelOption(source, model, active) {
+function modelOption(source, model, active, kind, index) {
   const safeModel = escapeModelHtml(model);
+  const pill = kind === 'official'
+    ? '<span class="mopt-pill mopt-pill--official">官</span>'
+    : (kind === 'custom' ? '<span class="mopt-pill mopt-pill--custom">' + (index + 1) + '</span>' : '');
   return '<button type="button" class="model-opt' + (active ? ' active' : '') + '" data-source="' + source + '" data-model="' + safeModel + '">' +
-    '<span class="model-opt-name">' + safeModel + '</span>' +
+    '<span class="model-opt-name">' + safeModel + '</span>' + pill +
     (active ? '<span class="model-opt-check" aria-label="selected">&#10003;</span>' : '') +
     '</button>';
 }
 function updateModelPicker() {
   const settings = getApiSettings();
-  const customModel = configuredCustomModel(settings);
+  const customModels = customModelList(settings);
   const customActive = usesCustomModel(settings);
-  _modelList = customModel ? [customModel] : [];
+  _modelList = customModels;
   modelPickerBtn.style.display = 'inline-flex';
-  const label = customActive && customModel ? customModel : platformModelName;
+  let label;
+  if (customActive && customModels.length) {
+    _pickerKind = 'custom';
+    _pickerIndex = Math.max(0, customModels.indexOf(settings.model));
+    label = customModels[_pickerIndex] || settings.model || customModels[0];
+  } else {
+    _pickerKind = 'official';
+    _pickerIndex = 0;
+    label = platformModelName;
+  }
   modelPickerBtn.dataset.fullLabel = label;
-  modelPickerLabel.textContent = label;
   modelPickerBtn.title = label;
   modelDropdown.style.display = 'none';
   requestAnimationFrame(syncMobileModelPicker);
@@ -2435,21 +2719,23 @@ function toggleModelDropdown() {
   const show = modelDropdown.style.display === 'none';
   if (!show) { modelDropdown.style.display = 'none'; modelPickerBtn.classList.remove('open'); return; }
   const settings = getApiSettings();
-  const customModel = configuredCustomModel(settings);
+  const customModels = customModelList(settings);
   const customActive = usesCustomModel(settings);
   const builtinTitle = '\u5185\u7f6e\u6a21\u578b';
   const customTitle = '\u81ea\u5b9a\u4e49\u6a21\u578b';
   const configureCustom = '\u914d\u7f6e\u81ea\u5b9a\u4e49\u6a21\u578b\u2026';
   let customContent = '';
-  if (customModel) {
-    customContent = modelOption('custom', customModel, customActive);
+  if (customModels.length) {
+    customContent = customModels.map((m, i) =>
+      modelOption('custom', m, customActive && m === settings.model, 'custom', i)
+    ).join('');
   } else {
     customContent = '<button type="button" class="model-opt model-config" data-source="configure"><span class="model-opt-name">' + configureCustom + '</span></button>';
   }
   modelDropdown.classList.remove('model-dropdown--single-action');
   modelDropdown.innerHTML =
     '<section class="model-section"><div class="model-section-title">' + builtinTitle + '</div>' +
-    modelOption('platform', platformModelName, !customActive) +
+    modelOption('platform', platformModelName, !customActive, 'official', 0) +
     '</section><section class="model-section"><div class="model-section-title">' + customTitle + '</div>' +
     customContent + '</section>';
   modelDropdown.querySelectorAll('.model-opt').forEach((option) => { option.title = option.textContent.trim(); });
@@ -2487,6 +2773,15 @@ modelDropdown.addEventListener('click', (e) => {
     updateQuotaBadge(currentUser);
     toast('\u5df2\u5207\u6362\u4e3a\u81ea\u5b9a\u4e49\u6a21\u578b\uff1a' + model);
   }
+});
+
+/* 密码/密钥输入框使用白名单：字母数字及 !@#%^&_=+-.,:/?[]{}~ 等常用符号，
+   实时剔除 *、引号、分号、尖括号、竖线、反斜杠、汉字、emoji、全角等字符。 */
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el || el.type !== 'password') return;
+  const cleaned = el.value.replace(/[^A-Za-z0-9!@#%^&_=+\-.,:/?\[\]{}~]/g, '');
+  if (cleaned !== el.value) el.value = cleaned;
 });
 
 /* ---------- Events ---------- */
