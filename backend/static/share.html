@@ -75,11 +75,11 @@
     }
     .msg.bot .bubble.reaction-chichi { letter-spacing: .16em; }
     .msg.bot.reaction-msg .msg-body { flex: 0 1 auto; }
-    .msg.bot.reaction-msg .msg-time { margin-top: 2px; padding: 0; }
+    .msg.bot.reaction-msg .msg-time { margin-top: 2px; }
     .msg.bot .bubble.meme-card .meme-img {
       display: block; width: 100%; height: auto; object-fit: contain;
     }
-    .msg.bot.meme-msg .msg-time { margin-top: 2px; padding: 0; }
+    .msg.bot.meme-msg .msg-time { margin-top: 2px; }
 
 
     .bubble p { margin: 0 0 10px; }
@@ -110,12 +110,17 @@
     .empty { text-align: center; color: var(--text-2); padding: 60px 20px; }
     .spinner { text-align: center; color: var(--text-2); padding: 60px 20px; }
     .foot { text-align: center; color: var(--text-2); font-size: 12px; margin-top: 30px; }
+    /* Keep the share view's timestamp behavior consistent with the main chat:
+       reserve its place, but reveal it only while the message is being inspected. */
     .msg-time {
-      font-size: 11px; color: var(--text-2); margin-top: 2px;
-      padding: 0 14px; opacity: 0.7;
+      font-size: 10px; font-weight: 400; line-height: 1;
+      color: #b6bdc9; letter-spacing: .2px; user-select: none;
+      margin-top: 2px; padding: 0 14px; opacity: 0;
+      transition: opacity .18s ease;
     }
     .msg.user .msg-time { text-align: right; }
     .msg.bot .msg-time { text-align: left; }
+    .msg:hover .msg-time { opacity: 1; }
     .avatar { user-select: none; -webkit-user-select: none; }
     .msg-body { display: flex; flex-direction: column; max-width: 78%; flex: 1; }
     .msg.user .msg-body { align-items: flex-end; }
@@ -193,6 +198,10 @@
       return html;
     }
 
+    function reactionBubbleClass(reactionId) {
+      // `6` is a normal assistant utterance; only the other reaction text stays compact.
+      return reactionId === 'six' ? 'bubble' : 'bubble reaction-card reaction-' + reactionId;
+    }
     async function load() {
       if (!token) { wrap.innerHTML = '<div class="empty">链接无效</div>'; return; }
       try {
@@ -216,7 +225,7 @@
           })() : '';
           const reactionId = role === 'bot' ? reactionIdFromMessage(content) : null;
           if (reactionId) {
-            html += '<div class="msg bot reaction-msg"><div class="avatar"><img src="logo.svg?v=2" alt="" /></div><div class="msg-body"><div class="bubble reaction-card reaction-' + reactionId + '">' + esc(REACTION_LABELS[reactionId]) + '</div>' + (ts ? '<div class="msg-time">' + ts + '</div>' : '') + '</div></div>';
+            html += '<div class="msg bot reaction-msg"><div class="avatar"><img src="logo.svg?v=2" alt="" /></div><div class="msg-body"><div class="' + reactionBubbleClass(reactionId) + '">' + esc(REACTION_LABELS[reactionId]) + '</div>' + (ts ? '<div class="msg-time">' + ts + '</div>' : '') + '</div></div>';
             continue;
           }
           const memeId = role === 'bot' ? memeIdFromMessage(content) : null;

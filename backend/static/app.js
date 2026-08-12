@@ -381,14 +381,10 @@ function loadHtml2canvas() {
   });
 }
 
+const BRAND_MARK_SRC = 'assets/fixpilot-logo-mark-v4.webp';
 function inlineLogoSvg(size) {
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '" viewBox="40 55 315 300" fill="none">' +
-    '<path d="M 179.41 100.91 C 171.84 101.60, 164.15 103.58, 157.06 106.40 C 149.98 109.23, 143.03 113.25, 136.90 117.85 C 130.76 122.46, 124.99 128.06, 120.24 134.04 C 115.50 140.02, 111.42 146.79, 108.43 153.74 C 105.44 160.70, 103.84 168.24, 102.32 175.75 C 100.80 183.26, 100.53 191.19, 99.31 198.81 C 98.08 206.43, 97.61 214.38, 94.96 221.46 C 92.31 228.53, 85.96 234.61, 83.42 241.24 C 80.89 247.86, 76.59 257.99, 79.75 261.22 C 82.92 264.45, 96.48 258.39, 102.42 260.61 C 108.36 262.83, 111.38 268.88, 115.41 274.54 C 119.44 280.20, 121.40 289.37, 126.59 294.55 C 131.79 299.72, 140.24 305.90, 146.59 305.59 C 152.95 305.28, 158.79 294.05, 164.73 292.69 C 170.67 291.32, 175.68 295.01, 182.22 297.40 C 188.76 299.80, 197.40 307.35, 203.97 307.06 C 210.53 306.77, 216.22 299.51, 221.61 295.68 C 227.00 291.85, 230.07 284.88, 236.32 284.08 C 242.57 283.28, 252.48 291.72, 259.12 290.87 C 265.76 290.02, 273.86 284.81, 276.16 278.99 C 278.46 273.16, 270.56 261.49, 272.93 255.91 C 275.29 250.34, 284.78 250.01, 290.35 245.53 C 295.92 241.06, 305.78 233.84, 306.37 229.06 C 306.97 224.29, 299.53 220.32, 293.92 216.89 C 288.31 213.47, 277.37 213.43, 272.73 208.50 C 268.10 203.57, 267.70 194.80, 266.10 187.33 C 264.51 179.86, 264.81 171.31, 263.18 163.69 C 261.56 156.07, 259.71 148.34, 256.35 141.62 C 252.99 134.91, 248.35 128.65, 243.03 123.38 C 237.70 118.11, 231.14 113.52, 224.39 110.00 C 217.64 106.48, 210.00 103.77, 202.50 102.25 C 195.00 100.74, 186.99 100.21, 179.41 100.91 Z" fill="#FDF7F0" stroke="#F6F1EA" stroke-width="16" stroke-linejoin="round"/>' +
-    '<path d="M 179.41 100.91 C 171.84 101.60, 164.15 103.58, 157.06 106.40 C 149.98 109.23, 143.03 113.25, 136.90 117.85 C 130.76 122.46, 124.99 128.06, 120.24 134.04 C 115.50 140.02, 111.42 146.79, 108.43 153.74 C 105.44 160.70, 103.84 168.24, 102.32 175.75 C 100.80 183.26, 100.53 191.19, 99.31 198.81 C 98.08 206.43, 97.61 214.38, 94.96 221.46 C 92.31 228.53, 85.96 234.61, 83.42 241.24 C 80.89 247.86, 76.59 257.99, 79.75 261.22 C 82.92 264.45, 96.48 258.39, 102.42 260.61 C 108.36 262.83, 111.38 268.88, 115.41 274.54 C 119.44 280.20, 121.40 289.37, 126.59 294.55 C 131.79 299.72, 140.24 305.90, 146.59 305.59 C 152.95 305.28, 158.79 294.05, 164.73 292.69 C 170.67 291.32, 175.68 295.01, 182.22 297.40 C 188.76 299.80, 197.40 307.35, 203.97 307.06 C 210.53 306.77, 216.22 299.51, 221.61 295.68 C 227.00 291.85, 230.07 284.88, 236.32 284.08 C 242.57 283.28, 252.48 291.72, 259.12 290.87 C 265.76 290.02, 273.86 284.81, 276.16 278.99 C 278.46 273.16, 270.56 261.49, 272.93 255.91 C 275.29 250.34, 284.78 250.01, 290.35 245.53 C 295.92 241.06, 305.78 233.84, 306.37 229.06 C 306.97 224.29, 299.53 220.32, 293.92 216.89 C 288.31 213.47, 277.37 213.43, 272.73 208.50 C 268.10 203.57, 267.70 194.80, 266.10 187.33 C 264.51 179.86, 264.81 171.31, 263.18 163.69 C 261.56 156.07, 259.71 148.34, 256.35 141.62 C 252.99 134.91, 248.35 128.65, 243.03 123.38 C 237.70 118.11, 231.14 113.52, 224.39 110.00 C 217.64 106.48, 210.00 103.77, 202.50 102.25 C 195.00 100.74, 186.99 100.21, 179.41 100.91 Z" fill="#FDF7F0" stroke="#1D2233" stroke-width="7" stroke-linejoin="round"/>' +
-    '<ellipse cx="137.75" cy="178.1" rx="11.5" ry="19.5" fill="#1F2434"/><ellipse cx="196.78" cy="179.06" rx="12" ry="19.5" fill="#1F2434"/>' +
-    '<path d="M159 198 Q166 207 173 198" fill="none" stroke="#1F2434" stroke-width="6" stroke-linecap="round"/>' +
-    '<g fill="none" stroke="#F6F1EA" stroke-width="7" stroke-linecap="round"><path d="M282 104 L289 88"/><path d="M299 117 L316 103"/><path d="M305 136 L322 135"/></g>' +
-    '</svg>';
+  const n = Math.max(1, Math.min(256, Number(size) || 32));
+  return '<img class="share-brand-mark" src="' + BRAND_MARK_SRC + '" alt="" style="width:' + n + 'px;height:' + n + 'px;object-fit:contain;display:block;" />';
 }
 const USER_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 function msgText(content) {
@@ -420,7 +416,7 @@ function buildShareNode(msgs, title) {
     const text = msgText(m.content);
     const reactionId = isBot ? reactionIdFromMessage(text) : null;
     if (reactionId) {
-      html += '<div class="msg bot reaction-msg"><div class="avatar bot-avatar">' + inlineLogoSvg(38) + '</div><div class="bubble reaction-card reaction-' + reactionId + '">' + escapeHtml(REACTION_LABELS[reactionId]) + '</div><span class="msg-time">' + fmtMsgTime(m.created_at) + '</span></div>';
+      html += '<div class="msg bot reaction-msg"><div class="avatar bot-avatar">' + inlineLogoSvg(38) + '</div><div class="' + reactionBubbleClass(reactionId) + '">' + escapeHtml(REACTION_LABELS[reactionId]) + '</div><span class="msg-time">' + fmtMsgTime(m.created_at) + '</span></div>';
       continue;
     }
     const memeId = isBot ? memeIdFromMessage(text) : null;
@@ -1312,7 +1308,7 @@ function botAvatar() {
   const a = document.createElement('div');
   a.className = 'avatar bot-avatar';
   a.setAttribute('aria-hidden', 'true');
-  a.innerHTML = '<img src="logo.svg?v=2" alt="" />';
+  a.innerHTML = '<img src="assets/fixpilot-logo-mark-v4.webp" alt="" />';
   return a;
 }
 function userAvatar() {
@@ -1337,12 +1333,12 @@ function quickQuestionChipsHtml() {
 const WELCOME_HTML =
   '<div class="welcome">' +
     '<div class="hero">' +
-      '<img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />' +
+      '<img class="hero-logo" src="assets/fixpilot-logo-mark-v4.webp" alt="FixPilot" />' +
       '<div class="hero-title">FixPilot</div>' +
       '<div class="hero-sub">电脑故障排查、快速定位、一键解决</div>' +
     '</div>' +
     '<div class="msg bot">' +
-      '<div class="avatar bot-avatar" aria-hidden="true"><img src="logo.svg?v=2" alt="" /></div>' +
+      '<div class="avatar bot-avatar" aria-hidden="true"><img src="assets/fixpilot-logo-mark-v4.webp" alt="" /></div>' +
       '<div class="bubble"><p>你好，我是 <strong>FixPilot</strong>。描述一下你遇到的电脑问题，我会帮你逐步定位故障并给出解决办法。</p>' +
       '<p>比如：<em>开机黑屏但风扇在转</em>、<em>游戏经常闪退</em>、<em>电脑没声音</em>。</p></div>' +
     '</div>' +
@@ -1358,7 +1354,7 @@ function onboardingStep() {
 }
 function levelGuideHtml() {
   return '<div class="welcome onboarding-guide onboarding-first" data-step="level">' +
-    '<div class="hero"><img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />' +
+    '<div class="hero"><img class="hero-logo" src="assets/fixpilot-logo-mark-v4.webp" alt="FixPilot" />' +
     '<div class="hero-title">选一下你的电脑熟悉度</div></div>' +
     '<div class="onboarding-cards">' +
       '<button class="onboarding-card" data-level="beginner"><strong>不太懂</strong><span>一步一步带你做</span></button>' +
@@ -1369,7 +1365,7 @@ function levelGuideHtml() {
 }
 function styleGuideHtml() {
   return '<div class="welcome onboarding-guide" data-step="style">' +
-    '<div class="hero"><img class="hero-logo" src="logo.svg?v=2" alt="FixPilot" />' +
+    '<div class="hero"><img class="hero-logo" src="assets/fixpilot-logo-mark-v4.webp" alt="FixPilot" />' +
     '<div class="hero-title">最后一个，你喜欢我怎么说话？</div><div class="hero-sub">以后随时可以改。</div></div>' +
     '<div class="onboarding-cards">' +
       '<button class="onboarding-card" data-style="normal"><strong>正常点</strong><span>正常解释，靠谱解决</span></button>' +
@@ -1625,11 +1621,16 @@ function memeIdFromMessage(content) {
 function memeSrc(memeId) {
   return 'memes/' + memeId + '.png';
 }
+function reactionBubbleClass(reactionId) {
+  // “6” is deliberately a normal assistant message, not a badge-like reaction card.
+  // Other text reactions retain their compact, distinct presentation.
+  return reactionId === 'six' ? 'bubble' : 'bubble reaction-card reaction-' + reactionId;
+}
 function renderReactionMsg(div, reactionId) {
   if (!REACTION_LABELS[reactionId]) return false;
   const bubble = div.querySelector('.bubble');
   div.classList.add('reaction-msg');
-  bubble.className = 'bubble reaction-card reaction-' + reactionId;
+  bubble.className = reactionBubbleClass(reactionId);
   bubble.textContent = REACTION_LABELS[reactionId];
   return true;
 }

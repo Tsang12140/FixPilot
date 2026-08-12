@@ -15,7 +15,7 @@
   <title>FixPilot</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
   <link rel="apple-touch-icon" href="favicon.svg?v=3" />
-  <link rel="stylesheet" href="style.css?v=43" />
+  <link rel="stylesheet" href="style.css?v=51" />
 </head>
 <body>
   <!-- 登录界面 -->
@@ -73,10 +73,6 @@
     <!-- 会话侧边栏 -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <picture class="sidebar-brand-mark">
-          <source srcset="assets/fixpilot-logo-mark-v3.webp" type="image/webp" />
-          <img src="assets/fixpilot-logo-mark-v3.png" alt="FixPilot" />
-        </picture>
         <span class="sidebar-name">FixPilot</span>
       </div>
       <label class="sidebar-search" for="conversationSearch">
@@ -107,10 +103,12 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
         </button>
         <div class="topbar-left">
-          <picture class="topbar-brand-lockup">
-            <source srcset="assets/fixpilot-logo-lockup-v3.webp" type="image/webp" />
-            <img src="assets/fixpilot-logo-lockup-v3.png" alt="FixPilot" />
-          </picture>
+          <span class="topbar-ghost-card" aria-hidden="true">
+            <img src="logo.svg?v=2" alt="" />
+          </span>
+          <div class="topbar-title">
+            <div class="name">FixPilot</div>
+          </div>
         </div>
         <div class="topbar-right">
           <button type="button" class="quota-wrap" id="quotaWrap" style="display:none" aria-label="&#x4F7F;&#x7528;&#x72B6;&#x6001;" title="">
@@ -302,6 +300,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=59"></script>
 </body>
 </html>

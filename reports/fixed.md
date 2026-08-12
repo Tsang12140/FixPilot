@@ -414,3 +414,92 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: browser contract PASS: normal send gives one user + one assistant row with no page errors; `fmtMsgTime` evaluated to `8月9日 01:02` and the divider to `昨天 04:37`. Evidence: `reports/test-runs/test-20260810-043700-browser-send-path-final.json`.
 - Final status: fixed before handoff; time text is expressed through JavaScript Unicode escapes and is independent of terminal code pages.
 - Commit: pending with the P1 repair.
+---
+
+## 2026-08-11 Asia/Shanghai - wordmark export initially retained an opaque background
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: the first local `fixpilot-wordmark-v5` export reported alpha extrema `(255, 255)`, meaning it had no real transparency and would have shown the original pale background in the UI.
+- Confirmed root cause: the generated alpha channel was edited in Pillow but not assigned back to the RGBA image before saving.
+- Files changed: `backend/static/assets/fixpilot-wordmark-v5.webp`, `backend/static/assets/fixpilot-wordmark-v5.png`.
+- Verification: corrected exports decode as RGBA with alpha extrema `(0, 255)` and visible bounds `(4, 3, 509, 124)`. Connected-component validation found 10 substantial components: eight letter bodies plus both `i` dots. The defect was caught before either output was referenced by the UI.
+- Final status: fixed in the working tree; the final wordmark is an exact crop from the owner-provided source, with no model-redrawn lettering.
+- Commit: none (per project rule, commit/push only on explicit instruction).
+
+---
+
+## 2026-08-12 Asia/Shanghai - tablet sidebar-collapse icon overlapped the model picker
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: at desktop/tablet widths, the sidebar-collapse icon was positioned over the composer/model-picker area.
+- Confirmed root cause: the desktop `.sidebar-toggle-btn` used an absolute bottom anchor (`bottom: 50px`) while the composer is bottom-aligned in the same main panel.
+- Files changed: `backend/static/style.css`, `backend/static/index.html` (stylesheet cache token); login ghost references were also synchronized to `logo.svg` as requested.
+- Verification: static responsive-placement contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. Live visual inspection remains pending.
+- Final status: fixed in the working tree. The desktop/tablet control now anchors in the top-left header lane, with the top bar reserving space; the mobile hide rule is retained.
+- Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - layout revision for the tablet sidebar-toggle/model-picker collision
+
+- Fixing agent/model: Codex (GPT-5).
+- Product decision: the earlier top-header remedy is superseded. The owner chose a dedicated input-bar action lane instead.
+- Confirmed root cause: the original bottom-anchored icon had no reserved horizontal space, so it could overlay the full-width composer and its model picker.
+- Files changed: `backend/static/style.css`, `backend/static/index.html` (stylesheet cache token).
+- Verification: static responsive-placement contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. Live visual inspection remains pending.
+- Final status: fixed in the working tree with the intended layout: tablet composer starts after a dedicated left control lane, wide composer remains centered, and mobile keeps its separate menu control.
+- Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - composer left edge did not align with assistant bubbles
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: after reserving a tablet action lane, the input-frame border was still farther right than the left edge of assistant bubbles.
+- Confirmed root cause: the lane was applied as a 72px wrapper margin but the composer itself has an additional 24px internal inset.
+- Files changed: `backend/static/style.css`, `backend/static/index.html` (stylesheet cache token).
+- Verification: static 72px alignment contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. Live visual inspection remains pending.
+- Final status: fixed in the working tree. The visible composer border and assistant-bubble start now share the same calculated content line; the sidebar control remains outside that line.
+- Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - desktop sidebar-toggle incorrectly followed the composer column
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: on large screens the sidebar-collapse control appeared beside the composer instead of at the main panel's lower-left edge.
+- Confirmed root cause: the prior responsive rule used a `calc()` formula based on the centered composer column for all desktop widths.
+- Files changed: `backend/static/style.css`, `backend/static/index.html` (stylesheet cache token).
+- Verification: static desktop/tablet placement contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. Live visual inspection remains pending.
+- Final status: fixed in the working tree. The desktop/tablet control is pinned to the main panel's left gutter; composer/bubble alignment remains independent.
+- Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - standalone `6` used a badge style and assistant timestamps had inconsistent left axes
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: shared-chat `6` reactions appeared as oversized bold cards rather than normal assistant text; timestamp starts differed between regular assistant messages, reactions, and meme cards.
+- Confirmed root cause: `renderReactionMsg()` and the share renderer always assigned `.reaction-card`, whose typography differs from `.bubble`. Timestamp CSS retained three incompatible left offsets (62px / 48px / inherited category rules) despite every assistant bubble following the same 34px avatar plus 10px gap geometry.
+- Files changed: `backend/static/app.js`, `backend/static/style.css`, `backend/static/index.html`.
+- Verification: `node --check backend/static/app.js` PASS; `git diff --check` PASS; local HTTP responses serve `style.css?v=51` and `app.js?v=59`, including the `six -> bubble` classifier plus 44px timestamp rules. A direct browser reattach for the final visual pass timed out after reload; no live-model/API call was made.
+- Final status: fixed in the working tree and served by the local static endpoint. Manual visual refresh of the share link is the remaining presentation confirmation.
+- Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - correction: standalone shared-page `6` and timestamp alignment were omitted from the first repair
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: after refreshing a public shared-chat link, `6` was still a large bold badge and assistant timestamps remained visibly misaligned.
+- Confirmed root cause: the original repair changed only `app.js` and `style.css`, but `/share/{token}` is rendered by the independent inline `backend/static/share.html`. That page still assigned `.reaction-card` to `6` and had zero timestamp padding for reaction/meme rows.
+- Files changed: `backend/static/share.html`.
+- Verification: browser reload of `http://localhost:8000/share/vT_xYrQfmXorSxVU` confirmed normal assistant content and `6` both use `15px / 400 / 11px 14px`; both timestamps begin at the same 74px text axis. `git diff --check` PASS. No live model/API call was made.
+- Final status: fixed and verified locally. This addendum supersedes the earlier standalone-share claim; the earlier renderer scope was incomplete.
+- Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - standalone share timestamps permanently displayed instead of matching main-chat interaction
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: public conversation shares permanently displayed every message timestamp, making their rhythm differ from the main chat and drawing attention to timestamp alignment that is normally secondary.
+- Confirmed root cause: `backend/static/share.html` had an independent `.msg-time { opacity: 0.7; }` rule and no hover reveal state.
+- Files changed: `backend/static/share.html`.
+- Verification: local HTTP response for the affected share contains `opacity: 0`, `.msg:hover .msg-time { opacity: 1; }`, and no legacy `opacity: 0.7` timestamp rule; `git diff --check` PASS. No model/API request was made.
+- Final status: fixed locally. Share timestamps reserve their original layout space but only fade in on message hover, matching the main-chat behavior.
+- Commit: none (not requested).

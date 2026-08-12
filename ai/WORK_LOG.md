@@ -1117,3 +1117,110 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Follow-up / risk: the supplied horizontal mark is intentionally limited to the header. If the owner wants the new illustration in chat avatars or login, review/use the dedicated compact mark separately rather than changing `logo.svg` globally.
 
 - Log correction: the source-file name in the preceding entry was affected by Windows terminal encoding. The asset was unambiguously selected from E:\download using the ASCII suffix *11_10_33.png; the repository outputs, checksums/sizes, and all UI references above are unaffected.
+
+### 2026-08-11 - replace visible product logo surfaces with the owner-supplied v4 artwork
+
+- Request / goal: use `file/logo (1).png` as the new FixPilot logo, process it into transparent WebP assets, and replace the visible header, mobile sidebar, assistant, onboarding, login, and share-image logo surfaces.
+- Finding / decision: the supplied source is an opaque RGB 2172 x 724 image with a near-white background. Its supplied artwork was preserved without generative redraw. Edge-connected near-white background extraction retained interior light highlights and created a true alpha channel.
+- Changed:
+  - `backend/static/assets/fixpilot-logo-lockup-v4.webp` and `.png` - transparent horizontal lockup (512 x 142; WebP 16,556 bytes).
+  - `backend/static/assets/fixpilot-logo-mark-v4.webp` and `.png` - transparent compact mark (192 x 192; WebP 7,004 bytes).
+  - `backend/static/index.html` - uses the v4 lockup in the header and the v4 mark on login and the mobile sidebar; bumped the application-script cache tag to `app.js?v=58`.
+  - `backend/static/app.js` - uses the v4 mark for assistant avatars, welcome/onboarding, and generated long share images; replaced the duplicated inline SVG renderer with the shared compact mark asset.
+- Verified: all four generated assets decode as RGBA with alpha extrema `(0, 255)`; static reference contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. Local browser verification at desktop and 390px mobile widths selected the v4 WebP assets, showed the mobile sidebar mark at 34 x 34, the header lockup at 142 x 39 / 105 x 29, had no horizontal overflow, and reported no page errors. No login, message, image upload, or model/API request was made.
+- Commit: none by design; the owner did not request a commit or push. Concurrent worktree changes remain intentionally untouched.
+- Follow-up / risk: the browser tab favicon remains its existing independent asset. Earlier v1-v3 candidates are preserved but no longer referenced, so the previous logo can be restored only by an explicit product decision rather than an accidental rollback.
+
+### 2026-08-11 - replace ghost-and-wordmark brand lockups with a complete letters-only wordmark
+
+- Request / goal: remove the ghost from the displayed horizontal product logo after visual review, retain only the `FixPilot` letters, and correct the visibly incomplete `i` caused by the prior lockup crop/extraction.
+- Finding / decision: the issue was confined to horizontal branding, not assistant avatars. The wordmark was therefore re-extracted directly from `file/logo (1).png` using the full original text bounds, including both `i` dots and the terminal `t`; no text was regenerated. The compact ghost remains only where it functions as the bot/avatar mark.
+- Changed:
+  - `backend/static/assets/fixpilot-wordmark-v5.webp` and `.png` - transparent, letters-only source-derived wordmark (512 x 127; WebP 33,012 bytes).
+  - `backend/static/index.html` - header and mobile sidebar now use the v5 wordmark; removed the separate sidebar `FixPilot` text to avoid duplicate branding; bumped `style.css` cache tag to v44.
+  - `backend/static/style.css` - replaced the square sidebar-mark sizing rule with a left-aligned 112 x 28 wordmark layout.
+- Verified: v5 WebP and PNG decode as RGBA with alpha extrema `(0, 255)`; alpha-component validation found the eight glyph bodies and both `i` dots; static header/sidebar reference contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. No model/API request was made. A temporary local Uvicorn start did not reach a listening socket, so no browser-layout assertion is claimed for this follow-up; the temporary process was stopped.
+- Commit: none by design; the owner did not request a commit or push. Concurrent worktree changes remain untouched.
+- Follow-up / risk: when the usual local server is next running, visually confirm the v5 header at desktop and mobile widths. The independent favicon and the bot/avatar image remain intentionally unchanged.
+
+### 2026-08-11 - replace the oversized horizontal wordmark with compact text branding and a framed ghost card
+
+- Request / goal: after visual review found the letters-only horizontal wordmark too large and unattractive, restore the earlier compact brand treatment. Place the login-style ghost (white border, rounded card, soft shadow) at the upper-right of the main conversation header, and make the remaining letters smaller.
+- Finding / decision: a large raster wordmark is not a good fit for the constrained header. The selected intermediate design uses text for `FixPilot`, preserving legibility at all widths; the ghost is separated into its own small framed decorative card in the header action group. Assistant/chat avatars are unchanged.
+- Changed:
+  - `backend/static/index.html` - replaced the header and sidebar wordmark pictures with compact `FixPilot` text; restored the small product subtitle in the desktop header; added a `topbar-ghost-card` using the current v4 compact ghost ahead of the header actions; bumped the CSS cache tag to v45.
+  - `backend/static/style.css` - added the white, rounded, shadowed ghost-card treatment; set compact text sizing; hides the mobile subtitle and reduces the ghost card to 34px so the action area remains usable.
+- Verified: static header/sidebar structure contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. No model/API request was made. Local browser preview could not be completed because the current local server was not listening on port 8000; a temporary launch attempt failed before spawning due to a PowerShell environment `Path` collision, not a project source error.
+- Commit: none by design; the owner did not request a commit or push. Concurrent worktree changes remain untouched.
+- Follow-up / risk: visually review the header at normal desktop and mobile widths after starting the usual `Start-FixPilot.cmd`. The v5 wordmark files remain available but are intentionally no longer referenced by the UI.
+
+### 2026-08-12 - restore the original SVG ghost to the left of the compact header name
+
+- Request / goal: replace the unsatisfactory current ghost with the earlier project SVG, position it left of the `FixPilot` text, remove the subtitle below the letters, and remove the brand card from the right-side action group.
+- Changed:
+  - `backend/static/index.html` - moved a `logo.svg?v=2` ghost card into the left brand block before `FixPilot`; removed the subtitle and the former right-side v4 ghost picture; bumped the CSS cache tag to v46.
+  - `backend/static/style.css` - retained the existing white rounded/shadowed card treatment, added the left-brand spacing, and removed the obsolete subtitle/mobile subtitle rules.
+- Verified: static brand-header contract PASS (SVG in left block, ghost precedes name, no subtitle, no right-side ghost, desktop/mobile card sizing and cache version present); `node --check backend/static/app.js` PASS; `git diff --check` PASS. No model/API request was made.
+- Commit: none by design; the owner did not request a commit or push. Concurrent worktree changes remain untouched.
+- Follow-up / risk: visually confirm desktop and mobile alignment after starting the usual local server; this is a purely presentational revision, with no chat/API behavior changed.
+
+### 2026-08-12 - align login branding with the original SVG and remove the tablet composer/toggle collision
+
+- Request / issue: use the original SVG ghost in the login view as well, and prevent the desktop/tablet sidebar-collapse control from overlapping the composer model picker at intermediate widths.
+- Finding: login still referenced the compact v4 raster mark while the main header had returned to `logo.svg`. At `min-width: 768px`, `.sidebar-toggle-btn` was absolutely anchored with `bottom: 50px`; this placed it in the same physical lane as the bottom-aligned composer and model menu on tablet-sized layouts.
+- Changed:
+  - `backend/static/index.html` - both login ghost references now use `logo.svg?v=2`; bumped the stylesheet cache token to `style.css?v=47`.
+  - `backend/static/style.css` - desktop/tablet sidebar toggle now anchors to the top-left header lane (`left: 20px; top: 14px`), while the top bar reserves 64px on its left for it. The mobile control remains unchanged and hidden at this breakpoint rule.
+- Verified: static layout contract PASS for the two login SVG references, cache token, top-anchored desktop toggle, reserved header lane, absence of the old bottom anchor, and mobile hide rule; `node --check backend/static/app.js` PASS; `git diff --check` PASS. No live model/API call was made. Browser visual verification remains pending because the usual local server was not started during this edit.
+- Commit: none by design; the owner did not request a commit or push. Existing concurrent changes and untracked logo assets remain untouched.
+- Follow-up / risk: after launching `Start-FixPilot.cmd`, visually inspect a roughly 768-1024px-wide window; the relevant controls should now occupy separate top-header and composer lanes.
+### 2026-08-12 - revise the tablet sidebar-toggle placement to a dedicated composer action lane
+
+- Product decision: the owner rejected the top-header placement. The sidebar-collapse control belongs next to the composer, provided it has its own space and never overlaps the model picker.
+- Changed: `backend/static/style.css` restores the desktop/tablet control to the composer lane (`bottom: 50px`). On wide layouts it sits in the left gutter of the centered 820px composer; from 768px through 1200px viewport width, `.composer-wrap` uses a 72px left inset and 16px right inset, creating a dedicated 56px action lane. `backend/static/index.html` bumps the stylesheet cache token from v47 to v48.
+- Verification: CSS responsive-placement contract PASS (composer-lane anchor, tablet lane, no obsolete topbar reserve, mobile hide rule); `node --check backend/static/app.js` PASS; `git diff --check` PASS. No live model/API call was made; no browser visual assertion is claimed.
+- Commit: none by design; the owner did not request a commit or push. Concurrent worktree changes remain untouched.
+- Follow-up / risk: open the standard local preview at roughly 768-1024px width. Expected order is sidebar-toggle button, clear gap, then the composer; at wider dimensions the composer remains centered.
+### 2026-08-12 - align the composer border with the assistant-bubble content column
+
+- Request: the owner clarified that the composer left edge, not merely its outer wrapper, must align with the leftmost assistant bubble.
+- Finding: at tablet width the bot bubble begins 72px from the main-panel edge: 28px chat padding + 34px avatar + 10px flex gap. The previous 72px composer wrapper inset added its own 24px composer padding, placing the visible composer border 24px too far right.
+- Changed: `backend/static/style.css` now uses a 48px tablet wrapper inset plus 24px composer padding, placing the visible composer border at the same 72px content line. Above the tablet range, the centered composer is translated right 48px and its sidebar-toggle gutter calculation follows that same column. `backend/static/index.html` bumps the stylesheet cache token to v49.
+- Verified: alignment math/static layout contract PASS; `node --check backend/static/app.js` PASS; `git diff --check` PASS. No live model/API call or visual-browser assertion was made.
+- Commit: none by design; the owner did not request a commit or push. Existing concurrent changes remain untouched.
+- Follow-up / risk: visually inspect the expected line at tablet and wide desktop widths after the standard local launch. The left composer border should align with the first assistant bubble, while the sidebar control sits outside it.
+### 2026-08-12 - place the desktop sidebar-toggle in the main panel's lower-left gutter
+
+- Request: the owner clarified that at large desktop sizes the sidebar-collapse control belongs at the lower-left edge of the main panel, not next to the centered composer.
+- Finding: the prior wide-screen positioning formula made the control follow the composer content column, contradicting the desired independent lower-left affordance. That relationship is only needed as a collision-avoidance concern on smaller screens.
+- Changed: `backend/static/style.css` now uses `left: 20px; bottom: 50px` for the desktop/tablet control. The bubble-aligned composer is unchanged: it remains shifted to the content column on wide screens and gets the tablet left action lane at constrained widths. `backend/static/index.html` bumps the stylesheet cache token to v50.
+- Verified: static placement contract PASS (fixed main-left control, bubble-aligned composer, tablet lane, no obsolete centering formula, mobile behavior retained); `node --check backend/static/app.js` PASS; `git diff --check` PASS. No live model/API call or browser visual assertion was made.
+- Commit: none by design; the owner did not request a commit or push. Existing concurrent changes remain untouched.
+- Follow-up / risk: after the usual local launch, confirm the desktop button is at the main panel lower-left corner and has ample separation from the centered composer.
+### 2026-08-12 - make the `6` reaction a normal message and align assistant timestamps
+
+- Request / problem: on shared conversation `vT_xYrQfmXorSxVU`, the standalone `6` was rendered as a conspicuously large, bold reaction card. Timestamp left edges varied between normal assistant replies, reactions, and memes.
+- Root cause / decision: all text reactions were forced through `.reaction-card` (18px, weight 650, compact padding), even though `6` is intended to read like an ordinary assistant utterance. Timestamp rules used category-specific left offsets (62px, 48px, and inherited overrides) instead of the actual assistant bubble origin: 34px avatar + 10px message gap = 44px.
+- Files changed:
+  - `backend/static/app.js` - added a reaction-bubble classifier; `six` now keeps the regular `.bubble` class in live streaming, history/admin replay, and generated shared conversation DOM. Other reactions stay compact.
+  - `backend/static/style.css` - normalized assistant, share-image, reaction, and meme timestamp offsets to `44px` with the same 2px vertical spacing.
+  - `backend/static/index.html` - bumped static cache tokens to `style.css?v=51` and `app.js?v=59`.
+- Verification: pre-change shared-page DOM measurement confirmed `6` used `18px / 650 / 7px 14px`, versus normal reply `15px / 400 / 11px 14px`. `node --check backend/static/app.js` PASS; `git diff --check` PASS. `GET http://localhost:8000/` returns CSS v51 and app v59; served v59 contains the normal-six renderer and served v51 contains both normalized timestamp rules. Browser reattach after reload timed out, so a final manual visual refresh remains useful.
+- Commit: none by design; the owner did not request a commit or push. Existing concurrent changes and assets remain untouched.
+- Follow-up / risk: after a normal refresh of the local share page, `6` should use the same font weight/size/padding as an ordinary assistant one-character message and all assistant-side timestamps should start directly under the bubble's left edge.
+### 2026-08-12 - correction: fix the standalone shared-conversation renderer for `6` and timestamp alignment
+
+- Request / problem: the owner refreshed shared conversation `vT_xYrQfmXorSxVU` and correctly found that the earlier `6` and timestamp fix had no effect on the public share page.
+- Correction to prior investigation: the earlier entry covered the live/history/admin renderer in `app.js` and common `style.css`, but incorrectly described the share link as covered. `/share/{token}` serves the independent inline renderer in `backend/static/share.html`; it does not load the application's common CSS or JS.
+- Root cause: `share.html` still hard-coded every text reaction as `.reaction-card` and removed the normal timestamp padding for reactions/memes. Thus `6` remained `18px / 650 / 7px 14px`, while its visible timestamp began 14px left of normal assistant text.
+- Files changed: `backend/static/share.html` - added the same `six -> bubble` classifier used by the main client and restored the normal timestamp inset for reaction and meme rows.
+- Verification: reloaded the actual local share URL in the browser. Both a normal assistant message and `6` measure `15px / 400 / 11px 14px`; their visible text and timestamp positions are both 74px from the viewport left. No model/API request was made. `git diff --check` PASS.
+- Commit: none by design; the owner did not request a commit or push. Existing concurrent changes and untracked assets remain untouched.
+- Final status: fixed and browser-verified on the actual standalone share page.
+### 2026-08-12 - make standalone shared-conversation timestamps follow the main-chat interaction model
+
+- Request / decision: the owner chose consistent behavior over permanently visible share-page timestamps. Timestamps on the public share view should remain hidden until the reader hovers the corresponding message, just like the main chat.
+- Changed: `backend/static/share.html` - replaced the independent always-visible timestamp rule (`opacity: 0.7`) with the main-chat visual contract: hidden by default, 180ms fade-in on `.msg:hover`, same low-emphasis typography and retained layout space so hovering does not shift messages.
+- Verification: the local server's actual `/share/vT_xYrQfmXorSxVU` response contains the new default-hidden and hover rules, no longer contains the old always-visible declaration, and retains the previously verified normal-six renderer plus timestamp alignment rules. `git diff --check` PASS. No live model/API call was made.
+- Commit: none by design; the owner did not request a commit or push. Existing concurrent changes and untracked assets remain untouched.
+- Final status: complete locally. Touch-only devices will keep timestamps hidden because there is no persistent hover state; this is intentional for visual consistency, and can later be revisited only if the owner wants a mobile-specific interaction.
