@@ -514,3 +514,14 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: node --check backend/static/app.js PASS; git diff --check PASS; local 390px browser execution confirmed deepseek-v4-flash-ga-260731 becomes ds-v4-flash and applies compact/tight picker classes. No model/API call was made.
 - Final status: fixed in the local working tree. Mobile <=430px prioritizes the intact brand and uses a readable abbreviated model ID; <=390px also removes the chevron to preserve space.
 - Commit: none (not requested).
+
+---
+
+## 2026-08-12 Asia/Shanghai - production memes rendered blank after Git deployment
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: BaoTa production conversations displayed blank assistant meme cards.
+- Confirmed root cause: meme source files lived in `file/img/`, and `.gitignore` excludes `file/`; the server received no PNG assets after `git pull`.
+- Files changed: `backend/static/memes/*.png`, `backend/app/main.py`, `tools/memes_test.py`.
+- Verification: FastAPI TestClient returned valid non-empty PNG responses for all eight allowlisted meme IDs and 404 for an unknown ID; `python tools/memes_test.py --json` passed M01-M08; Python compilation and `git diff --check` passed.
+- Final status: fixed locally. Meme assets are now Git-deployable static resources; commit hash pending because commit/push was not requested.

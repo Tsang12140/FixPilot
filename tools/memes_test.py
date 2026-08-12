@@ -37,6 +37,17 @@ def test_asset_curation():
     require("cool_gun" in memes.MEME_ASSETS, "approved meme disappeared")
 
 
+def test_deployable_meme_assets():
+    asset_dir = ROOT / "backend" / "static" / "memes"
+    expected_names = {f"{meme_id}.png" for meme_id in memes.MEME_ASSETS}
+    actual_names = {path.name for path in asset_dir.glob("*.png")}
+    require(actual_names == expected_names, f"meme asset set mismatch: {actual_names ^ expected_names}")
+    for filename in expected_names:
+        data = (asset_dir / filename).read_bytes()
+        require(data.startswith(b"\x89PNG\r\n\x1a\n"), f"{filename} is not a PNG")
+        require(len(data) > 1024, f"{filename} is unexpectedly small")
+
+
 def test_marker_compatibility():
     require(memes.reaction_id_from_message("6") == "six", "legacy six was not recognized")
     require(memes.reaction_id_from_message("[REACTION:six]") == "six", "semantic six marker failed")
@@ -82,12 +93,13 @@ def test_normalized_context_omits_ui_effects():
 
 
 check("M01", "active meme pool excludes rejected asset", test_asset_curation)
-check("M02", "semantic reactions preserve legacy compatibility and context exclusion", test_marker_compatibility)
-check("M03", "six cannot repeat in one conversation", test_six_never_repeats)
-check("M04", "acknowledgements do not trigger reactions", test_acknowledgements_are_quiet)
-check("M05", "reaction cooldown needs three ordinary assistant replies", test_cooldown)
-check("M06", "chichi is a compact semantic reaction", test_chichi_is_compact_reaction)
-check("M07", "UI-only reactions never leak into model context", test_normalized_context_omits_ui_effects)
+check("M02", "all active meme assets are deployable PNG files", test_deployable_meme_assets)
+check("M03", "semantic reactions preserve legacy compatibility and context exclusion", test_marker_compatibility)
+check("M04", "six cannot repeat in one conversation", test_six_never_repeats)
+check("M05", "acknowledgements do not trigger reactions", test_acknowledgements_are_quiet)
+check("M06", "reaction cooldown needs three ordinary assistant replies", test_cooldown)
+check("M07", "chichi is a compact semantic reaction", test_chichi_is_compact_reaction)
+check("M08", "UI-only reactions never leak into model context", test_normalized_context_omits_ui_effects)
 
 payload = {"suite": "memes", "results": results}
 failed = any(item["status"] != "PASS" for item in results)

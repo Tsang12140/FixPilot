@@ -34,7 +34,9 @@ async def no_cache_static(request, call_next):
     return response
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
-MEME_DIR = Path(__file__).resolve().parents[2] / "file" / "img"
+# Meme assets are deployable application resources, not ignored local working files.
+# Keeping them under static/ makes a normal Git deployment include them.
+MEME_DIR = STATIC_DIR / "memes"
 
 _chunks = load_chunks()
 db.init_db()
@@ -839,10 +841,9 @@ def share_page(token: str):
 
 @app.get("/memes/{meme_id}.png", include_in_schema=False)
 def meme_asset(meme_id: str):
-    filename = memes.MEME_ASSETS.get(meme_id)
-    if not filename:
+    if meme_id not in memes.MEME_ASSETS:
         raise HTTPException(status_code=404, detail="meme not found")
-    asset = MEME_DIR / filename
+    asset = MEME_DIR / f"{meme_id}.png"
     if not asset.is_file():
         raise HTTPException(status_code=404, detail="meme asset missing")
     return FileResponse(asset, media_type="image/png")

@@ -1235,3 +1235,15 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verification: node --check backend/static/app.js PASS; git diff --check PASS. A local 390px browser evaluation exercised the compact-picker path with deepseek-v4-flash-ga-260731 and returned ds-v4-flash with model-picker--short model-picker--tight. The local page is at its login screen, so no signed-in visual-layout claim is made. No model/API request was made.
 - Commit: none; the owner did not request a commit or push for this change.
 - Follow-up / risk: after a normal refresh on a signed-in phone, confirm the full brand remains visible and the model button displays ds-v4-flash on a narrow viewport. At ultra-narrow <=360px, the official-source pill hides as the final space-saving fallback, but the model button remains reachable.
+
+### 2026-08-12 - production meme assets were excluded from BaoTa deployments
+
+- Request / symptom: the BaoTa production build rendered assistant meme messages as blank even though the same effects were available during local development.
+- Finding / root cause: `backend/app/main.py` loaded meme files from the repository-root `file/img/` directory. That directory is intentionally excluded by `.gitignore`, so `git pull` on the server deployed the route and message markers but not the eight PNG files. The production route therefore returned a missing asset response.
+- Changed:
+  - `backend/static/memes/` - added the eight active PNGs using stable ASCII IDs (`you_ok.png`, `head_hold.png`, `face_cover.png`, `awkward_laugh.png`, `sweat.png`, `sweat_2.png`, `cool_gun.png`, `stop_bothering.png`) so they are application resources tracked by Git.
+  - `backend/app/main.py` - changed the meme directory to `backend/static/memes/` and resolves allowed meme IDs to their deployable ASCII filenames. The existing server-side allowlist remains in place.
+  - `tools/memes_test.py` - added M02, which asserts that every active allowlisted meme has a non-empty PNG in the deployable static directory.
+- Verification: `python -m py_compile backend/app/main.py backend/app/memes.py` passed; FastAPI TestClient requested all eight `/memes/{id}.png` routes and confirmed HTTP 200, PNG signature, and non-empty content, while an unknown ID returned 404; `python tools/memes_test.py --json` passed M01-M08; `git diff --check` passed. No model/API call was made.
+- Commit: none; not requested.
+- Follow-up / risk: production must receive this change through the normal commit/push and BaoTa `git pull` deployment workflow. After deploy, opening `/fixpilot/memes/awkward_laugh.png` should show the PNG directly; no manual `file/img/` upload should be required.
