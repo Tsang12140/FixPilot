@@ -2610,7 +2610,9 @@ function compactModelLabel(label) {
   const value = String(label || '').trim();
   if (!value) return 'Model';
   // ① 去尾巴：砍掉末尾纯日期戳/版本号段（如 -260425、-20260810、_v2、-beta、rc1 等）
-  let short = value.replace(/[-_.]([0-9]{4,}(?:[a-z0-9._-]*)?|dev|beta|rc\d*)$/i, '');
+  let short = value
+    .replace(/[-_.](?:ga|release|stable)[-_.]?\d+(?:[a-z0-9._-]*)?$/i, '')
+    .replace(/[-_.]([0-9]{4,}(?:[a-z0-9._-]*)?|dev|beta|rc\d*)$/i, '');
   // ② 品牌缩写：先查规则库，命中用映射；未命中走机械兜底（>4 才取前 2 字母）
   const m = short.match(/^([A-Za-z]+)([-_.].*)?$/);
   if (m && m[1]) {
@@ -2644,12 +2646,16 @@ function syncMobileModelPicker() {
 
   const labelOverflows = modelPickerLabel.scrollWidth > modelPickerLabel.clientWidth + 1;
   const header = document.querySelector('.topbar');
-  const headerOverflows = header && header.scrollWidth > header.clientWidth + 1;
-  if (labelOverflows || headerOverflows) {
+  let headerOverflows = header && header.scrollWidth > header.clientWidth + 1;
+  // A compact phone header has to protect the brand before it protects the full model ID.
+  // At this width the abbreviated ID is clearer than two labels visually colliding.
+  const constrainedMobileHeader = window.innerWidth <= 430;
+  if (constrainedMobileHeader || labelOverflows || headerOverflows) {
     modelPickerBtn.classList.add('model-picker--short');
     modelPickerLabel.innerHTML = escapeModelHtml(compactModelLabel(fullLabel)) + pickerPillHtml(_pickerKind, _pickerIndex);
+    headerOverflows = header && header.scrollWidth > header.clientWidth + 1;
   }
-  if (header && header.scrollWidth > header.clientWidth + 1) {
+  if (window.innerWidth <= 390 || headerOverflows) {
     modelPickerBtn.classList.add('model-picker--tight');
   }
 }

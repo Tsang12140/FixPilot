@@ -1224,3 +1224,14 @@ The official-source registry audit and runtime lookup gate above were implemente
 - Verification: the local server's actual `/share/vT_xYrQfmXorSxVU` response contains the new default-hidden and hover rules, no longer contains the old always-visible declaration, and retains the previously verified normal-six renderer plus timestamp alignment rules. `git diff --check` PASS. No live model/API call was made.
 - Commit: none by design; the owner did not request a commit or push. Existing concurrent changes and untracked assets remain untouched.
 - Final status: complete locally. Touch-only devices will keep timestamps hidden because there is no persistent hover state; this is intentional for visual consistency, and can later be revisited only if the owner wants a mobile-specific interaction.
+### 2026-08-12 - prevent mobile model picker from colliding with the FixPilot brand
+
+- Request / problem: on narrow mobile screens, the header model name and the left-side FixPilot brand visually consumed each other. The model picker needed to abbreviate to a readable identifier such as ds-v4-flash when space is constrained, rather than truncate the brand or overlap controls.
+- Root cause / decision: the mobile picker only shortened after detected scroll overflow. Flex layout could shrink the brand/picker before a measurable header overflow occurred, so the fallback did not reliably trigger. The brand block was also allowed to shrink with the action region.
+- Changed:
+  - backend/static/app.js - compact mobile headers at <=430px now proactively use compactModelLabel; <=390px uses the tight picker state. Build suffixes such as -ga-260731 are stripped first, producing ds-v4-flash instead of ds-v4-flash-ga.
+  - backend/static/style.css - made the mobile brand block non-shrinking, let the action region absorb remaining width, bounded the picker to responsive viewport widths, and retained ellipsis only as an extreme fallback.
+  - backend/static/index.html - bumped static cache tokens to style.css?v=52 and app.js?v=60.
+- Verification: node --check backend/static/app.js PASS; git diff --check PASS. A local 390px browser evaluation exercised the compact-picker path with deepseek-v4-flash-ga-260731 and returned ds-v4-flash with model-picker--short model-picker--tight. The local page is at its login screen, so no signed-in visual-layout claim is made. No model/API request was made.
+- Commit: none; the owner did not request a commit or push for this change.
+- Follow-up / risk: after a normal refresh on a signed-in phone, confirm the full brand remains visible and the model button displays ds-v4-flash on a narrow viewport. At ultra-narrow <=360px, the official-source pill hides as the final space-saving fallback, but the model button remains reachable.

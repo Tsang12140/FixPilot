@@ -503,3 +503,14 @@ Implemented and verified in commit `cc47baf` (`feat: gate lookup with official s
 - Verification: local HTTP response for the affected share contains `opacity: 0`, `.msg:hover .msg-time { opacity: 1; }`, and no legacy `opacity: 0.7` timestamp rule; `git diff --check` PASS. No model/API request was made.
 - Final status: fixed locally. Share timestamps reserve their original layout space but only fade in on message hover, matching the main-chat behavior.
 - Commit: none (not requested).
+---
+
+## 2026-08-12 Asia/Shanghai - mobile model name collided with the FixPilot brand
+
+- Fixing agent/model: Codex (GPT-5).
+- Symptom: on a narrow mobile header, the full model ID could visually collide with or crowd out the FixPilot wordmark.
+- Confirmed root cause: picker compaction relied only on post-layout overflow detection, while flexbox could compress adjacent header content without exposing a reliable overflow signal; the brand group could shrink too.
+- Files changed: backend/static/app.js, backend/static/style.css, backend/static/index.html.
+- Verification: node --check backend/static/app.js PASS; git diff --check PASS; local 390px browser execution confirmed deepseek-v4-flash-ga-260731 becomes ds-v4-flash and applies compact/tight picker classes. No model/API call was made.
+- Final status: fixed in the local working tree. Mobile <=430px prioritizes the intact brand and uses a readable abbreviated model ID; <=390px also removes the chevron to preserve space.
+- Commit: none (not requested).

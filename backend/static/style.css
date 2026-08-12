@@ -666,10 +666,11 @@ body {
   .quota-exp { display: none; } /* 移动端仅显示次数，避免顶栏拥挤 */
   /* Mobile header is intentionally limited to navigation, brand, status and actions. */
   .topbar { gap: 8px; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
-  .topbar-left { display: flex; gap: 7px; min-width: 0; }
-  .topbar-title .name { font-size: 15px; }
+  .topbar-left { display: flex; gap: 7px; min-width: 0; flex: 0 0 auto; }
+  .topbar-title { flex: 0 0 auto; min-width: 0; }
+  .topbar-title .name { font-size: 15px; white-space: nowrap; }
   .topbar-ghost-card { width: 34px; height: 34px; flex-basis: 34px; padding: 2px; border-radius: 11px; }
-  .topbar-right { gap: 3px; }
+  .topbar-right { gap: 3px; min-width: 0; flex: 1 1 auto; justify-content: flex-end; }
   .fav-btn { display: none !important; }
   .quota-wrap { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 10px; }
   .quota-wrap .quota { display: none; }
@@ -681,16 +682,22 @@ body {
   .bubble { padding: 8px 12px; line-height: 1.6; }
   .bubble p { margin-bottom: 7px; }
   .topbar { min-width: 0; }
-  .topbar-right { min-width: 0; flex: 0 0 auto; }
-  .topbar-right .model-picker-wrap { position: static; grid-area: auto; width: auto; align-self: center; }
-  .topbar-right .model-picker-btn { min-width: 0; max-width: 220px; height: 32px; padding: 4px 7px; border-radius: 9px; background: #f7f9fe; color: #34415a; box-shadow: none; }
+  .topbar-right .model-picker-wrap { position: static; grid-area: auto; width: auto; min-width: 0; flex: 0 1 auto; display: flex; justify-content: flex-end; align-self: center; }
+  .topbar-right .model-picker-btn { min-width: 0; max-width: min(220px, 42vw); height: 32px; padding: 4px 7px; border-radius: 9px; background: #f7f9fe; color: #34415a; box-shadow: none; }
   .topbar-right .model-picker-btn:hover { background: #edf2ff; color: var(--accent-text); }
   .model-picker-btn .chevron { width: 13px; height: 13px; flex: 0 0 13px; }
   #modelPickerLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .topbar-right .model-dropdown { top: calc(100% + 14px); right: 0; bottom: auto; left: auto; width: min(340px, calc(100vw - 24px)); }
-  .model-picker--short #modelPickerLabel { overflow: visible; }
+  .model-picker--short #modelPickerLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .model-picker--tight { gap: 0 !important; padding-left: 6px !important; padding-right: 6px !important; }
   .model-picker--tight .chevron { display: none; }
+}
+@media (max-width: 430px) {
+  .topbar-right .model-picker-btn { max-width: 140px; }
+}
+@media (max-width: 360px) {
+  .topbar-right .model-picker-btn { max-width: 110px; }
+  .model-picker--tight .mp-pill { display: none; }
 }
 
 /* ---------- 登录界面 ---------- */
